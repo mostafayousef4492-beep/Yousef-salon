@@ -10,198 +10,201 @@
 @media(prefers-color-scheme:dark){:root{--bg:#0F1826;--card:#18253A;--ink:#EDF1F7;--mute:#93A0B5;--line:#2A3A54}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,Tahoma,sans-serif;line-height:1.6;padding-top:env(safe-area-inset-top,0)}
 .pole{height:8px;background:repeating-linear-gradient(-45deg,var(--red) 0 12px,#fff 12px 24px,var(--blue) 24px 36px,#fff 36px 48px)}
+#brand{text-align:center;font-weight:800;font-size:18px;padding:10px 0 0}
 #app{max-width:720px;margin:0 auto;padding:0 14px 90px}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0)}
 nav button{flex:1;background:none;border:0;color:var(--mute);font:inherit;font-size:13px;padding:9px 4px;cursor:pointer}nav button.on{color:var(--red);font-weight:800}
-h1{font-size:23px;margin:16px 0 8px}h2{font-size:16px;margin:16px 0 8px}
-.box,.row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+h1{font-size:23px;margin:16px 0 8px}h2{font-size:16px;margin:18px 0 8px}
+.box,.row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .m{color:var(--mute);font-size:13px}
 .btn{background:var(--red);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer}
-.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.s{padding:4px 11px;font-size:13px}.btn:disabled{opacity:.4}
+.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.s{padding:4px 11px;font-size:13px}.btn.w{width:100%}.btn:disabled{opacity:.4}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 13px;font:inherit;cursor:pointer}
-.chip.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}.chip:disabled{opacity:.3;text-decoration:line-through}
-input,select{width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;margin-bottom:8px}
-.tag{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--line)}
-.stars button{background:none;border:0;font-size:32px;color:var(--line);cursor:pointer}.stars button.on{color:var(--brass)}
+.chip.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+input,select,textarea{width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;margin-bottom:8px}
+.tag{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--line)}.tag.ok{background:var(--ok);color:#fff}.tag.rd{background:var(--red);color:#fff}
+.tk{background:var(--card);border:2px dashed var(--brass);border-radius:14px;text-align:center;padding:14px;margin-bottom:10px}
+.tk .no{font-size:64px;font-weight:800;line-height:1;color:var(--red)}
+.bar{height:8px;background:var(--line);border-radius:9px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--brass)}
+.stars button{background:none;border:0;font-size:30px;color:var(--line);cursor:pointer;padding:0 2px}.stars button.on{color:var(--brass)}
 .tot{display:flex;justify-content:space-between}.tot.f{font-weight:800;font-size:18px;border-top:1px dashed var(--line);margin-top:6px;padding-top:6px}
-.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;z-index:9}
-button:focus-visible,input:focus-visible{outline:3px solid var(--blue)}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;z-index:9;max-width:90%}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue)}
 </style>
 </head>
 <body>
-<div class="pole"></div><div style="text-align:center;font-weight:800;font-size:18px;padding:10px 0 0" id="brand">💈</div><div id="app"></div><nav id="nav"></nav>
+<div class="pole"></div><div id="brand">💈</div><div id="app"></div><nav id="nav"></nav>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script>
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const C={cfg:{salon_name:"صالون أبو يوسف",currency:"ج.م",days_ahead:5,max_discount_pct:20}};
 const fm=n=>Math.round(n).toLocaleString("ar-EG")+" "+C.cfg.currency;
-const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200)};
+const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)};
+const PER={morning:"صباحًا (6–12)",afternoon:"ظهرًا (12–5)",evening:"مساءً (5–12)",night:"سهرة (12–6)"};
 const ST={upcoming:"قادم",checked_in:"وصل",in_service:"على الكرسي",done:"خلص",cancelled:"ملغي"};
-let me=null,tab="";const C={cfg:{salon_name:"صالون أبو يوسف",phone:"",address:"",currency:"ج.م",open_hour:10,close_hour:20,slot_minutes:60,days_ahead:5,weekly_off:5,cancel_before_hours:2,points_per_currency:10,max_discount_pct:20,booking_open:true}};
-
-const PD={cashier:{use_pos:1,view_stock:1,view_invoices:1,manage_appts:1,view_customers:1,view_customer_phone:1},barber:{view_own_sales:1,view_own_commission:1,view_own_finance:1,view_own_reviews:1,view_own_schedule:1}};
-const can=(k,p=me)=>p.role=="owner"||(p.perms&&k in p.perms?!!p.perms[k]:!!(PD[p.role]||{})[k]);
-async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);document.title=C.cfg.salon_name;$("brand").textContent="💈 "+C.cfg.salon_name}
-async function boot(){
-await loadCfg();
-const{data:{session}}=await sb.auth.getSession();
-if(!session)return authView();
-const{data:p}=await sb.from("profiles").select("*").eq("id",session.user.id).single();
-me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
-const staff=["owner","cashier","barber"].includes(me.role);
-const own=me.role=="owner";
-if(staff){const T=[];if(can("use_pos"))T.push(["pos","الكاشير"]);if(can("manage_appts"))T.push(["appts","الحجوزات"]);if(can("view_stock"))T.push(["stock","المخزون"]);if(can("view_invoices"))T.push(["inv","الفواتير"]);if(me.role=="barber")T.push(["me","شاشتي"]);if(own)T.push(["team","الموظفين"],["set","الإعدادات"]);C.tabs=[...T,["out","خروج"]];go(T[0]?T[0][0]:"none")}
-else{C.tabs=[["book","احجز"],["mine","حجوزاتي"],["out","خروج"]];go("book")}}
-
-function go(t){if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
-tab=t;$("nav").innerHTML=C.tabs.map(x=>`<button class="${x[0]==t?"on":""}" onclick="go('${x[0]}')">${x[1]}</button>`).join("");V[t]()}
+const LR={purchase:"فاتورة",welcome:"هدية التسجيل",review:"تقييم",visit:"مكافأة زيارات",redeem:"استبدال مكافأة"};
+const ACTIVE=["upcoming","checked_in","in_service"];
+const PD={cashier:{use_attendance:1,use_pos:1,manage_appts:1},barber:{view_own_schedule:1,use_attendance:1}};
+const can=k=>me.role=="owner"||(me.perms&&k in me.perms?!!me.perms[k]:!!(PD[me.role]||{})[k]);
+let me,cu,tab,tabs,timer;const V={};
 const put=h=>$("app").innerHTML=h;
+const Q=p=>Promise.resolve(p).then(r=>{if(r.error)throw r.error;return r.data});
+const R=(n,a)=>Q(sb.rpc(n,a||{}));
+const run=async f=>{try{await f()}catch(e){toast(e.message||"حصل خطأ، جرّب تاني")}};
+const dstr=i=>new Date(Date.now()+i*864e5).toLocaleDateString("sv");
+const dlabel=i=>i==0?"النهارده":i==1?"بكرة":new Date(Date.now()+i*864e5).toLocaleDateString("ar-EG",{weekday:"long",day:"numeric"});
 
+/* ===== الدخول ===== */
+async function boot(){
+  const{data:s}=await sb.from("app_settings").select("*");(s||[]).forEach(r=>C.cfg[r.key]=r.value);
+  document.title=C.cfg.salon_name;$("brand").textContent="💈 "+C.cfg.salon_name;
+  const{data:{session}}=await sb.auth.getSession();if(!session)return authView();
+  const{data:p}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
+  me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
+  if(["owner","cashier","barber"].includes(me.role)){
+    const T=[];
+    if(can("use_pos"))T.push(["pos","الكاشير"]);
+    if(me.role=="barber"||me.role=="owner")T.push(["q","الدور"]);
+    if(can("use_attendance"))T.push(["att","حضوري"]);
+    tabs=[...T,["out","خروج"]];return go(T[0]?T[0][0]:"none");
+  }
+  cu=await Q(sb.from("customers").select("*").eq("user_id",me.id).maybeSingle());
+  if(!cu)return regView();
+  tabs=[["book","احجز"],["mine","حجوزاتي"],["loy","نقاطي"],["out","خروج"]];go("book");
+}
+function go(t){
+  clearInterval(timer);
+  if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
+  tab=t;$("nav").innerHTML=tabs.map(x=>`<button class="${x[0]==t?"on":""}" onclick="go('${x[0]}')">${x[1]}</button>`).join("");
+  run(()=>V[t]());
+}
+function live(t,f){timer=setInterval(()=>{if(tab==t&&!document.hidden)run(f)},15000)}
 function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1><div class="box"><input id="nm" placeholder="الاسم (للتسجيل الجديد فقط)"><input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة السر (6 حروف على الأقل)"><div class="chips"><button class="btn" onclick="login()">دخول</button><button class="btn g" onclick="signup()">حساب جديد</button></div></div>`)}
-async function login(){const{error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});error?toast("بيانات الدخول غلط"):boot()}
-async function signup(){const{error}=await sb.auth.signUp({email:$("em").value.trim(),password:$("pw").value,options:{data:{full_name:$("nm").value.trim()}}});if(error)return toast(error.message);toast("تم إنشاء الحساب");boot()}
+async function login(){const{error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});error?toast("البريد أو كلمة السر غلط"):boot()}
+async function signup(){const{data,error}=await sb.auth.signUp({email:$("em").value.trim(),password:$("pw").value,options:{data:{full_name:$("nm").value}}});if(error)return toast(error.message);data.session?boot():toast("افتح الرابط اللي وصلك على الإيميل وبعدين ادخل")}
+function regView(msg){put(`<h1>كمّل بياناتك</h1><div class="box">${msg?`<p>${msg}</p><button class="btn w" onclick="boot()">حدّث الحالة</button>`:`<input id="rn" placeholder="الاسم" value="${esc(me.full_name)}"><input id="rp" type="tel" inputmode="numeric" placeholder="رقم الموبايل (01xxxxxxxxx)"><button class="btn w" onclick="doReg()">سجّل وخد هدية التسجيل</button>`}</div>`)}
+function doReg(){run(async()=>{const id=await R("register_customer",{p_name:$("rn").value.trim(),p_phone:$("rp").value});
+  if(id===0)regView("الرقم ده متسجل عندنا قبل كده. اطلب من الكاشير يأكد إنه رقمك، وبعدين اضغط \"حدّث الحالة\".");else boot()})}
 
-const V={
-// ===== عميل =====
-async book(){
-if(!C.cfg.booking_open)return put(`<h1>الحجز</h1><p class="m">الحجز أونلاين متوقف حاليًا. كلمنا على ${esc(C.cfg.phone||"الصالون")}.</p>`);
-const[{data:sv},{data:br}]=await Promise.all([sb.from("services").select("*").eq("active",true).order("id"),sb.rpc("list_barbers")]);
-C.sv=sv||[];C.br=br||[];C.b={s:[],barber:null,day:0,time:null};drawBook()},
-async mine(){
-const{data}=await sb.from("appointments").select("id,starts_at,status,appointment_services(services(name)),reviews:invoices(id,reviews(rating))").order("starts_at",{ascending:false});
-put(`<h1>حجوزاتي</h1>`+(data?.length?data.map(a=>{const inv=a.reviews?.[0],rated=inv?.reviews?.length;return `<div class="row"><div><b>${new Date(a.starts_at).toLocaleString("ar-EG",{weekday:"long",hour:"2-digit",minute:"2-digit",day:"numeric",month:"numeric"})}</b><div class="m">${(a.appointment_services||[]).map(x=>x.services.name).join(" + ")}</div></div><div><span class="tag">${ST[a.status]}</span>${a.status=="done"&&inv&&!rated?`<br><button class="btn s" onclick="rateView(${inv.id})">قيّم</button>`:""}${rated?`<div class="m">★ ${inv.reviews[0].rating}</div>`:""}${a.status=="upcoming"?`<br><button class="btn s g" onclick="cancelA(${a.id})">إلغاء</button>`:""}</div></div>`}).join(""):`<p class="m">لسه معندكش حجوزات.</p>`))},
-// ===== موظفين =====
-async pos(){
-const[{data:sv},{data:pr},{data:cu},{data:br}]=await Promise.all([sb.from("services").select("*").eq("active",true),sb.from("products").select("*").eq("active",true),sb.from("customers").select("id,name"),sb.from("profiles").select("id,full_name").eq("role","barber")]);
-C.P={sv,pr,cu,br,s:C.P?.s||[],p:C.P?.p||[],cid:C.P?.cid||"",bid:C.P?.bid||"",appt:C.P?.appt||null,disc:0,pay:"cash"};drawPos()},
-async appts(){
-const from=new Date();from.setHours(0,0,0,0);
-const{data}=await sb.from("appointments").select("id,starts_at,status,customer_id,barber_id,customers(name),profiles(full_name),appointment_services(service_id,services(name))").gte("starts_at",from.toISOString()).order("starts_at");
-C.A=data||[];put(`<h1>الحجوزات</h1>`+(C.A.length?C.A.map(a=>`<div class="row"><div><b>${new Date(a.starts_at).toLocaleString("ar-EG",{weekday:"short",hour:"2-digit",minute:"2-digit"})}</b> · ${esc(a.customers?.name)}<div class="m">${a.appointment_services.map(x=>esc(x.services.name)).join(" + ")} · ${esc(a.profiles?.full_name||"أي حلاق")}</div></div><div style="text-align:left"><span class="tag">${ST[a.status]}</span><br>${a.status=="upcoming"?`<button class="btn s" onclick="setS(${a.id},'checked_in')">وصل</button> <button class="btn s g" onclick="setS(${a.id},'cancelled')">إلغاء</button>`:""}${a.status=="checked_in"?`<button class="btn s" onclick="setS(${a.id},'in_service')">ابدأ</button>`:""}${a.status=="in_service"?`<button class="btn s" onclick="payAppt(${a.id})">دفع</button>`:""}</div></div>`).join(""):`<p class="m">مفيش حجوزات قادمة.</p>`))},
-async stock(){
-const{data}=await sb.from("products").select("*").order("name");
-put(`<h1>المخزون</h1>`+data.map(p=>`<div class="row"><div><b>${esc(p.name)}</b><div class="m">شراء ${p.cost} · بيع ${p.price}</div></div><div style="text-align:left"><span class="tag" style="${p.stock<=p.min_stock?"background:var(--red);color:#fff":""}">${p.stock} قطعة</span><br>${can("restock")?`<button class="btn s g" onclick="restock(${p.id},${p.stock})">+10 توريد</button>`:""}</div></div>`).join(""))},
-async inv(){
-const{data,error}=await sb.from("invoices").select("no,total,payment_method,created_at,customers(name),invoice_items(name,qty,unit_price)").order("created_at",{ascending:false}).limit(50);
-if(error)return put(`<h1>الفواتير</h1><p class="m">مفيش صلاحية لعرض الفواتير لحسابك.</p>`);
-put(`<h1>الفواتير</h1>`+(data.length?data.map(i=>`<details class="row" style="display:block"><summary><b>#${i.no}</b> · ${esc(i.customers?.name||"عميل عابر")} · <b>${fm(i.total)}</b></summary>${i.invoice_items.map(x=>`<div class="tot m"><span>${esc(x.name)} ×${x.qty}</span><span>${fm(x.unit_price*x.qty)}</span></div>`).join("")}<div class="m">${new Date(i.created_at).toLocaleString("ar-EG")} · ${i.payment_method}</div></details>`).join(""):`<p class="m">لسه مفيش فواتير.</p>`))}
+/* ===== العميل: الحجز بالدور ===== */
+const B={day:dstr(0),per:"morning",bar:null,sv:new Set(),svc:null,bl:[]};
+V.book=async()=>{if(!B.svc)B.svc=await Q(sb.from("services").select("*").eq("active",true).order("category"));await loadBars();drawBook()};
+async function loadBars(){B.bl=await R("available_barbers",{p_day:B.day,p_period:B.per}).catch(e=>{toast(e.message);return[]})}
+async function pickB(k,v){B[k]=v;if(k!="bar"){B.bar=null;await loadBars()}drawBook()}
+function tgS(id){B.sv.has(id)?B.sv.delete(id):B.sv.add(id);drawBook()}
+function drawBook(){
+  const n=+C.cfg.days_ahead||5,cats=[...new Set(B.svc.map(s=>s.category||"خدمات"))];
+  const tot=B.svc.filter(s=>B.sv.has(s.id)).reduce((a,s)=>a+ +s.price,0);
+  put(`<h1>احجز دورك</h1>
+  <h2>اليوم</h2><div class="chips">${Array.from({length:n},(_,i)=>`<button class="chip ${B.day==dstr(i)?"sel":""}" onclick="pickB('day','${dstr(i)}')">${dlabel(i)}</button>`).join("")}</div>
+  <h2>الفترة</h2><div class="chips">${Object.entries(PER).map(([k,v])=>`<button class="chip ${B.per==k?"sel":""}" onclick="pickB('per','${k}')">${v}</button>`).join("")}</div>
+  <h2>الحلاق</h2>${B.bl.length?`<div class="chips"><button class="chip ${B.bar===null?"sel":""}" onclick="pickB('bar',null)">الأقل انتظارًا</button>${B.bl.map(b=>`<button class="chip ${B.bar==b.id?"sel":""}" onclick="pickB('bar','${b.id}')">${esc(b.full_name)} <span class="m">(${b.waiting} منتظر · ~${b.est_min} د)</span></button>`).join("")}</div>`:`<div class="box m">مفيش حلاق متاح في الفترة دي، جرّب فترة أو يوم تاني.</div>`}
+  <h2>الخدمات</h2>${cats.map(c=>`<div class="m">${esc(c)}</div><div class="chips">${B.svc.filter(s=>(s.category||"خدمات")==c).map(s=>`<button class="chip ${B.sv.has(s.id)?"sel":""}" onclick="tgS(${s.id})">${esc(s.name)} · ${fm(s.price)}</button>`).join("")}</div>`).join("")}
+  <div class="box"><div class="tot f"><span>الإجمالي</span><b>${fm(tot)}</b></div></div>
+  <button class="btn w" ${B.sv.size&&B.bl.length?"":"disabled"} onclick="confirmBook()">احجز الدور</button>`);
+}
+function confirmBook(){run(async()=>{await R("book_ticket",{p_barber:B.bar,p_day:B.day,p_period:B.per,p_services:[...B.sv]});B.sv.clear();toast("اتحجز دورك ✓");go("mine")})}
+
+/* ===== العميل: حجوزاتي + التقييم ===== */
+V.mine=async()=>{
+  const h=await R("my_history"),act=h.filter(x=>ACTIVE.includes(x.status));
+  const qs=await Promise.all(act.map(x=>R("queue_status",{p_id:x.id}).then(r=>r[0])));
+  const old=h.filter(x=>!ACTIVE.includes(x.status));
+  put(`<h1>حجوزاتي</h1>${qs.length?qs.map(q=>{
+    const st=q.status=="in_service"?`<b>إنت على الكرسي دلوقتي</b>`:q.called?`<b style="color:var(--red)">اتنادى عليك! تعالى دلوقتي</b><div class="chips" style="justify-content:center;margin-top:8px"><button class="chip ${q.eta=="on_way"?"sel":""}" onclick="eta(${q.id},'on_way')">في الطريق</button><button class="chip ${q.eta=="arrived"?"sel":""}" onclick="eta(${q.id},'arrived')">وصلت</button></div>`
+      :`قدامك <b>${q.ahead}</b> · تقريبًا <b>${q.est_min}</b> دقيقة`;
+    return `<div class="tk"><div class="m">${q.day} · ${PER[q.period]} · ${esc(q.barber_name||"")}</div><div class="no">${q.ticket_no}</div><div class="m">الحالي عند الحلاق: ${q.current_no??"لسه ما بدأ"}</div><div style="margin:8px 0">${st}</div><div class="m">${esc(q.services)} · ${fm(q.total)}</div>${!q.called&&q.status=="upcoming"?`<button class="btn g s" style="margin-top:8px" onclick="cancelA(${q.id})">إلغاء الحجز</button>`:""}</div>`}).join(""):`<div class="box m">مفيش حجز نشط. اضغط "احجز" وخد دورك.</div>`}
+  <h2>الحجوزات اللي فاتت</h2>${old.map(x=>`<div class="row"><div><b>#${x.ticket_no??""}</b> ${x.day} · ${esc(x.barber_name||"")}<div class="m">${esc(x.services)}</div></div><div style="text-align:left"><span class="tag ${x.status=="done"?"ok":""}">${ST[x.status]}</span>${x.paid?`<div class="m">${fm(x.paid)}${x.points?` · +${x.points} نقطة`:""}</div>`:""}${x.status=="done"&&!x.rated?`<button class="btn s" onclick="rateView(${x.id})">قيّم (+${C.cfg.review_bonus||20} نقطة)</button>`:""}</div></div>`).join("")||`<div class="m">لسه مفيش.</div>`}`);
+  if(qs.length)live("mine",V.mine);
 };
+const eta=(id,s)=>run(async()=>{await R("ticket_eta",{p_id:id,p_state:s});V.mine()});
+const cancelA=id=>{if(confirm("تلغي الحجز؟"))run(async()=>{await R("cancel_my_appt",{p_id:id});V.mine()})};
+const RT={id:0,b:0,s:0,p:0,tags:new Set,note:""};
+const TAGS=["شغل نضيف","سريع","محترم","المكان نضيف","ملتزم بالدور"];
+function rateView(id){clearInterval(timer);if(id){Object.assign(RT,{id,b:0,s:0,p:0,tags:new Set,note:""})}
+  const st=(k,l)=>`<div class="row"><span>${l}</span><span class="stars">${[1,2,3,4,5].map(i=>`<button class="${RT[k]>=i?"on":""}" onclick="RT.${k}=${i};rateView()" aria-label="${i}">★</button>`).join("")}</span></div>`;
+  put(`<h1>قيّم زيارتك</h1>${st("b","الحلاق")}${st("s","الخدمة")}${st("p","المكان")}<div class="chips">${TAGS.map(t=>`<button class="chip ${RT.tags.has(t)?"sel":""}" onclick="RT.note=$('rn').value;RT.tags.has('${t}')?RT.tags.delete('${t}'):RT.tags.add('${t}');rateView()">${t}</button>`).join("")}</div><textarea id="rn" rows="3" placeholder="ملاحظة (اختياري)">${esc(RT.note)}</textarea><button class="btn w" ${RT.b&&RT.s&&RT.p?"":"disabled"} onclick="sendRate()">ابعت التقييم</button> <button class="btn g w" style="margin-top:8px" onclick="go('mine')">لاحقًا</button>`)}
+const sendRate=()=>run(async()=>{await R("rate_ticket",{p_appt:RT.id,p_barber:RT.b,p_service:RT.s,p_place:RT.p,p_tags:[...RT.tags],p_note:$("rn").value});toast("شكرًا! اتضافت نقاط التقييم ✓");go("mine")});
 
-function drawBook(){const b=C.b,days=[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return{i,off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
-const times=slots();
-put(`<h1>احجز موعد</h1><h2>الخدمات</h2><div class="chips">${C.sv.map(s=>`<button class="chip ${b.s.includes(s.id)?"sel":""}" onclick="tgS(${s.id})">${esc(s.name)} · ${s.price}</button>`).join("")}</div>
-<h2>الحلاق</h2><div class="chips"><button class="chip ${b.barber===null?"sel":""}" onclick="C.b.barber=null;bookSlots()">أي حلاق</button>${C.br.map(x=>`<button class="chip ${b.barber===x.id?"sel":""}" onclick="C.b.barber='${x.id}';bookSlots()">${esc(x.full_name)}</button>`).join("")}</div>
-<h2>اليوم</h2><div class="chips">${days.map(d=>`<button class="chip ${b.day==d.i?"sel":""}" ${d.off?"disabled":""} onclick="C.b.day=${d.i};C.b.time=null;bookSlots()">${d.l}</button>`).join("")}</div>
-<h2>الساعة</h2><div class="chips" id="slots"></div>
-<button class="btn" style="width:100%;margin-top:10px" ${b.s.length&&b.time!=null?"":"disabled"} onclick="confirmBook()">تأكيد الحجز · ${fm(C.sv.filter(s=>b.s.includes(s.id)).reduce((a,s)=>a+s.price,0))}</button>`);
-bookSlots()}
-async function bookSlots(){const b=C.b;const d=new Date();d.setDate(d.getDate()+b.day);const ds=d.toISOString().slice(0,10);
-const{data}=await sb.rpc("taken_slots",{p_day:ds});const times=slots();
-const mk=t=>{const x=new Date(d);const[h,m]=t.split(":");x.setHours(+h,+m,0,0);return x};
-const taken=t=>{const iso=mk(t).getTime();return (data||[]).some(r=>new Date(r.starts_at).getTime()==iso&&(b.barber?r.barber_id==b.barber:false))};
-const past=t=>mk(t)<new Date();
-if($("slots"))$("slots").innerHTML=times.map(t=>`<button class="chip ${b.time===t?"sel":""}" ${taken(t)||past(t)?"disabled":""} onclick="C.b.time='${t}';drawBook()">${t}</button>`).join("");
-document.querySelector(".btn[onclick='confirmBook()']")&&(document.querySelector(".btn[onclick='confirmBook()']").disabled=!(b.s.length&&b.time))}
-function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];drawBook()}
-async function confirmBook(){const b=C.b;const{data:{user}}=await sb.auth.getUser();
-let{data:cu}=await sb.from("customers").select("id").eq("user_id",user.id).maybeSingle();
-if(!cu){const r=await sb.from("customers").insert({user_id:user.id,name:me.full_name}).select("id").single();cu=r.data}
-const d=new Date();d.setDate(d.getDate()+b.day);const[h,m]=b.time.split(":");d.setHours(+h,+m,0,0);
-const{data:a,error}=await sb.from("appointments").insert({customer_id:cu.id,barber_id:b.barber,starts_at:d.toISOString()}).select("id").single();
-if(error)return toast(error.code=="23505"?"الميعاد ده اتحجز، اختار وقت تاني":error.message);
-await sb.from("appointment_services").insert(b.s.map(s=>({appointment_id:a.id,service_id:s})));
-toast("تم تأكيد حجزك ✓");go("mine")}
-async function cancelA(id){const{error}=await sb.rpc("cancel_my_appt",{p_id:id});error?toast(error.message):go("mine")}
-const slots=()=>{const o=[],st=+C.cfg.slot_minutes;for(let m=C.cfg.open_hour*60;m+st<=C.cfg.close_hour*60;m+=st)o.push(String(m/60|0).padStart(2,"0")+":"+String(m%60).padStart(2,"0"));return o};
-function rateView(inv){C.R={inv,r:0,tg:[]};drawRate()}
-function drawRate(){const R=C.R,tags=["نظافة المكان","دقة الموعد","مهارة الحلاق","سعر مناسب"];
-put(`<h1>قيّم تجربتك</h1><div class="stars" style="text-align:center">${[1,2,3,4,5].map(i=>`<button class="${R.r>=i?"on":""}" aria-label="${i}" onclick="C.R.r=${i};drawRate()">★</button>`).join("")}</div><div class="chips">${tags.map(t=>`<button class="chip ${R.tg.includes(t)?"sel":""}" onclick="C.R.tg=C.R.tg.includes('${t}')?C.R.tg.filter(x=>x!='${t}'):[...C.R.tg,'${t}'];drawRate()">${t}</button>`).join("")}</div><input id="nt" placeholder="ملاحظات (اختياري)"><button class="btn" ${R.r?"":"disabled"} onclick="sendRate()">إرسال</button>`)}
-async function sendRate(){const R=C.R;const{data:{user}}=await sb.auth.getUser();
-const{data:cu}=await sb.from("customers").select("id").eq("user_id",user.id).single();
-const{data:inv}=await sb.from("invoices").select("barber_id").eq("id",R.inv).single();
-const{error}=await sb.from("reviews").insert({invoice_id:R.inv,customer_id:cu.id,barber_id:inv?.barber_id,rating:R.r,tags:R.tg,note:$("nt").value});
-error?toast(error.message):(toast("شكرًا على تقييمك 💈"),go("mine"))}
+/* ===== العميل: النقاط والمكافآت ===== */
+V.loy=async()=>{
+  const[c,rw,rd,lg]=await Promise.all([Q(sb.from("customers").select("*").eq("id",cu.id).single()),Q(sb.from("loyalty_rewards").select("*").eq("active",true).order("cost")),
+    Q(sb.from("loyalty_redemptions").select("*,loyalty_rewards(name)").eq("customer_id",cu.id).eq("status","active")),Q(sb.from("loyalty_ledger").select("*").eq("customer_id",cu.id).order("id",{ascending:false}).limit(15))]);
+  const t=(await R("loyalty_tier",{p_life:c.lifetime_points}))[0];
+  put(`<h1>نقاطي</h1><div class="box"><div class="row" style="border:0;padding:0;margin:0"><div><div class="m">رصيدك</div><b style="font-size:34px">${c.points}</b> نقطة</div><span class="tag rd">${t.name} · ×${t.mult}</span></div>
+  <div class="bar"><i style="width:${t.next_at?Math.min(100,c.lifetime_points/t.next_at*100):100}%"></i></div><div class="m">${t.next_at?`باقي ${t.next_at-c.lifetime_points} نقطة للمستوى الجاي`:"وصلت لأعلى مستوى 👑"} · زياراتك: ${c.visits}</div></div>
+  ${rd.length?`<h2>كوبوناتك (اديها للكاشير)</h2>${rd.map(r=>`<div class="row"><span>${esc(r.loyalty_rewards.name)}</span><b style="letter-spacing:2px">${r.code}</b></div>`).join("")}`:""}
+  <h2>استبدل نقاطك</h2>${rw.map(r=>`<div class="row"><div>${esc(r.name)}<div class="m">${r.cost} نقطة</div></div><button class="btn s" ${c.points<r.cost?"disabled":""} onclick="redeem(${r.id})">استبدل</button></div>`).join("")}
+  <h2>آخر الحركات</h2>${lg.map(l=>`<div class="row"><span>${LR[l.reason]||l.reason}${l.note?` <span class="m">${esc(l.note)}</span>`:""}</span><b style="color:${l.points>0?"var(--ok)":"var(--red)"}">${l.points>0?"+":""}${l.points}</b></div>`).join("")||`<div class="m">لسه مفيش حركات.</div>`}`);
+};
+const redeem=id=>run(async()=>{const code=await R("redeem_reward",{p_reward:id});toast("كودك: "+code);V.loy()});
 
-// ===== كاشير =====
-function drawPos(){const P=C.P,sub=P.s.reduce((a,i)=>a+P.sv.find(x=>x.id==i).price,0)+P.p.reduce((a,i)=>a+P.pr.find(x=>x.id==i.id).price*i.q,0),d=sub*P.disc/100;
-put(`<h1>الكاشير</h1><h2>الخدمات</h2><div class="chips">${P.sv.map(x=>`<button class="chip ${P.s.includes(x.id)?"sel":""}" onclick="P_s(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div><h2>المنتجات</h2><div class="chips">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})">${esc(x.name)} · ${x.price}${c?" ×"+c.q:""}</button>`}).join("")}</div>
-<div class="box" style="margin-top:12px"><select onchange="C.P.cid=this.value"><option value="">عميل عابر</option>${P.cu.map(c=>`<option value="${c.id}" ${P.cid==c.id?"selected":""}>${esc(c.name)}</option>`).join("")}</select><select onchange="C.P.bid=this.value"><option value="">اختار الحلاق</option>${P.br.map(c=>`<option value="${c.id}" ${P.bid==c.id?"selected":""}>${esc(c.full_name)}</option>`).join("")}</select>
-<div class="chips">${[0,5,10,20].filter(x=>me.role=="owner"||x<=C.cfg.max_discount_pct).map(x=>`<button class="chip ${P.disc==x?"sel":""}" onclick="C.P.disc=${x};drawPos()">خصم ${x}%</button>`).join("")}${[["cash","كاش"],["card","كارت"],["wallet","محفظة"]].map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("")}</div>
-<div class="tot f"><span>المطلوب</span><span>${fm(sub-d)}</span></div><button class="btn" style="width:100%;margin-top:8px" ${sub?"":"disabled"} onclick="checkout()">دفع وإصدار فاتورة</button></div>`)}
-function P_s(id){const P=C.P;P.s=P.s.includes(id)?P.s.filter(x=>x!=id):[...P.s,id];drawPos()}
-function P_p(id){const P=C.P,c=P.p.find(x=>x.id==id),pr=P.pr.find(x=>x.id==id);if(c){c.q<pr.stock?c.q++:toast("الكمية خلصت")}else P.p.push({id,q:1});drawPos()}
-async function checkout(){const P=C.P;const items=[...P.s.map(id=>({type:"service",id,qty:1})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
-const{data,error}=await sb.rpc("checkout_invoice",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc,p_method:P.pay,p_appointment:P.appt});
-if(error)return toast(error.message);C.P=null;toast("تم إصدار فاتورة رقم "+data);go("inv")}
-async function setS(id,s){await sb.from("appointments").update({status:s}).eq("id",id);go("appts")}
-function payAppt(id){const a=C.A.find(x=>x.id==id);C.P={s:a.appointment_services.map(x=>x.service_id),p:[],cid:a.customer_id,bid:a.barber_id||"",appt:id};go("pos")}
-async function restock(id,q){const{error}=await sb.rpc("restock_product",{p_id:id,p_qty:10});error?toast(error.message):go("stock")}
-// ===== شاشة الموظف والإدارة =====
-const mm=x=>x==null?"—":fm(x);const KIND={advance:"سحب",deduction:"خصم",bonus:"مكافأة"};C.rg="month";
-const rangeOf=k=>{const a=new Date();a.setHours(0,0,0,0);const b=new Date(a);
-if(k=="week"){a.setDate(a.getDate()-((a.getDay()+1)%7));b.setTime(a.getTime());b.setDate(b.getDate()+7)}
-else if(k=="month"){a.setDate(1);b.setTime(a.getTime());b.setMonth(b.getMonth()+1)}else b.setDate(b.getDate()+1);
-return[a.toISOString(),b.toISOString()]};
-async function panel(id,owner){
-C.reload=()=>panel(id,owner);const[f,t]=rangeOf(C.rg);
-const[{data:sm,error:e1},{data:tx},{data:rv},{data:sc}]=await Promise.all([
-sb.rpc("staff_summary",{p_staff:id,p_from:f,p_to:t}),
-sb.from("staff_transactions").select("*").eq("staff_id",id).gte("created_at",f).lt("created_at",t).order("created_at",{ascending:false}),
-sb.from("reviews").select("rating,tags,note,created_at").eq("barber_id",id).order("created_at",{ascending:false}).limit(20),
-sb.rpc("staff_schedule",{p_staff:id})]);
-if(e1)return $("panel").innerHTML=`<p class="m">${esc(e1.message)}</p>`;
-const s=sm?.[0]||{},avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
-const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c)=>`<div class="box" style="text-align:center"><div class="m">${l}</div><div style="font-weight:800;font-size:19px;color:${c||"inherit"}">${v}</div></div>`;
-$("panel").innerHTML=`<div class="chips">${[["day","اليوم"],["week","الأسبوع"],["month","الشهر"]].map(x=>`<button class="chip ${C.rg==x[0]?"sel":""}" onclick="C.rg='${x[0]}';C.reload()">${x[1]}</button>`).join("")}</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${card("مبيعاتي"+(s.cuts==null?"":" ("+s.cuts+" زبون)"),mm(s.sales))}${card("عمولتي",mm(s.commission),"var(--ok)")}${card("مكافآت",mm(s.bonuses),"var(--ok)")}${card("سحب",mm(s.advances),"var(--red)")}${card("خصومات",mm(s.deductions),"var(--red)")}${card("الصافي المستحق",mm(s.net),"var(--brass)")}</div>
-${owner?`<h2>تسجيل حركة</h2><div class="box"><select id="tk">${Object.entries(KIND).map(k=>`<option value="${k[0]}">${k[1]}</option>`).join("")}</select><input id="ta" type="number" inputmode="decimal" placeholder="المبلغ"><input id="tn" placeholder="ملاحظة (اختياري)"><button class="btn" onclick="addTx('${id}')">حفظ الحركة</button></div>`:""}
-<h2 ${S.f?"":"hidden"}>الحركات</h2>${tx?.length?tx.map(x=>`<div class="row"><div><b style="color:${x.kind=="bonus"?"var(--ok)":"var(--red)"}">${KIND[x.kind]}</b> · ${fm(x.amount)}<div class="m">${new Date(x.created_at).toLocaleDateString("ar-EG")} ${esc(x.note||"")}</div></div>${owner?`<button class="btn s g" onclick="delTx(${x.id})">حذف</button>`:""}</div>`).join(""):`<p class="m" ${S.f?"":"hidden"}>مفيش حركات في الفترة دي.</p>`}
-<h2 ${S.s?"":"hidden"}>زباين اليوم والجاي</h2>${sc?.length?sc.map(a=>`<div class="row"><div><b>${new Date(a.starts_at).toLocaleString("ar-EG",{weekday:"short",hour:"2-digit",minute:"2-digit"})}</b> · ${esc(a.customer_name)}${a.customer_phone?" · "+esc(a.customer_phone):""}<div class="m">${esc(a.services)}</div></div><div style="text-align:left"><span class="tag">${ST[a.status]}</span>${!owner&&a.status=="upcoming"?`<br><button class="btn s" onclick="myS(${a.id},'checked_in')">وصل</button>`:""}${!owner&&a.status=="checked_in"?`<br><button class="btn s" onclick="myS(${a.id},'in_service')">ابدأ</button>`:""}</div></div>`).join(""):`<p class="m" ${S.s?"":"hidden"}>مفيش زباين محجوزة.</p>`}
-<h2 ${S.r?"":"hidden"}>تقييماتي (المتوسط ★ ${avg})</h2>${rv?.length?rv.map(r=>`<div class="row" style="display:block"><b style="color:var(--brass)">${"★".repeat(r.rating)}</b> <span class="m">${(r.tags||[]).map(esc).join(" · ")}</span>${r.note?`<div>${esc(r.note)}</div>`:""}</div>`).join(""):`<p class="m" ${S.r?"":"hidden"}>لسه مفيش تقييمات.</p>`}`}
-async function addTx(id){const a=+$("ta").value;if(!(a>0))return toast("اكتب مبلغ صحيح");
-const{error}=await sb.from("staff_transactions").insert({staff_id:id,kind:$("tk").value,amount:a,note:$("tn").value});error?toast(error.message):(toast("تم الحفظ"),C.reload())}
-async function delTx(id){if(!confirm("حذف الحركة؟"))return;await sb.from("staff_transactions").delete().eq("id",id);C.reload()}
-async function myS(id,st){const{error}=await sb.rpc("set_my_appt_status",{p_id:id,p_status:st});error?toast(error.message):C.reload()}
-V.me=()=>{put(`<h1>شاشتي — ${esc(me.full_name)}</h1><div id="panel"></div>`);panel(me.id,false)};
-V.team=async()=>{
-const{data}=await sb.from("profiles").select("*").order("role").order("full_name");
-const RL={owner:"مالك",cashier:"كاشير",barber:"حلاق",customer:"عميل"};
-put(`<h1>الموظفين</h1><p class="m">غيّر دور أي حساب مسجل، وحدد عمولة الحلاق.</p>`+data.map(p=>`<div class="row" style="display:block"><b>${esc(p.full_name)}</b> <span class="tag">${RL[p.role]}</span>
-<div class="chips" style="margin-top:8px;align-items:center"><select id="r${p.id}" style="width:auto;margin:0">${Object.entries(RL).map(r=>`<option value="${r[0]}" ${p.role==r[0]?"selected":""}>${r[1]}</option>`).join("")}</select><input id="c${p.id}" type="number" value="${p.commission_pct}" style="width:80px;margin:0" aria-label="العمولة %"><span class="m">%</span><button class="btn s" onclick="saveP('${p.id}')">حفظ</button>${["barber","cashier"].includes(p.role)?`<button class="btn s g" onclick="openPerms('${p.id}')">الصلاحيات</button>`:""}${p.role=="barber"?`<button class="btn s g" onclick="openStaff('${p.id}','${esc(p.full_name)}')">الحساب</button>`:""}</div></div>`).join(""))};
-async function saveP(id){const{error}=await sb.from("profiles").update({role:$("r"+id).value,commission_pct:+$("c"+id).value||0}).eq("id",id);error?toast(error.message):(toast("تم الحفظ"),V.team())}
-function openStaff(id,name){put(`<button class="btn g s" style="margin-top:12px" onclick="V.team()">‹ رجوع</button><h1>حساب ${name}</h1><div id="panel"></div>`);panel(id,true)}
+/* ===== الحلاق / المالك: شاشة الدور ===== */
+const QS={bl:null,b:null};
+V.q=async()=>{
+  let bid=me.id,pick="";
+  if(me.role!="barber"){QS.bl=QS.bl||await R("list_barbers");bid=QS.b=QS.b||QS.bl[0]?.id;
+    pick=`<div class="chips">${QS.bl.map(b=>`<button class="chip ${b.id==bid?"sel":""}" onclick="QS.b='${b.id}';V.q()">${esc(b.full_name)}</button>`).join("")}</div>`}
+  const rows=bid?await R("staff_schedule",{p_staff:bid}):[];let last="";
+  put(`<h1>الدور</h1>${pick}${rows.map(r=>{const g=r.day+" · "+PER[r.period],h=g!=last?`<h2>${last=g}</h2>`:"";
+    return h+`<div class="row"><div><b style="font-size:20px;color:var(--red)">${r.ticket_no}</b> ${esc(r.customer_name)} <span class="tag ${r.status=="in_service"?"ok":""}">${ST[r.status]}</span>${r.eta?` <span class="tag">${r.eta=="arrived"?"وصل":"في الطريق"}</span>`:""}<div class="m">${esc(r.services)} · ${fm(r.total)}${r.customer_phone?` · <a href="tel:${esc(r.customer_phone)}">${esc(r.customer_phone)}</a>`:""}</div></div>
+    <div class="chips" style="margin:0">${!r.called&&r.status!="in_service"?`<button class="btn s" onclick="qa('call_ticket',${r.id})">نادِ</button>`:""}${r.status!="in_service"?`<button class="btn s g" onclick="qs(${r.id},'in_service')">ابدأ</button>`:`<button class="btn s g" onclick="qa('finish_ticket',${r.id})">خلّص</button>`}${r.status=="in_service"&&can("use_pos")?`<button class="btn s" onclick="payAppt(${r.id})">حاسب</button>`:""}</div></div>`}).join("")||`<div class="box m">مفيش زباين في الدور.</div>`}`);
+  live("q",V.q);
+};
+const qa=(f,id)=>run(async()=>{await R(f,{p_id:id});V.q()});
+const qs=(id,s)=>run(async()=>{await R("set_my_appt_status",{p_id:id,p_status:s});V.q()});
 
-// ===== الصلاحيات =====
-const PERMS=[["ط","الكاشير والمخزون"],["use_pos","يستخدم الكاشير ويصدر فواتير"],["view_stock","يشوف المخزون"],["restock","يوَرّد مخزون"],["view_invoices","يشوف كل الفواتير"],["ط","الحجوزات والعملاء"],["manage_appts","يشوف كل الحجوزات ويعدّل حالتها"],["view_customers","يشوف قائمة العملاء"],["view_customer_phone","يشوف أرقام تليفونات العملاء"],["ط","شاشته الشخصية"],["view_own_schedule","يشوف جدول زباينه"],["view_own_sales","يشوف مبيعاته"],["view_own_commission","يشوف عمولته"],["view_own_finance","يشوف السحب والخصومات والمكافآت والصافي"],["view_own_reviews","يشوف تقييماته"]];
-async function openPerms(id){const{data:p}=await sb.from("profiles").select("*").eq("id",id).single();C.pp=p;
-put(`<button class="btn g s" style="margin-top:12px" onclick="V.team()">‹ رجوع</button><h1>صلاحيات ${esc(p.full_name)}</h1><p class="m">اللي مش متعلّم عليه، الموظف مش هيشوفه ولا هيقدر يوصله حتى من برّه التطبيق.</p>`+PERMS.map(x=>x[0]=="ط"?`<h2>${x[1]}</h2>`:`<label class="row" style="cursor:pointer"><span>${x[1]}</span><input type="checkbox" id="p_${x[0]}" ${can(x[0],p)?"checked":""} style="width:22px;height:22px;margin:0"></label>`).join("")+`<div class="chips" style="margin-top:12px"><button class="btn" onclick="savePerms()">حفظ الصلاحيات</button><button class="btn g" onclick="resetPerms()">رجوع للافتراضي</button></div>`)}
-async function savePerms(){const o={};PERMS.forEach(x=>{if(x[0]!="ط")o[x[0]]=$("p_"+x[0]).checked});const{error}=await sb.from("profiles").update({perms:o}).eq("id",C.pp.id);error?toast(error.message):toast("تم حفظ الصلاحيات")}
-async function resetPerms(){await sb.from("profiles").update({perms:{}}).eq("id",C.pp.id);toast("رجع للافتراضي");openPerms(C.pp.id)}
-// ===== الإعدادات =====
-V.none=()=>put(`<h1>حسابك متسجل ✓</h1><p class="m">المالك لسه ما فعّلش صلاحيات لحسابك. كلّمه يفتحها لك.</p>`);
-V.set=async()=>{await loadCfg();const c=C.cfg;
-const[{data:sv},{data:pr}]=await Promise.all([sb.from("services").select("*").order("id"),sb.from("products").select("*").order("id")]);C.cat={services:sv,products:pr};
-const f=(k,l,t="text")=>`<label class="m">${l}</label><input id="s_${k}" type="${t}" value="${esc(c[k])}">`;
-put(`<h1>الإعدادات</h1><h2>بيانات الصالون</h2><div class="box">${f("salon_name","اسم الصالون")}${f("phone","التليفون")}${f("address","العنوان")}${f("currency","العملة")}</div>
-<h2>الحجز أونلاين</h2><div class="box"><label class="row" style="cursor:pointer"><span>الحجز أونلاين شغّال</span><input type="checkbox" id="s_booking_open" ${c.booking_open?"checked":""} style="width:22px;height:22px;margin:0"></label>${f("open_hour","ساعة الفتح (0-23)","number")}${f("close_hour","ساعة القفل (0-23)","number")}${f("slot_minutes","مدة الميعاد بالدقايق","number")}${f("days_ahead","الحجز قبلها بكام يوم","number")}<label class="m">يوم الإجازة الأسبوعي</label><select id="s_weekly_off">${["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"].map((d,i)=>`<option value="${i}" ${c.weekly_off==i?"selected":""}>${d}</option>`).join("")}<option value="-1" ${c.weekly_off==-1?"selected":""}>مفيش إجازة</option></select>${f("cancel_before_hours","أقل مدة للإلغاء قبل الميعاد (ساعات)","number")}</div>
-<h2>الكاشير والولاء</h2><div class="box">${f("max_discount_pct","أقصى خصم للكاشير %","number")}${f("points_per_currency","كل كام جنيه = نقطة ولاء","number")}</div>
-<button class="btn" style="width:100%;margin-top:10px" onclick="saveCfg()">حفظ الإعدادات</button>
-<h2>الخدمات</h2>${sv.map(x=>`<div class="row"><div><b>${esc(x.name)}</b> · ${x.price}<div class="m">${x.duration_min} دقيقة ${x.active?"":"· موقوفة"}</div></div><div><button class="btn s g" onclick="editItem('services',${x.id})">تعديل</button> <button class="btn s g" onclick="toggleItem('services',${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div></div>`).join("")}<button class="btn g s" onclick="addItem('services')">+ خدمة جديدة</button>
-<h2>المنتجات</h2>${pr.map(x=>`<div class="row"><div><b>${esc(x.name)}</b> · بيع ${x.price} · شراء ${x.cost}<div class="m">الحد الأدنى ${x.min_stock} ${x.active?"":"· موقوف"}</div></div><div><button class="btn s g" onclick="editItem('products',${x.id})">تعديل</button> <button class="btn s g" onclick="toggleItem('products',${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div></div>`).join("")}<button class="btn g s" onclick="addItem('products')">+ منتج جديد</button>`)};
-async function saveCfg(){const T=["salon_name","phone","address","currency"],N=["open_hour","close_hour","slot_minutes","days_ahead","weekly_off","cancel_before_hours","max_discount_pct","points_per_currency"];
-const rows=[...T.map(k=>({key:k,value:$("s_"+k).value})),...N.map(k=>({key:k,value:+$("s_"+k).value})),{key:"booking_open",value:$("s_booking_open").checked}];
-if(rows.find(r=>r.key=="open_hour").value>=rows.find(r=>r.key=="close_hour").value)return toast("ساعة الفتح لازم تكون قبل القفل");
-const{error}=await sb.from("app_settings").upsert(rows);error?toast(error.message):(toast("تم حفظ الإعدادات"),loadCfg())}
-async function editItem(t,id){const x=C.cat[t].find(y=>y.id==id),n=prompt("الاسم",x.name);if(n===null)return;const pr=prompt("سعر البيع",x.price);if(pr===null)return;const u={name:n,price:+pr};
-if(t=="services"){const d=prompt("المدة بالدقايق",x.duration_min);if(d===null)return;u.duration_min=+d}else{const c=prompt("سعر الشراء",x.cost);if(c===null)return;const m=prompt("الحد الأدنى للمخزون",x.min_stock);if(m===null)return;u.cost=+c;u.min_stock=+m}
-const{error}=await sb.from(t).update(u).eq("id",id);error?toast(error.message):V.set()}
-async function toggleItem(t,id,a){await sb.from(t).update({active:a}).eq("id",id);V.set()}
-async function addItem(t){const n=prompt("الاسم");if(!n)return;const pr=+prompt("سعر البيع");if(!(pr>=0))return;const o=t=="services"?{name:n,price:pr,duration_min:+prompt("المدة بالدقايق","30")||30}:{name:n,price:pr,cost:+prompt("سعر الشراء","0")||0,stock:+prompt("الكمية الحالية","0")||0};
-const{error}=await sb.from(t).insert(o);error?toast(error.message):V.set()}
+/* ===== الكاشير ===== */
+const P={cid:"",bid:"",appt:null,it:{},disc:0,pay:"cash",cp:"",q:"",D:null,cps:[]};
+V.pos=async()=>{
+  if(!P.D){const[sv,pr,cs,bl]=await Promise.all([Q(sb.from("services").select("*").eq("active",true)),Q(sb.from("products").select("*").eq("active",true)),Q(sb.from("customers").select("id,name,phone").order("name")),R("list_barbers")]);P.D={sv,pr,cs,bl}}
+  P.cl=await Q(sb.from("claim_requests").select("*,customers(name,phone)"));drawPos();
+};
+async function loadCps(){P.cp="";P.cps=P.cid?await Q(sb.from("loyalty_redemptions").select("id,code,loyalty_rewards(name)").eq("customer_id",P.cid).eq("status","active")):[]}
+function pk(k,id,n){const key=k+":"+id;P.it[key]=(P.it[key]||0)+n;if(P.it[key]<=0)delete P.it[key];drawPos()}
+function drawPos(){
+  const{sv,pr,cs,bl}=P.D,q=P.q.trim(),cl=cs.filter(c=>!q||(c.name+c.phone).includes(q)).slice(0,30);
+  const ln=Object.entries(P.it).map(([k,n])=>{const[t,id]=k.split(":"),o=(t=="service"?sv:pr).find(x=>x.id==id);return{k,t,id:+id,n,name:o.name,p:+o.price}});
+  const sub=ln.reduce((a,l)=>a+l.p*l.n,0);
+  put(`<h1>الكاشير</h1>${P.cl.length?`<div class="box"><b>طلبات ربط رقم</b>${P.cl.map(r=>`<div class="row" style="margin:6px 0 0"><span>${esc(r.customers.name)} <span class="m">${esc(r.customers.phone)}</span></span><span class="chips" style="margin:0"><button class="btn s" onclick="claim('approve_claim',${r.id})">أكّد</button><button class="btn s g" onclick="claim('reject_claim',${r.id})">ارفض</button></span></div>`).join("")}</div>`:""}
+  ${P.appt?`<div class="box">فاتورة حجز رقم ${P.appt} <button class="btn s g" onclick="P.appt=null;P.it={};drawPos()">إلغاء الربط</button></div>`:""}
+  <input placeholder="دوّر على عميل بالاسم أو الموبايل" value="${esc(P.q)}" oninput="P.q=this.value;drawPos();document.querySelector('input').focus()">
+  <select onchange="P.cid=this.value;loadCps().then(drawPos)"><option value="">زبون بدون تسجيل</option>${cl.map(c=>`<option value="${c.id}" ${c.id==P.cid?"selected":""}>${esc(c.name)} — ${esc(c.phone||"")}</option>`).join("")}</select>
+  <select onchange="P.bid=this.value"><option value="">الحلاق</option>${bl.map(b=>`<option value="${b.id}" ${b.id==P.bid?"selected":""}>${esc(b.full_name)}</option>`).join("")}</select>
+  <h2>خدمات</h2><div class="chips">${sv.map(s=>`<button class="chip ${P.it["service:"+s.id]?"sel":""}" onclick="pk('service',${s.id},${P.it["service:"+s.id]?-1:1})">${esc(s.name)} · ${fm(s.price)}</button>`).join("")}</div>
+  <h2>منتجات</h2><div class="chips">${pr.map(s=>`<button class="chip" onclick="pk('product',${s.id},1)">${esc(s.name)} · ${fm(s.price)}</button>`).join("")}</div>
+  <div class="box">${ln.map(l=>`<div class="tot"><span>${esc(l.name)} ×${l.n} <button class="btn s g" onclick="pk('${l.t}',${l.id},-1)" aria-label="شيل">−</button></span><span>${fm(l.p*l.n)}</span></div>`).join("")||`<span class="m">لسه مفيش أصناف</span>`}
+  <div class="tot f"><span>الإجمالي</span><span>${fm(sub*(1-P.disc/100))}</span></div></div>
+  ${P.cps.length?`<select onchange="P.cp=this.value"><option value="">كوبون ولاء (اختياري)</option>${P.cps.map(c=>`<option value="${c.id}" ${c.id==P.cp?"selected":""}>${esc(c.loyalty_rewards.name)} — ${c.code}</option>`).join("")}</select>`:""}
+  <input type="number" min="0" max="${me.role=="owner"?100:C.cfg.max_discount_pct}" placeholder="خصم %" value="${P.disc||""}" onchange="P.disc=+this.value||0;drawPos()">
+  <div class="chips">${[["cash","نقدي"],["card","كارت"],["wallet","محفظة"]].map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("")}</div>
+  <button class="btn w" ${ln.length?"":"disabled"} onclick="checkout()">تم الدفع</button>`);
+}
+const claim=(f,id)=>run(async()=>{await R(f,{p_id:id});V.pos()});
+const checkout=()=>run(async()=>{
+  const items=Object.entries(P.it).map(([k,n])=>{const[t,id]=k.split(":");return{type:t,id:+id,qty:t=="service"?1:n}});
+  const inv=await R("checkout_invoice",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc,p_method:P.pay,p_appointment:P.appt,p_redemption:P.cp?+P.cp:null});
+  Object.assign(P,{cid:"",bid:"",appt:null,it:{},disc:0,cp:"",cps:[],q:""});toast("اتسجلت الفاتورة #"+inv+" ✓");V.pos()});
+const payAppt=id=>run(async()=>{
+  const[a,s]=await Promise.all([Q(sb.from("appointments").select("customer_id,barber_id").eq("id",id).single()),Q(sb.from("appointment_services").select("service_id").eq("appointment_id",id))]);
+  P.D=null;Object.assign(P,{appt:id,cid:String(a.customer_id),bid:a.barber_id||"",it:Object.fromEntries(s.map(x=>["service:"+x.service_id,1])),disc:0,cp:"",q:""});
+  await loadCps();tabs.some(t=>t[0]=="pos")&&go("pos")});
 
+/* ===== الحضور بالموقع ===== */
+V.att=async()=>{
+  const[a]=await Q(sb.from("attendance").select("*").eq("staff_id",me.id).order("id",{ascending:false}).limit(1));const inn=a&&!a.check_out;
+  put(`<h1>حضوري</h1><div class="box">${inn?`<b>حاضر من ${new Date(a.check_in).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})}</b>${a.late_min?`<div class="m">متأخر ${a.late_min} دقيقة</div>`:""}`:`<span class="m">مش مسجل حضور دلوقتي</span>`}</div>
+  <button class="btn w" onclick="geo('${inn?"check_out":"check_in"}')">${inn?"سجّل انصراف":"سجّل حضور"}</button><p class="m">لازم تفعّل الموقع (GPS) وتكون جوه الصالون.</p>`);
+};
+function geo(fn){const go_=(a)=>run(async()=>{toast(await R(fn,a));V.att()});
+  if(!navigator.geolocation)return go_({});
+  navigator.geolocation.getCurrentPosition(p=>go_({p_lat:p.coords.latitude,p_lng:p.coords.longitude}),()=>go_({}),{enableHighAccuracy:true,timeout:10000})}
+
+V.none=()=>put(`<h1>مفيش صلاحيات</h1><div class="box m">حسابك لسه ما اتحددش له صلاحيات. كلّم المالك.</div>`);
 boot();
 </script>
 </body>
