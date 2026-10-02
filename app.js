@@ -282,7 +282,7 @@ async function togRw(id,a){await sb.from("loyalty_rewards").update({active:a}).e
 
 // ================= صفحتين منفصلتين: عميل / موظف =================
 function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1>`+(APP_MODE=="staff"?`<p class="m">صفحة الموظفين والإدارة.</p><div class="box"><input id="em" placeholder="كود الموظف (أو البريد للمالك)" autocomplete="username"><input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password"><button class="btn" style="width:100%" onclick="login()">دخول</button></div>`:`<p class="m">سجّل مرة واحدة بس، وبعد كده هتدخل على حسابك علطول من نفس الموبايل.</p><div class="box"><input id="cn" placeholder="اسمك"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)"><button class="btn" style="width:100%" onclick="regCustomer()">ابدأ</button></div>`))}
-function wrongPage(k){put(`<h1>${k=="staff"?"ده حساب موظف":"ده حساب عميل"}</h1><p class="m">${k=="staff"?"ادخل من صفحة الموظفين.":"صفحة الموظفين للموظفين بس."}</p><div class="chips"><a class="btn" style="text-decoration:none" href="${k=="staff"?"/staff.html":"/"}">${k=="staff"?"صفحة الموظفين":"صفحة العملاء"}</a>${k=="customer"?`<button class="btn g" onclick="sb.auth.signOut().then(()=>boot())">دخول بحساب موظف</button>`:""}</div>`)}
+function wrongPage(k){put(`<h1>${k=="staff"?"ده حساب موظف":"ده حساب عميل"}</h1><p class="m">${k=="staff"?"ادخل من صفحة الموظفين.":"صفحة الموظفين للموظفين بس."}</p><div class="chips"><a class="btn" style="text-decoration:none" href="${k=="staff"?"/staff":"/"}">${k=="staff"?"صفحة الموظفين":"صفحة العملاء"}</a>${k=="customer"?`<button class="btn g" onclick="sb.auth.signOut().then(()=>boot())">دخول بحساب موظف</button>`:""}</div>`)}
 // ================= الإعدادات: تاب لكل قسم + تصفير =================
 const SEC=[["general","عام"],["book","الحجوزات"],["staff","الموظفين"],["pos","الكاشير"],["stock","المخزون"],["loy","العملاء والولاء"],["danger","تصفير"]];
 const DAYS7=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
@@ -351,5 +351,18 @@ async function delExp(id){if(!confirm("حذف المصروف؟"))return;await sb
 async function exportCsv(){const[a,b]=C.rr;const{data}=await sb.from("invoices").select("no,created_at,total,discount,payment_method,customers(name),profiles:barber_id(full_name),invoice_items(name,qty)").gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at");
 const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';const rows=[["رقم","التاريخ","العميل","الحلاق","البنود","الخصم","الإجمالي","الدفع"],...(data||[]).map(i=>[i.no,new Date(i.created_at).toLocaleString("ar-EG"),i.customers?.name||"عابر",i.profiles?.full_name||"",i.invoice_items.map(z=>z.name+" x"+z.qty).join(" + "),i.discount,i.total,i.payment_method])];
 const blob=new Blob(["\ufeff"+rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(blob),l=document.createElement("a");l.href=u;l.download="invoices-"+ymd(a)+".csv";l.click();URL.revokeObjectURL(u)}
+
+// ================= PWA: تثبيت التطبيق =================
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+let dip=null;const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+function instBanner(msg,btn){if(standalone()||$("inst"))return;try{if(localStorage.getItem("inst_x"))return}catch(e){}
+const d=document.createElement("div");d.id="inst";d.style.cssText="position:fixed;bottom:calc(66px + env(safe-area-inset-bottom,0px));left:12px;right:12px;max-width:520px;margin:auto;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;z-index:8;font-size:14px";
+d.innerHTML=`<span style="flex:1">${msg}</span>${btn?`<button class="btn s" id="instb">تثبيت</button>`:""}<button aria-label="إغلاق" id="instx" style="background:none;border:0;color:inherit;font-size:22px;cursor:pointer">×</button>`;document.body.appendChild(d);
+$("instx").onclick=()=>{d.remove();try{localStorage.setItem("inst_x","1")}catch(e){}};
+if(btn)$("instb").onclick=async()=>{dip.prompt();await dip.userChoice;dip=null;d.remove()}}
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e;instBanner("ثبّت التطبيق على موبايلك للدخول السريع",true)});
+addEventListener("appinstalled",()=>{$("inst")?.remove()});
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone())setTimeout(()=>instBanner("لتثبيت التطبيق: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»",false),2500);
+addEventListener("offline",()=>toast("مفيش إنترنت"));addEventListener("online",()=>toast("رجع الإنترنت ✓"));
 
 boot();
