@@ -9,7 +9,7 @@ let me=null,tab="";const C={cfg:{salon_name:"صالون أبو يوسف",phone:"
 
 const PD={cashier:{use_attendance:1,use_pos:1,view_stock:1,view_invoices:1,manage_appts:1,view_customers:1,view_customer_phone:1},barber:{use_attendance:1,view_own_sales:1,view_own_commission:1,view_own_finance:1,view_own_reviews:1,view_own_schedule:1}};
 const can=(k,p=me)=>p.role=="owner"||(p.perms&&k in p.perms?!!p.perms[k]:!!(PD[p.role]||{})[k]);
-async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);document.title=C.cfg.salon_name;$("brand").textContent="💈 "+C.cfg.salon_name+(APP_MODE=="staff"?" — الموظفين":"")}
+async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);document.title=C.cfg.salon_name;$("brand").innerHTML=ic("menu")+"<span>"+esc(C.cfg.salon_name)+(APP_MODE=="staff"?" · الموظفين":"")+"</span>"}
 async function boot(){
 await loadCfg();
 const{data:{session}}=await sb.auth.getSession();
@@ -25,7 +25,7 @@ if(staff){const T=[];if(can("use_pos"))T.push(["pos","الكاشير"]);if(can("
 else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","نقاطي"],["menu","المنيو"]];go("book")}}
 
 function go(t){clearInterval(C.poll);if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
-tab=t;$("nav").innerHTML=C.tabs.map(x=>`<button class="${x[0]==t?"on":""}" onclick="go('${x[0]}')">${x[1]}</button>`).join("");V[t]()}
+tab=t;$("app").classList.remove("still");$("nav").innerHTML=C.tabs.map(x=>`<button class="${x[0]==t?"on":""}" onclick="go('${x[0]}')">${ic(x[0])}<span>${x[1]}</span></button>`).join("");put(SK);scrollTo(0,0);V[t]()}
 const put=h=>$("app").innerHTML=h;
 
 function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1><div class="box"><input id="nm" placeholder="الاسم (للتسجيل الجديد فقط)"><input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة السر (6 حروف على الأقل)"><div class="chips"><button class="btn" onclick="login()">دخول</button><button class="btn g" onclick="signup()">حساب جديد</button></div></div>`)}
@@ -225,7 +225,7 @@ const bkDays=()=>[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=new Date();d.
 V.book=async()=>{if(!C.cfg.booking_open)return put(`<h1>احجز دورك</h1><p class="m">الحجز متوقف حاليًا.</p>`);
 const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];C.b=C.b||{s:[],barber:undefined,day:0,period:null};drawBk()};
 function drawBk(){const b=C.b,days=bkDays();
-put(`<h1>احجز دورك</h1><h2>الخدمات</h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>احجز دورك</h1><h2>الخدمات</h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;drawBk()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;drawBk()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div><div id="bl"></div>`);if(b.period)loadBarbers()}
 function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];drawBk()}
@@ -236,7 +236,7 @@ $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="
 async function bookNow(){const b=C.b,d=bkDays()[b.day];const{error}=await sb.rpc("book_ticket",{p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
 if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message);C.b=null;toast("تم الحجز ✓ ده رقم دورك");go("queue")}
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
-if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;drawQ(q[0]);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&V.queue(),8000);return}
+if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;drawQ(q[0]);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
 if(fin)return rateView2(fin.id);
 put(`<h1>دوري</h1><div class="box" style="text-align:center"><p class="m">مفيش دور نشط دلوقتي.</p><button class="btn" onclick="go('book')">احجز دورك</button></div>`)};
 function drawQ(s){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
@@ -356,7 +356,7 @@ const blob=new Blob(["\ufeff"+rows.map(r=>r.map(q).join(",")).join("\n")],{type:
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
 let dip=null;const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 function instBanner(msg,btn){if(standalone()||$("inst"))return;try{if(localStorage.getItem("inst_x"))return}catch(e){}
-const d=document.createElement("div");d.id="inst";d.style.cssText="position:fixed;bottom:calc(66px + env(safe-area-inset-bottom,0px));left:12px;right:12px;max-width:520px;margin:auto;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;z-index:8;font-size:14px";
+const d=document.createElement("div");d.id="inst";d.className="inst";
 d.innerHTML=`<span style="flex:1">${msg}</span>${btn?`<button class="btn s" id="instb">تثبيت</button>`:""}<button aria-label="إغلاق" id="instx" style="background:none;border:0;color:inherit;font-size:22px;cursor:pointer">×</button>`;document.body.appendChild(d);
 $("instx").onclick=()=>{d.remove();try{localStorage.setItem("inst_x","1")}catch(e){}};
 if(btn)$("instb").onclick=async()=>{dip.prompt();await dip.userChoice;dip=null;d.remove()}}
@@ -364,5 +364,41 @@ addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e;instBanner("
 addEventListener("appinstalled",()=>{$("inst")?.remove()});
 if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone())setTimeout(()=>instBanner("لتثبيت التطبيق: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»",false),2500);
 addEventListener("offline",()=>toast("مفيش إنترنت"));addEventListener("online",()=>toast("رجع الإنترنت ✓"));
+
+// ================= هوية فاخرة: أيقونات + شاشات =================
+const IC={
+pos:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+appts:'<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
+stock:'<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+inv:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+cust:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+rep:'<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+me:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+set:'<path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/>',
+out:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+book:'<path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M3 10h18"/><path d="M19 16v6"/><path d="M16 19h6"/>',
+mine:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+loy:'<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>',
+menu:'<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
+dot:'<circle cx="12" cy="12" r="3"/>'};
+IC.queue=IC.appts;IC.team=IC.cust;
+const ic=k=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]||IC.dot}</svg>`;
+const SK='<div class="sk" style="height:30px;width:52%"></div><div class="sk" style="height:130px"></div><div class="sk" style="height:70px"></div><div class="sk" style="height:70px"></div>';
+function authView(){put(`<div class="hero"><div class="emblem">${ic("menu")}</div><h1>${esc(C.cfg.salon_name)}</h1><div class="tagline">${APP_MODE=="staff"?"لوحة الموظفين والإدارة":"حجز بدون انتظار · نقاط ولاء · تجربة راقية"}</div></div>`+(APP_MODE=="staff"?`<div class="box"><input id="em" placeholder="كود الموظف (أو البريد للمالك)" autocomplete="username"><input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password"><button class="btn" style="width:100%" onclick="login()">دخول</button></div>`:`<div class="box"><input id="cn" placeholder="اسمك"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)"><button class="btn" style="width:100%" onclick="regCustomer()">ابدأ</button><p class="m" style="text-align:center;margin:12px 0 0">سجّل مرة واحدة بس، وهتدخل على حسابك علطول</p></div>`))}
+function drawQ(s){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
+let cur=-1;steps.forEach((x,i)=>{if(x[1])cur=i});
+put(`<div class="hello">دورك مع ${esc(s.barber_name)}</div><h1>دوري</h1>
+<div class="pass"><div class="pass-top"><div class="m">رقم دورك</div><div class="pass-no">${s.ticket_no}</div><div class="m">${PLB[s.period]} · ${s.day}</div></div><div class="perf"></div>
+<div class="pass-bot"><div><div class="m">بيحلق دلوقتي</div><b class="big2">${s.current_no?"#"+s.current_no:"—"}</b></div><div><div class="m">قدامك</div><b class="big2">${s.ahead}</b></div><div><div class="m">الوقت المتوقع</div><b class="big2">~${s.est_min}<small> د</small></b></div></div></div>
+<div class="row" style="margin-top:14px"><span>${esc(s.services)}</span><b style="color:var(--gold2);font-family:var(--display);font-size:20px">${fm(s.total)}</b></div>
+${s.called&&st=="upcoming"?`<div class="callbox"><b>اتنادى عليك</b><div class="m" style="margin:2px 0 10px">قولنا إنت فين</div><div class="chips" style="margin:0"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:linear-gradient(180deg,#52C08C,#2E8B5E);color:#fff" onclick="eta('arrived')">وصلت</button></div></div>`:""}
+<ul class="tl">${steps.map((x,i)=>`<li class="${x[1]?(i==cur?"now":"done"):""}">${x[0]}</li>`).join("")}</ul>
+${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}`)}
+V.loy=async()=>{const{data:{user}}=await sb.auth.getUser();const{data:c}=await sb.from("customers").select("id,name,phone,points,lifetime_points,visits").eq("user_id",user.id).single();
+const[{data:tr},{data:rw},{data:vo},{data:lg}]=await Promise.all([sb.rpc("loyalty_tier",{p_life:c.lifetime_points}),sb.from("loyalty_rewards").select("*").eq("active",true).order("cost"),sb.from("loyalty_redemptions").select("code,loyalty_rewards(name)").eq("customer_id",c.id).eq("status","active"),sb.from("loyalty_ledger").select("*").eq("customer_id",c.id).order("created_at",{ascending:false}).limit(15)]);
+const t=tr[0],pct=t.next_at?Math.min(100,c.lifetime_points/t.next_at*100):100,g=C.cfg;
+put(`<div class="vip"><div class="vip-top"><span class="vip-brand">${esc(g.salon_name)}</span><span class="vip-tier">${t.name}${t.mult>1?" · ×"+t.mult:""}</span></div><div class="vip-pts">${num(c.points)}<small>نقطة</small></div><div class="vip-bar"><i style="width:${pct}%"></i></div><div class="vip-foot"><span>${t.next_at?"باقي "+num(t.next_at-c.lifetime_points)+" نقطة للمستوى الجاي":"وصلت لأعلى مستوى"}</span><span>${esc(c.name)} · ${esc((c.phone||"").slice(-4))}</span></div></div>
+${vo?.length?`<h2>كوبوناتك — قدّم الكود للكاشير</h2>`+vo.map(v=>`<div class="row"><span>${esc(v.loyalty_rewards.name)}</span><b style="font-family:var(--display);font-size:24px;letter-spacing:3px;color:var(--gold2)">${v.code}</b></div>`).join(""):""}
+<h2>استبدل نقاطك</h2>`+(rw||[]).map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${x.cost} نقطة</div></div><button class="btn s" ${c.points<x.cost?"disabled":""} onclick="redeem(${x.id})">استبدل</button></div>`).join("")+`<h2>إزاي تكسب نقاط؟</h2><div class="box m" style="line-height:2">كل ${g.points_per_currency} ${g.currency} = نقطة (× مستواك)<br>${g.review_bonus} نقطة على كل تقييم<br>${g.visit_bonus_points} نقطة كل ${g.visit_bonus_every} زيارات<br>${g.welcome_bonus} نقطة هدية التسجيل</div><h2>آخر الحركات</h2>`+((lg||[]).length?lg.map(l=>`<div class="row"><div>${RSN[l.reason]||l.reason}<div class="m">${new Date(l.created_at).toLocaleDateString("ar-EG")}</div></div><b style="color:${l.points>0?"var(--ok)":"var(--red)"}">${l.points>0?"+":""}${l.points}</b></div>`).join(""):`<p class="m">لسه مفيش حركات.</p>`))};
 
 boot();
