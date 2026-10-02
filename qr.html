@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="robots" content="noindex">
+<title>باركود صفحة الحجز</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0D12;--card:#141821;--ink:#F3EEE4;--mute:#9C9686;--gold:#C9A24B;--gold2:#E8CB7C;--line:rgba(201,162,75,.25)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 16px 40px;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tajawal,"Segoe UI",Tahoma,sans-serif;text-align:center}
+h1{font-family:Amiri,Georgia,serif;font-size:30px;margin:6px 0 0;background:linear-gradient(180deg,var(--gold2),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-size:18px;font-weight:600;margin:0}
+.m{color:var(--mute);font-size:13px}
+.qr{background:#fff;padding:16px;border-radius:20px;box-shadow:0 18px 40px -18px #000}
+#c{display:block;width:min(78vw,340px);height:auto;image-rendering:pixelated}
+.url{direction:ltr;word-break:break-all;font-size:14px;color:var(--gold2)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+button{appearance:none;border:0;border-radius:14px;padding:12px 20px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;color:#1A1406;background:linear-gradient(180deg,var(--gold2),var(--gold))}
+button.g{background:transparent;color:var(--gold2);border:1px solid var(--line)}
+input{width:min(92vw,420px);direction:ltr;text-align:left;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+@media print{
+  body{background:#fff;color:#000;padding-top:30px}
+  h1{background:none;color:#000;-webkit-text-fill-color:#000}
+  .qr{box-shadow:none;border:2px solid #000}
+  #c{width:11cm}
+  .url,.m{color:#000}
+  .noprint{display:none!important}
+}
+</style>
+</head>
+<body>
+<h1 id="sn">صالون أبو يوسف</h1>
+<p class="sub">امسح الباركود واحجز دورك</p>
+<div class="m">من غير تسجيل ولا تحميل تطبيق</div>
+<div class="qr"><canvas id="c" width="10" height="10"></canvas></div>
+<div class="url" id="u"></div>
+<div class="noprint"><div class="m" style="margin-bottom:6px">الرابط (تقدر تعدّله لو عندك رابط مختصر)</div><input id="ui" inputmode="url" dir="ltr" oninput="draw()"></div>
+<div class="bar noprint"><button onclick="dl()">تحميل الباركود (PNG)</button><button class="g" onclick="print()">طباعة</button><button class="g" onclick="cp()">نسخ الرابط</button></div>
+<p class="m noprint" id="err"></p>
+<script src="/config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+const $=i=>document.getElementById(i);
+const url=()=>($("ui").value||"").trim();
+function draw(){
+  const u=url(),cv=$("c");$("u").textContent=u;$("err").textContent="";
+  if(!u)return;
+  if(typeof qrcode!=="function"){$("err").textContent="مقدرناش نحمّل مكتبة الباركود، اتأكد من النت وحدّث الصفحة.";return}
+  try{
+    const q=qrcode(0,"M");q.addData(u);q.make();
+    const n=q.getModuleCount(),quiet=4,cell=Math.max(4,Math.floor(1024/(n+quiet*2))),size=(n+quiet*2)*cell,x=cv.getContext("2d");
+    cv.width=cv.height=size;x.fillStyle="#fff";x.fillRect(0,0,size,size);x.fillStyle="#000";
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect((c+quiet)*cell,(r+quiet)*cell,cell,cell);
+  }catch(e){$("err").textContent="الرابط طويل أوي أو فيه مشكلة، جرّب رابط أقصر."}
+}
+function dl(){if(!url())return;const a=document.createElement("a");a.download="booking-qr.png";a.href=$("c").toDataURL("image/png");a.click()}
+async function cp(){try{await navigator.clipboard.writeText(url());$("err").textContent="تم نسخ الرابط ✓"}catch(e){$("err").textContent="انسخ الرابط يدويًا من الخانة اللي فوق."}}
+$("ui").value=location.origin+"/book";
+draw();
+// اسم الصالون من الإعدادات (اختياري — لو فشل يفضل الاسم الافتراضي)
+try{fetch(SUPABASE_URL+"/rest/v1/app_settings?key=eq.salon_name&select=value",{headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY}}).then(r=>r.json()).then(d=>{if(d&&d[0]&&d[0].value){$("sn").textContent=d[0].value;document.title="باركود الحجز - "+d[0].value}}).catch(()=>{})}catch(e){}
+</script>
+</body>
+</html>
