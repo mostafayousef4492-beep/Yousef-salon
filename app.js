@@ -3,7 +3,8 @@ const APP_MODE=window.SALON_MODE||"customer";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fm=n=>Math.round(n).toLocaleString("ar-EG")+" "+C.cfg.currency;
-const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200)};
+const toast=t=>{const e=document.createElement("div"),x=String(t||""),k=/✓|^تم|تمام|اتحفظ|اتسجل/.test(x)?" ok":/غلط|خطأ|مش |ممنوع|غير مصرح|تعذر|فشل|error|failed|invalid|violat|حد /i.test(x)?" err":"";e.className="toast"+k;e.textContent=x;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)};
+(()=>{let n=null;const f=()=>{if(!navigator.onLine){if(!n){n=document.createElement("div");n.className="net";n.setAttribute("role","status");n.textContent="مفيش اتصال بالإنترنت — هنكمل أول ما يرجع";document.body.appendChild(n)}}else if(n){n.remove();n=null}};addEventListener("online",f);addEventListener("offline",f);f()})();
 const ST={upcoming:"قادم",checked_in:"وصل",in_service:"على الكرسي",done:"خلص",cancelled:"ملغي",no_show:"لم يحضر"};
 let me=null,tab="";const C={cfg:{salon_name:"صالون أبو يوسف",phone:"",address:"",currency:"ج.م",open_hour:10,close_hour:20,slot_minutes:60,days_ahead:5,weekly_off:5,cancel_before_hours:2,points_per_currency:10,max_discount_pct:20,booking_open:true}};
 
@@ -25,8 +26,9 @@ if(staff){const T=[];if(can("use_pos"))T.push(["pos","الكاشير"]);if(can("
 else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","نقاطي"],["menu","المنيو"]];go("book")}}
 
 function go(t){clearInterval(C.poll);if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
-tab=t;$("app").classList.remove("still");$("nav").innerHTML=C.tabs.map(x=>`<button class="${x[0]==t?"on":""}" onclick="go('${x[0]}')">${ic(x[0])}<span>${x[1]}</span></button>`).join("");put(SK);scrollTo(0,0);V[t]()}
-const put=h=>$("app").innerHTML=h;
+tab=t;$("app").classList.remove("still");const NV=C.tabs.length>5?4:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==t?"on":"")+(i>=NV?" x":"")}" onclick="go('${x[0]}')">${ic(x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==t)?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);V[t]()}
+const put=h=>{$("app").innerHTML=h;polish()};
+function polish(){const A=$("app");A.querySelectorAll(".tag").forEach(t=>{const k=Object.keys(ST).find(x=>ST[x]==t.textContent.trim());if(k)t.classList.add("st-"+k)});A.querySelectorAll(":scope>p.m").forEach(p=>{if(/^(مفيش|لسه|لا يوجد|ما فيش)/.test(p.textContent.trim()))p.classList.add("empty")})}
 
 function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1><div class="box"><input id="nm" placeholder="الاسم (للتسجيل الجديد فقط)"><input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة السر (6 حروف على الأقل)"><div class="chips"><button class="btn" onclick="login()">دخول</button><button class="btn g" onclick="signup()">حساب جديد</button></div></div>`)}
 async function login(){const{error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});error?toast("بيانات الدخول غلط"):boot()}
@@ -126,7 +128,7 @@ sb.from("reviews").select("rating,tags,note,created_at").eq("barber_id",id).orde
 sb.rpc("staff_schedule",{p_staff:id}),sb.from("attendance").select("*").eq("staff_id",id).gte("check_in",f).lt("check_in",t).order("check_in",{ascending:false}),sb.from("attendance").select("id,check_in").eq("staff_id",id).is("check_out",null).limit(1),sb.from("staff_shifts").select("*").eq("staff_id",id),sb.from("staff_leaves").select("*").eq("staff_id",id).gte("to_date",new Date().toISOString().slice(0,10)).order("from_date")]);
 if(e1)return $("panel").innerHTML=`<p class="m">${esc(e1.message)}</p>`;
 const s=sm?.[0]||{},avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
-const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c)=>`<div class="box" style="text-align:center"><div class="m">${l}</div><div style="font-weight:800;font-size:19px;color:${c||"inherit"}">${v}</div></div>`;
+const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c)=>`<div class="box kpi"><div class="kpi-l">${l}</div><div class="kpi-v" style="color:${c||"inherit"}">${v}</div></div>`;
 const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"}),DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const attOn=owner||can("use_attendance");
 const attBox=!owner&&can("use_attendance")?`<div class="box" style="margin:10px 0;text-align:center">${op?.length?`<div class="m">حاضر من ${hm(op[0].check_in)}</div><button class="btn" style="width:100%" onclick="att('check_out')">تسجيل انصراف</button>`:`<button class="btn" style="width:100%;background:var(--ok)" onclick="att('check_in')">تسجيل حضور</button>`}</div>`:"";
@@ -500,7 +502,7 @@ async function delC(id){if(!confirm("حذف العميل وكل حجوزاته �
 const num=x=>Math.round(+x||0).toLocaleString("ar-EG"),ymd=d=>d.toLocaleDateString("en-CA");
 const tbl=(h,rows)=>rows.length?`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${h.map(x=>`<th style="text-align:right;padding:6px;border-bottom:1px solid var(--line);color:var(--mute);white-space:nowrap">${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td style="padding:6px;border-bottom:1px dashed var(--line)">${c}</td>`).join("")}</tr>`).join("")}</table></div>`:`<p class="m">مفيش بيانات في الفترة دي.</p>`;
 const bars=(a,lab,val)=>{const m=Math.max(1,...a.map(val));return a.length?a.map(x=>`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:12px"><span>${lab(x)}</span><b>${fm(val(x))}</b></div><div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden"><i style="display:block;height:100%;width:${val(x)/m*100}%;background:var(--blue)"></i></div></div>`).join(""):`<p class="m">مفيش بيانات.</p>`};
-const kc=(l,v,c)=>`<div class="box" style="text-align:center"><div class="m">${l}</div><div style="font-weight:800;font-size:18px;color:${c||"inherit"}">${v}</div></div>`;
+const kc=(l,v,c)=>`<div class="box kpi"><div class="kpi-l">${l}</div><div class="kpi-v" style="color:${c||"inherit"}">${v}</div></div>`;
 const RSEC=[["sum","الملخص"],["sales","المبيعات"],["staff","الموظفين"],["cust","العملاء"],["queue","الدور والتقييم"],["stock","المخزون"],["exp","المصروفات"]];
 function rangeR(k){const a=new Date();a.setHours(0,0,0,0);const b=new Date(a);b.setDate(b.getDate()+1);const t=new Date();
 if(k=="yesterday"){a.setDate(a.getDate()-1);b.setDate(b.getDate()-1)}else if(k=="week")a.setDate(a.getDate()-6);else if(k=="month")a.setDate(1);
@@ -560,7 +562,7 @@ book:'<path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2
 mine:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
 loy:'<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>',
 menu:'<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
-dot:'<circle cx="12" cy="12" r="3"/>'};
+dot:'<circle cx="12" cy="12" r="3"/>',dot3:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
 IC.queue=IC.appts;IC.team=IC.cust;
 const ic=k=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]||IC.dot}</svg>`;
 const SK='<div class="sk" style="height:30px;width:52%"></div><div class="sk" style="height:130px"></div><div class="sk" style="height:70px"></div><div class="sk" style="height:70px"></div>';
@@ -568,10 +570,10 @@ function authView(){put(`<div class="hero"><div class="emblem">${ic("menu")}</di
 function drawQ(s){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
 let cur=-1;steps.forEach((x,i)=>{if(x[1])cur=i});
 put(`<div class="hello">دورك مع ${esc(s.barber_name)}</div><h1>دوري</h1>
-<div class="pass"><div class="pass-top"><div class="m">رقم دورك</div><div class="pass-no">${s.ticket_no??"—"}</div><div class="m">${PLB[s.period]} · ${s.day}</div></div><div class="perf"></div>
-<div class="pass-bot"><div><div class="m">بيحلق دلوقتي</div><b class="big2">${s.current_no?"#"+s.current_no:"—"}</b></div><div><div class="m">قدامك</div><b class="big2">${s.ahead??"—"}</b></div><div><div class="m">الوقت المتوقع</div><b class="big2">${s.est_min==null?"—":"~"+s.est_min+"<small> د</small>"}</b></div></div></div>
+<div class="pass"><div class="pass-top"><div class="m">رقم دورك</div><div class="pass-no">${s.ticket_no==null?"—":num(s.ticket_no)}</div><div class="m">${PLB[s.period]} · ${s.day}</div></div><div class="perf"></div>
+<div class="pass-bot"><div><div class="m">بيحلق دلوقتي</div><b class="big2">${s.current_no?"#"+num(s.current_no):"—"}</b></div><div><div class="m">قدامك</div><b class="big2">${s.ahead==null?"—":num(s.ahead)}</b></div><div><div class="m">الوقت المتوقع</div><b class="big2">${s.est_min==null?"—":num(s.est_min)+"<small> دقيقة</small>"}</b></div></div></div>
 <div class="row" style="margin-top:14px"><span>${esc(s.services)}</span><b style="color:var(--gold2);font-family:var(--display);font-size:20px">${fm(s.total)}</b></div>
-${s.near_turn&&!s.called?`<div class="callbox"><b>اقترب دورك</b><div class="m" style="margin-top:2px">جهّز نفسك وتعالى الصالون</div></div>`:""}
+${s.near_turn&&!s.called&&st=="upcoming"?`<div class="nearbox" role="status"><div><b>اقترب دورك</b><div class="m">جهّز نفسك وتعالى الصالون</div></div></div>`:""}
 ${s.called&&st=="upcoming"?`<div class="callbox"><b>اتنادى عليك</b><div class="m" style="margin:2px 0 10px">قولنا إنت فين</div><div class="chips" style="margin:0"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:linear-gradient(180deg,#52C08C,#2E8B5E);color:#fff" onclick="eta('arrived')">وصلت</button></div></div>`:""}
 <ul class="tl">${steps.map((x,i)=>`<li class="${x[1]?(i==cur?"now":"done"):""}">${x[0]}</li>`).join("")}</ul>
 ${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}`)}
@@ -583,4 +585,5 @@ ${vo?.length?`<h2>كوبوناتك — قدّم الكود للكاشير</h2>`+
 <h2>استبدل نقاطك</h2>`+(rw||[]).map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${x.cost} نقطة</div></div><button class="btn s" ${c.points<x.cost?"disabled":""} onclick="redeem(${x.id})">استبدل</button></div>`).join("")+`<h2>إزاي تكسب نقاط؟</h2><div class="box m" style="line-height:2">كل ${g.points_per_currency} ${g.currency} = نقطة (× مستواك)<br>${g.review_bonus} نقطة على كل تقييم<br>${g.visit_bonus_points} نقطة كل ${g.visit_bonus_every} زيارات<br>${g.welcome_bonus} نقطة هدية التسجيل</div><h2>آخر الحركات</h2>`+((lg||[]).length?lg.map(l=>`<div class="row"><div>${RSN[l.reason]||l.reason}<div class="m">${new Date(l.created_at).toLocaleDateString("ar-EG")}</div></div><b style="color:${l.points>0?"var(--ok)":"var(--red)"}">${l.points>0?"+":""}${l.points}</b></div>`).join(""):`<p class="m">لسه مفيش حركات.</p>`))};
 
 async function startNotif(){if(C.nch||APP_MODE=="staff")return;try{const{data:{user}}=await sb.auth.getUser();if(!user)return;C.nch=sb.channel("cn-"+user.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"customer_notifications"},p=>{const n=p.new||{};toast((n.title||"")+(n.body?" — "+n.body:""));try{if(window.Notification&&Notification.permission=="granted")new Notification(n.title||"",{body:n.body||""})}catch(e){}tab=="queue"&&V.queue()}).subscribe();if(window.Notification&&Notification.permission=="default")Notification.requestPermission()}catch(e){}}
+document.addEventListener("click",e=>{const n=$("nav");n&&n.classList.contains("open")&&!e.target.closest("nav")&&n.classList.remove("open")});
 boot();
