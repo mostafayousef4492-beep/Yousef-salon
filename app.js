@@ -25,7 +25,7 @@ const staff=["owner","cashier","barber","assistant"].includes(me.role);
 const whose=me.role=="owner"?"admin":staff?"staff":"customer";if(whose!=APP_MODE)return wrongPage(whose);
 const own=me.role=="owner";
 if(staff){const T=staffTabs(me);if(own||(me.role=="cashier"&&(can("use_pos")||can("manage_appts")))){T.unshift(["home","الرئيسية"]);const PRI=["home","pos","appts","cust"];T.sort((a,b)=>{const x=PRI.indexOf(a[0]),y=PRI.indexOf(b[0]);return(x<0?99:x)-(y<0?99:y)})}if(own)T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"],["ctl","مركز التحكم"],["set","الإعدادات"]);C.tabs=[...T,["out","خروج"]];go(T[0]?T[0][0]:"none");annCount()}
-else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","نقاطي"],["menu","المنيو"]];go("book")}}
+else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","حسابي"]];go("book")}}
 
 function go(t){clearInterval(C.poll);if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
 tab=t;$("app").classList.remove("still");const NV=C.tabs.length>5?4:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==t?"on":"")+(i>=NV?" x":"")}" onclick="go('${x[0]}')">${ic(x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==t)?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
@@ -98,10 +98,10 @@ const{error}=await sb.from("reviews").insert({invoice_id:R.inv,customer_id:cu.id
 error?toast(error.message):(toast("شكرًا على تقييمك 💈"),go("mine"))}
 
 // ===== كاشير =====
-function drawPos(){const P=C.P,sub=P.s.reduce((a,i)=>a+P.sv.find(x=>x.id==i).price,0)+P.p.reduce((a,i)=>a+P.pr.find(x=>x.id==i.id).price*i.q,0),d=sub*P.disc/100,cb=P.cust?`<div class="cust-pick"><div><b>${esc(P.cust.name)}</b><div class="m">${esc(P.cust.phone||"")} · ${P.cust.visits} زيارة · ${P.cust.points} نقطة</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:P.walk?`<div class="cust-pick"><div><b>عميل عابر</b><div class="m">من غير رقم موبايل</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:`<div class="cust-find"><input id="cp" type="tel" inputmode="numeric" autocomplete="off" placeholder="رقم موبايل العميل (01xxxxxxxxx)" oninput="chPh()"><div id="cpr"></div><button class="btn s g" onclick="chCust('walk')">عميل عابر (من غير رقم)</button></div>`;chSave();
+function drawPos(){const P=C.P,sub=P.s.reduce((a,i)=>a+P.sv.find(x=>x.id==i).price,0)+P.p.reduce((a,i)=>a+P.pr.find(x=>x.id==i.id).price*i.q,0),d=Math.min(sub,sub*P.disc/100+(+P.dfx||0)),cb=P.cust?`<div class="cust-pick"><div><b>${esc(P.cust.name)}</b><div class="m">${esc(P.cust.phone||"")} · ${P.cust.visits} زيارة · ${P.cust.points} نقطة</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:P.walk?`<div class="cust-pick"><div><b>عميل عابر</b><div class="m">من غير رقم موبايل</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:`<div class="cust-find"><input id="cp" type="tel" inputmode="numeric" autocomplete="off" placeholder="رقم موبايل العميل (01xxxxxxxxx)" oninput="chPh()"><div id="cpr"></div><button class="btn s g" onclick="chCust('walk')">عميل عابر (من غير رقم)</button></div>`;chSave();
 put(`<div class="ch-bar"><button class="btn s g" onclick="chBack()">‹ الكراسي</button></div><h1>كرسي ${P.chair}</h1><h2>الخدمات</h2><div class="chips">${P.sv.map(x=>`<button class="chip ${P.s.includes(x.id)?"sel":""}" onclick="P_s(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div><h2>المنتجات</h2><div class="chips">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})">${esc(x.name)} · ${x.price}${c?" ×"+c.q:""}</button>`}).join("")}</div>
 <div class="box" style="margin-top:12px">${cb}${P.vs?.length?`<select onchange="C.P.rid=this.value;chSave()"><option value="">بدون كوبون ولاء</option>${P.vs.map(v=>`<option value="${v.id}" ${P.rid==v.id?"selected":""}>${esc(v.loyalty_rewards.name)} (${v.code})</option>`).join("")}</select>`:""}<select onchange="C.P.bid=this.value;chSave()"><option value="">اختار الحلاق</option>${P.br.map(c=>`<option value="${c.id}" ${P.bid==c.id?"selected":""}>${esc(c.full_name)}</option>`).join("")}</select>
-<div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${[["cash","كاش"],["card","كارت"],["wallet","محفظة"]].filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false)).map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("")}</div>
+<div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x&&!P.dfx?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${fixOpts().map(x=>`<button class="chip ${P.dfx==x?"sel":""}" onclick="pickFix(${x})">خصم ${x} ج${fxPct(x,sub)>discLim()?" 🔒":""}</button>`).join("")}${[["cash","كاش"],["card","كارت"],["wallet","محفظة"]].filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false)).map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("")}</div>
 ${P.as.length&&P.s.length?`<h2>المساعد (اختياري)</h2><div class="box">${P.s.map(id=>{const v=P.sv.find(x=>x.id==id);return `<div class="m" style="margin-top:6px">${esc(v.name)}</div><select onchange="P_a(${id},this.value)"><option value="">بدون مساعد</option>${P.as.map(a=>`<option value="${a.id}" ${P.sa[id]==a.id?"selected":""}>${esc(a.full_name)} (${+a.commission_pct}%)</option>`).join("")}</select>`}).join("")}</div>`:""}
 <div class="tot f"><span>المطلوب</span><span>${fm(sub-d)}</span></div><button class="btn" style="width:100%;margin-top:8px" ${sub?"":"disabled"} onclick="checkout()">دفع وإغلاق الفاتورة</button><button class="btn g" style="width:100%;margin-top:8px" onclick="chCancel()">إلغاء الفاتورة وتفضية الكرسي</button></div>`)}
 function P_s(id){const P=C.P;if(P.s.includes(id))delete P.sa[id];P.s=P.s.includes(id)?P.s.filter(x=>x!=id):[...P.s,id];drawPos()}
@@ -109,7 +109,7 @@ function P_a(id,v){if(v)C.P.sa[id]=v;else delete C.P.sa[id];chSave()}
 function P_p(id){const P=C.P,c=P.p.find(x=>x.id==id),pr=P.pr.find(x=>x.id==id);if(c){c.q<pr.stock?c.q++:toast("الكمية خلصت")}else P.p.push({id,q:1});drawPos()}
 // ===== كاشير: كل كرسي = فاتورة مفتوحة (محفوظة على السيرفر، كل الأجهزة تشوفها) =====
 const chN=()=>Math.min(12,Math.max(1,+C.cfg.chairs||4));
-const chTot=(r,sv,pr)=>{const sub=(r.services||[]).reduce((a,id)=>a+(+(sv.find(x=>x.id==id)||{}).price||0),0)+(r.products||[]).reduce((a,i)=>a+(+(pr.find(x=>x.id==i.id)||{}).price||0)*i.q,0);return sub-sub*(+r.discount_pct||0)/100};
+const chTot=(r,sv,pr)=>{const sub=(r.services||[]).reduce((a,id)=>a+(+(sv.find(x=>x.id==id)||{}).price||0),0)+(r.products||[]).reduce((a,i)=>a+(+(pr.find(x=>x.id==i.id)||{}).price||0)*i.q,0);return Math.max(0,sub-sub*(+r.discount_pct||0)/100-(+r.discount_fixed||0))};
 async function chLoadRefs(){const[{data:sv},{data:pr}]=await Promise.all([sb.from("services").select("*").eq("active",true),sb.from("products").select("*").eq("active",true)]);return{sv:sv||[],pr:pr||[]}}
 V.pos=async()=>{if(C.chOpenAfter){const n=C.chOpenAfter;C.chOpenAfter=null;return chOpen(n)}
 C.chEdit=0;if(C.P&&!C.P.chair)C.P=null;
@@ -126,10 +126,10 @@ async function chOpen(n){let{data:r}=await sb.from("open_invoices").select("*").
 if(!r){const ins=await sb.from("open_invoices").insert({chair:n}).select("*").single();if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتفتح من جهاز تاني":ins.error.message);return go("pos")}r=ins.data}
 if(r.status=="paying"){if(!confirm("الفاتورة دي معلّقة وبتتدفع (يمكن من جهاز تاني). تفتحها تاني؟"))return go("pos");await sb.from("open_invoices").update({status:"open"}).eq("chair",n)}
 const[R,{data:br},{data:asx},cr]=await Promise.all([chLoadRefs(),sb.from("profiles").select("id,full_name").eq("role","barber"),sb.from("profiles").select("id,full_name,commission_pct").eq("role","assistant"),r.customer_id?sb.from("customers").select("id,name,phone,points,visits").eq("id",r.customer_id).maybeSingle():Promise.resolve({data:null})]);
-C.P={chair:n,sv:R.sv,pr:R.pr,cu:[],br:br||[],as:asx||[],sa:r.assistants||{},s:(r.services||[]).filter(id=>R.sv.some(x=>x.id==id)),p:(r.products||[]).filter(i=>R.pr.some(x=>x.id==i.id)),cid:r.customer_id?String(r.customer_id):"",cust:cr.data||null,bid:r.barber_id||"",appt:r.appointment_id||null,disc:+r.discount_pct||0,pay:r.payment_method||"cash",rid:r.redemption_id?String(r.redemption_id):"",vs:[]};
+C.P={chair:n,sv:R.sv,pr:R.pr,cu:[],br:br||[],as:asx||[],sa:r.assistants||{},s:(r.services||[]).filter(id=>R.sv.some(x=>x.id==id)),p:(r.products||[]).filter(i=>R.pr.some(x=>x.id==i.id)),cid:r.customer_id?String(r.customer_id):"",cust:cr.data||null,bid:r.barber_id||"",appt:r.appointment_id||null,disc:+r.discount_pct||0,dfx:+r.discount_fixed||0,pay:r.payment_method||"cash",rid:r.redemption_id?String(r.redemption_id):"",vs:[]};
 C.chEdit=1;clearInterval(C.poll);C.P.cid?loadV():drawPos()}
 let chT=0;function chSave(){clearTimeout(chT);chT=setTimeout(chSaveNow,500)}
-async function chSaveNow(){clearTimeout(chT);const P=C.P;if(!P||!P.chair||P.paying)return;const{error}=await sb.from("open_invoices").update({barber_id:P.bid||null,customer_id:P.cid?+P.cid:null,appointment_id:P.appt||null,services:P.s,products:P.p,assistants:P.sa||{},discount_pct:P.disc,payment_method:P.pay,redemption_id:P.rid?+P.rid:null,updated_at:new Date().toISOString()}).eq("chair",P.chair).eq("status","open");if(error)toast("مقدرتش أحفظ الفاتورة: "+error.message)}
+async function chSaveNow(){clearTimeout(chT);const P=C.P;if(!P||!P.chair||P.paying)return;const{error}=await sb.from("open_invoices").update({barber_id:P.bid||null,customer_id:P.cid?+P.cid:null,appointment_id:P.appt||null,services:P.s,products:P.p,assistants:P.sa||{},discount_pct:P.disc||0,discount_fixed:+P.dfx||0,payment_method:P.pay,redemption_id:P.rid?+P.rid:null,updated_at:new Date().toISOString()}).eq("chair",P.chair).eq("status","open");if(error)toast("مقدرتش أحفظ الفاتورة: "+error.message)}
 async function chBack(){await chSaveNow();go("pos")}
 async function chCancel(){const P=C.P;if(!confirm("تلغي الفاتورة المفتوحة دي وتفضّي الكرسي؟"))return;P.paying=1;clearTimeout(chT);const{error}=await sb.from("open_invoices").delete().eq("chair",P.chair);if(error){P.paying=0;return toast(error.message)}C.P=null;toast("اتفضّى كرسي "+P.chair);go("pos")}
 // تحديد العميل برقم الموبايل: لو موجود نستخدمه، ولو جديد نطلب الاسم بس
@@ -146,16 +146,16 @@ o.innerHTML=`<div class="box" style="margin-top:8px"><div class="m">عميل ج�
 async function chNew(ph){const n=($("cn")?.value||"").trim();if(n.length<2)return toast("اكتب اسم العميل");
 const{error}=await sb.rpc("add_customer",{p_name:n,p_phone:ph});if(error)return toast(error.message);
 const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq("phone",ph).order("id").limit(1);
-if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أجيبه، دوّر عليه تاني");toast("تمت إضافة "+n+" ✓");chCust(data[0])}
+if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أجيبه، دوّر عليه تاني");okFlash("تمت إضافة العميل",n);chCust(data[0])}
 async function checkout(){const P=C.P;if(P.paying)return;if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
 const ch=P.chair;await chSaveNow();P.paying=1;
 const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"}).eq("chair",ch).eq("status","open").select("chair");
 if(le||!lk||!lk.length){P.paying=0;return toast("الفاتورة دي بتتدفع من جهاز تاني أو اتقفلت")}
 const items=[...P.s.map(id=>({type:"service",id,qty:1,assistant:(P.sa||{})[id]||null})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
-const{data,error}=await sb.rpc("pos_checkout",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc,p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null});
+const{data,error}=await sb.rpc("pos_checkout",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc||0,p_discount_fixed:P.dfx||0,p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null});
 if(error){P.paying=0;await sb.from("open_invoices").update({status:"open"}).eq("chair",ch);return toast(error.message)}
 let de=(await sb.from("open_invoices").delete().eq("chair",ch)).error;if(de)await sb.from("open_invoices").delete().eq("chair",ch);
-C.P=null;toast("تم إصدار فاتورة رقم "+data+" ✓ · كرسي "+ch+" اتفضّى");go("pos")}
+C.P=null;okFlash("تم الدفع","فاتورة رقم "+(data&&typeof data=="object"?JSON.stringify(data):data)+" · كرسي "+ch+" اتفضّى");go("pos")}
 async function payAppt(id){const a=(C.A||[]).find(x=>x.id==id);if(!a)return;const{data:L}=await sb.from("open_invoices").select("chair,appointment_id");
 const ex=(L||[]).find(r=>r.appointment_id==id);let n=ex?ex.chair:0;
 if(!n){const used=new Set((L||[]).map(r=>r.chair));for(let i=1;i<=chN();i++)if(!used.has(i)){n=i;break}
@@ -363,13 +363,13 @@ if(C.annN>0)att.push(`<div class="row"><div><b>${C.annN} إعلان جديد</b>
 const nxt=up.slice(0,4).map(a=>`<div class="row"><div><b>#${a.ticket_no} · ${nm2(a)}</b><div class="m">${a.called_at?"مستدعى":"قادم"}${svc(a)?" · "+svc(a):""}</div></div>${!a.called_at&&can("manage_appts")?`<button class="btn s g" onclick="homeCall(${a.id})">استدعاء</button>`:""}</div>`).join("");
 const acts=[can("use_pos")?`<button class="btn" onclick="go('pos')">بيع جديد</button>`:"",can("manage_appts")?`<button class="btn g" onclick="qa('appts','admForm','adm')">حجز إداري</button>`:"",can("view_customers")?`<button class="btn g" onclick="qa('cust','addCustForm','ac')">عميل جديد</button>`:"",can("manage_appts")?`<button class="btn g" onclick="go('appts')">إدارة الدور</button>`:""].join("");
 put(`<div class="cc-hello"><div class="m">${new Date().toLocaleDateString("ar-EG",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${h<12?"صباح الخير":"مساء الخير"}${nm?"، "+esc(nm):""}</h1><span class="tag ${open?"st-done":"st-no_show"}">${off?"إجازة النهارده":open?"الصالون مفتوح":"الصالون مقفول"}</span></div>
-<div class="cc-grid"><div class="box cc-stat"><div class="cc-l">في الدور</div><div class="cc-n">${wait}</div></div><div class="box cc-stat"><div class="cc-l">على الكراسي</div><div class="cc-n">${ins.length}</div></div><div class="box cc-stat"><div class="cc-l">خلصوا النهارده</div><div class="cc-n">${dn}</div></div>${rev!=null?`<div class="box cc-stat"><div class="cc-l">إيراد اليوم</div><div class="cc-n">${fm(rev)}</div><div class="m">${iv.length} فاتورة</div></div>`:`<div class="box cc-stat"><div class="cc-l">حجوزات اليوم</div><div class="cc-n">${A.length}</div></div>`}</div>
+${me.role=="owner"||can("view_customers")?`<input id="gs" placeholder="ابحث: عميل، موبايل، فاتورة، خدمة، موظف" oninput="gsDeb()" style="margin-top:12px"><div id="gsr"></div>`:""}<div class="cc-grid"><div class="box cc-stat"><div class="cc-l">في الدور</div><div class="cc-n">${wait}</div></div><div class="box cc-stat"><div class="cc-l">على الكراسي</div><div class="cc-n">${ins.length}</div></div><div class="box cc-stat"><div class="cc-l">خلصوا النهارده</div><div class="cc-n">${dn}</div></div>${rev!=null?`<div class="box cc-stat"><div class="cc-l">إيراد اليوم</div><div class="cc-n">${fm(rev)}</div><div class="m">${iv.length} فاتورة</div></div>`:`<div class="box cc-stat"><div class="cc-l">حجوزات اليوم</div><div class="cc-n">${A.length}</div></div>`}</div>
 <h2>محتاج انتباهك</h2>${att.length?att.join(""):`<p class="m">مفيش حاجة محتاجة انتباهك دلوقتي ✓</p>`}
 ${nxt?`<h2>الدور الجاي</h2>${nxt}`:A.length?"":`<p class="m">مفيش حجوزات النهارده لسه.</p>`}
 ${acts?`<h2>إجراءات سريعة</h2><div class="cc-act">${acts}</div>`:""}`);
-clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="home"){$("app").classList.add("still");V.home()}},30000)};
+clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="home"&&!($("gs")&&$("gs").value)){$("app").classList.add("still");V.home()}},30000)};
 async function tk(f,id){const{error}=await sb.rpc(f,{p_id:id});error?toast(error.message):(tab=="appts"?go("appts"):C.reload())}
-async function loadV(){const P=C.P,keep=P.rid;P.rid="";P.vs=[];if(P.cid){const{data}=await sb.from("loyalty_redemptions").select("id,code,loyalty_rewards(name)").eq("customer_id",P.cid).eq("status","active");P.vs=data||[];if(keep&&P.vs.some(v=>String(v.id)==String(keep)))P.rid=String(keep)}drawPos()}
+async function loadV(){const P=C.P,keep=P.rid;P.rid="";P.vs=[];if(P.cid&&C.cfg.ff_loyalty!==false){const{data}=await sb.from("loyalty_redemptions").select("id,code,loyalty_rewards(name)").eq("customer_id",P.cid).eq("status","active");P.vs=data||[];if(keep&&P.vs.some(v=>String(v.id)==String(keep)))P.rid=String(keep)}drawPos()}
 const getPos=()=>new Promise(r=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>r({lat:p.coords.latitude,lng:p.coords.longitude}),()=>r({}),{enableHighAccuracy:true,timeout:12000,maximumAge:0}):r({}));
 async function att(f){if(C.attBusy)return;C.attBusy=1;const bs=[...document.querySelectorAll('[onclick^="att("]')];bs.forEach(b=>b.disabled=true);let ok=false;try{toast("بنحدد موقعك...");const g=await getPos();const{data,error}=await sb.rpc(f,{p_lat:g.lat??null,p_lng:g.lng??null});if(error){const m=error.message||"";toast(/duplicate key|unique/i.test(m)?"حضورك متسجل قبل كده":m)}else{ok=true;toast(data);await C.reload()}}finally{C.attBusy=0;if(!ok)bs.forEach(b=>b.disabled=false)}}
 // ===== حضور يدوي (المالك): تسجيل / تعديل / حذف عن يوم فات =====
@@ -819,12 +819,17 @@ document.addEventListener("click",e=>{const n=$("nav");n&&n.classList.contains("
 // ===== الخصومات: حدود حسب الدور + طلب موافقة (السيرفر هو اللي بيفرض، ده بس واجهة) =====
 const discLim=()=>{const g=+C.cfg.disc_global_max_pct||20;return me.role=="owner"?g:Math.min(g,can("approve_discount")?+C.cfg.disc_manager_max_pct||30:+C.cfg.disc_cashier_max_pct||10)};
 const discOpts=()=>{const g=+C.cfg.disc_global_max_pct||20;return String(C.cfg.disc_options||"0,5,10,20").split(",").map(Number).filter(n=>n>=0&&n<=g)};
-function pickDisc(x){const P=C.P;if(x<=discLim()){P.disc=x;P.rqid=null;chSave();return drawPos()}reqDisc(x)}
-async function reqDisc(x){const P=C.P,sub=P.s.reduce((a,i)=>a+(+(P.sv.find(y=>y.id==i)||{}).price||0),0)+P.p.reduce((a,i)=>a+(+(P.pr.find(y=>y.id==i.id)||{}).price||0)*i.q,0);
-if(!sub)return toast("ضيف خدمات الأول");const why=prompt("الخصم ده "+x+"% فوق حدّك ومحتاج موافقة المدير.\nسبب الخصم:");if(why===null)return;
-const{data,error}=await sb.rpc("request_discount",{p_chair:P.chair,p_pct:x,p_subtotal:sub,p_reason:why});if(error)return toast(error.message);
+const fixOpts=()=>String(C.cfg.disc_fixed_options||"20,30,50,100").split(",").map(Number).filter(n=>n>0);
+const subOf=P=>P.s.reduce((a,i)=>a+(+(P.sv.find(y=>y.id==i)||{}).price||0),0)+P.p.reduce((a,i)=>a+(+(P.pr.find(y=>y.id==i.id)||{}).price||0)*i.q,0);
+const fxPct=(x,sub)=>sub>0?x/sub*100:0;
+function pickDisc(x){const P=C.P;P.dfx=0;if(x<=discLim()){P.disc=x;P.rqid=null;chSave();return drawPos()}reqDisc(x,0)}
+function pickFix(x){const P=C.P,sub=subOf(P);if(P.dfx==x){P.dfx=0;P.rqid=null;chSave();return drawPos()}if(!sub)return toast("ضيف خدمات الأول");if(x>sub)return toast("الخصم أكبر من الفاتورة");
+if(fxPct(x,sub)<=discLim()+0.005){P.disc=0;P.dfx=x;P.rqid=null;chSave();return drawPos()}reqDisc(fxPct(x,sub),x)}
+async function reqDisc(pct,fx){const P=C.P,sub=subOf(P);
+if(!sub)return toast("ضيف خدمات الأول");const why=prompt("الخصم ده فوق حدّك ومحتاج موافقة المدير.\nسبب الخصم:");if(why===null)return;
+const{data,error}=await sb.rpc("request_discount",{p_chair:P.chair,p_pct:Math.ceil(pct*100)/100,p_subtotal:sub,p_reason:why});if(error)return toast(error.message);
 toast("اتبعت طلب الموافقة للمدير ⏳");const ch=P.chair,t=setInterval(async()=>{if(!C.P||C.P.chair!=ch)return clearInterval(t);const{data:r}=await sb.from("discount_requests").select("status").eq("id",data).maybeSingle();
-if(r&&r.status=="approved"){clearInterval(t);C.P.disc=x;C.P.rqid=data;chSave();toast("اتوافق على الخصم ✓");drawPos()}else if(r&&r.status=="rejected"){clearInterval(t);toast("المدير رفض الخصم")}},4000)}
+if(r&&r.status=="approved"){clearInterval(t);C.P.disc=fx?0:pct;C.P.dfx=fx||0;C.P.rqid=data;chSave();toast("اتوافق على الخصم ✓");drawPos()}else if(r&&r.status=="rejected"){clearInterval(t);toast("المدير رفض الخصم")}},4000)}
 async function decideD(id,ok){const{error}=await sb.rpc("decide_discount",{p_id:id,p_ok:ok});error?toast(error.message):(toast(ok?"تمت الموافقة ✓":"اتم الرفض"),V.home())}
 
 // ===== مركز تحكم المالك: القواعد من rule_defs، والسيرفر بيتحقق ويسجّل كل تغيير =====
@@ -839,5 +844,28 @@ async function saveRule(k,val){const d=C.RD.find(x=>x.key==k),e=$("r_"+k);let v=
 if(d.danger&&!confirm("القاعدة دي حساسة: "+d.label+"\nهتتغير إلى: "+(d.kind=="bool"?(v?"شغّال":"موقوف"):v)+"\nمتأكد؟"))return;
 const why=d.danger?prompt("سبب التغيير (اختياري)")||"":"";const{error}=await sb.rpc("owner_set_rule",{p_key:k,p_value:v,p_reason:why});error?toast(error.message):(toast("تم الحفظ ✓"),V.ctl())}
 function resetRule(k){const d=C.RD.find(x=>x.key==k);saveRule(k,d.def)}
+
+// ===== بحث عام: عملاء / موبايل / فواتير / خدمات / موظفين (حسب الصلاحية) =====
+let gsT=0;function gsDeb(){clearTimeout(gsT);gsT=setTimeout(gsRun,250)}
+async function gsRun(){const el=$("gs"),o=$("gsr");if(!el||!o)return;const q=el.value.trim().replace(/[%,()]/g,"");if(q.length<2){o.innerHTML="";return}
+const dg=q.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)),isN=/^\d+$/.test(dg),own=me.role=="owner";
+const[c,v,sv,st]=await Promise.all([sb.from("customers").select("id,name,phone").or(`name.ilike.%${q}%,phone.ilike.%${dg}%`).limit(5),
+isN&&(own||can("view_invoices"))?sb.from("invoices").select("no,total,created_at").eq("no",+dg).limit(3):Promise.resolve({data:[]}),
+sb.from("services").select("name,price").ilike("name",`%${q}%`).limit(3),
+own?sb.from("profiles").select("id,full_name,role").ilike("full_name",`%${q}%`).neq("role","customer").limit(3):Promise.resolve({data:[]})]);
+if($("gs").value.trim().replace(/[%,()]/g,"")!=q)return;
+const sec=(t,L)=>L.length?`<div class="m" style="margin-top:8px">${t}</div>`+L.join(""):"";
+const h=sec("عملاء",(c.data||[]).map(x=>`<button class="row" style="cursor:pointer" onclick="gsCust(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${esc(x.phone||"")}</div></div><span class="tag">افتح ‹</span></button>`))
++sec("فواتير",(v.data||[]).map(x=>`<button class="row" style="cursor:pointer" onclick="go('inv')"><div><b>فاتورة #${x.no}</b><div class="m">${new Date(x.created_at).toLocaleDateString("ar-EG")}</div></div><b>${fm(x.total)}</b></button>`))
++sec("خدمات",(sv.data||[]).map(x=>`<div class="row"><b>${esc(x.name)}</b><span>${fm(x.price)}</span></div>`))
++sec("موظفين",(st.data||[]).map(x=>`<button class="row" style="cursor:pointer" onclick="go('team')"><div><b>${esc(x.full_name)}</b><div class="m">${RL[x.role]||""}</div></div><span class="tag">‹</span></button>`));
+o.innerHTML=h||`<p class="m">مفيش نتيجة لـ "${esc(q)}".</p>`}
+async function gsCust(id){if(!C.CU||!C.CU.some(y=>y.id==id)){const{data}=await sb.rpc("customers_overview");C.CU=data||[]}if(!C.CU.some(y=>y.id==id))return toast("مقدرتش أفتح العميل ده");openCust(id)}
+
+// ===== حسابي (العميل): النقاط + بياناتي + المنيو + خروج في مكان واحد =====
+const loy0=V.loy;V.loy=async()=>{await loy0();if(tab!="loy")return;const{data:{user}}=await sb.auth.getUser(),{data:c}=await sb.from("customers").select("name,phone,visits").eq("user_id",user.id).maybeSingle();if(!c||tab!="loy")return;
+$("app").insertAdjacentHTML("beforeend",`<h2>بياناتي</h2><div class="box"><b>${esc(c.name)}</b><div class="m" dir="ltr" style="text-align:right">${esc(c.phone||"")}</div><div class="m">${c.visits||0} زيارة</div></div><div class="chips" style="margin-top:10px"><button class="btn g" onclick="go('menu')">منيو الخدمات</button><button class="btn s g" onclick="go('out')">تسجيل خروج</button></div>`)};
+
+function okFlash(t,m){const d=document.createElement("div");d.className="okf";d.setAttribute("role","status");d.innerHTML=`<div class="okc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><b>${esc(t)}</b><div class="m">${esc(m||"")}</div>`;document.body.appendChild(d);setTimeout(()=>d.classList.add("out"),1100);setTimeout(()=>d.remove(),1400)}
 
 boot();
