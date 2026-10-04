@@ -32,7 +32,7 @@ function draw(){const b=C.b,days=bkDays();
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
 <div id="bl"></div>
-<h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" value="${esc(C.f.n)}" autocomplete="name" oninput="C.f.n=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" value="${esc(C.f.p)}" autocomplete="tel" oninput="C.f.p=this.value">
+<h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" value="${esc(C.f.n)}" autocomplete="name" oninput="C.f.n=this.value"><input id="fp" type="tel" inputmode="numeric" pattern="[0-9٠-٩]{11}" placeholder="رقم موبايلك (01xxxxxxxxx)" value="${esc(C.f.p)}" autocomplete="tel" oninput="C.f.p=this.value">
 <button class="btn" id="cbtn" style="width:100%" onclick="bookNow()" disabled>تأكيد وخد رقم دورك</button></div>${contact()}`);
   if(b.period)loadBarbers();upd()}
 function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];draw()}

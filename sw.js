@@ -1,5 +1,5 @@
 // صالون أبو يوسف - Service Worker (الشبكة أولًا عشان التحديثات تظهر فورًا)
-const V = "salon-v3";
+const V = "salon-v4";
 const SHELL = ["/", "/staff", "/admin", "/app.js", "/config.js", "/style.css", "/icon-192.png", "/manifest.webmanifest", "/manifest-staff.webmanifest", "/manifest-admin.webmanifest", "/icon-staff-192.png", "/icon-admin-192.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
