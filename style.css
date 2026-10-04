@@ -291,3 +291,25 @@ nav .brk,nav .navsep{display:none}
 @keyframes sheetup{from{transform:translateY(40px);opacity:0}}@keyframes sheetdown{to{transform:translateY(30px);opacity:0}}
 @media(min-width:900px){.sheet-bg{align-items:center}.sheet{border-bottom:1px solid var(--line);border-radius:var(--r-lg);max-height:86vh}}
 @media print{header.top,nav,.toast,.inst,.btn{display:none!important}body{background:#fff;color:#000}.box,.row{box-shadow:none;border-color:#ccc;background:#fff}}
+
+/* ===== معاينة شاشة الموظف + مفاتيح الصلاحيات ===== */
+.pv{position:sticky;top:58px;z-index:4;border:1px solid var(--line);border-radius:var(--r-lg);background:rgba(16,19,26,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:var(--s3) var(--s4) var(--s4);margin:var(--s4) 0}
+.pv-h{font-size:var(--fs-cap);color:var(--gold);font-weight:600;margin-bottom:var(--s2)}
+.pv-nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:6px;border-radius:18px;background:var(--card);border:1px solid var(--line2);min-height:58px;align-items:center}
+.pv-nav::-webkit-scrollbar{display:none}
+.pv-t{flex:1 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--gold2);padding:5px 4px;border-radius:12px;animation:pvin .25s ease both}
+.pv-t svg{width:20px;height:20px}
+@keyframes pvin{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+.pv-me{margin-top:var(--s2)}.pv-me .chips{margin:4px 0 0;gap:6px}
+.tag.off{opacity:.3;text-decoration:line-through}
+.pcard{background:var(--card);border:1px solid var(--line2);border-radius:var(--r);margin-bottom:var(--s3);overflow:hidden;transition:opacity .2s}
+.pcard.off{opacity:.55}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);cursor:pointer;min-height:48px}
+.prow.main{background:rgba(255,255,255,.02)}
+.prow.sub{border-top:1px solid var(--line2);padding-right:var(--s5);font-size:14px}
+.prow input[disabled]{opacity:.35;cursor:not-allowed}
+@media(max-width:899px){
+  .pv{padding:6px 8px;margin:8px 0;border-radius:18px}
+  .pv-h,.pv-me{display:none}
+  .pv-nav{border:0;background:transparent;padding:2px;min-height:50px}
+}
