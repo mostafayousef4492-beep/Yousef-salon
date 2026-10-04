@@ -277,4 +277,17 @@ nav .brk,nav .navsep{display:none}
 .page-enter{animation:rise .3s var(--ease) both}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
+
+/* ===== نظام الخدمات + Bottom sheet ===== */
+.row.svc{align-items:center}.svc-p{font-family:var(--display);color:var(--gold2);white-space:nowrap}
+.row.svc.off{opacity:.55}
+.sheet-bg{position:fixed;inset:0;z-index:15;background:rgba(5,6,9,.62);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:fadein .18s ease both}
+.sheet{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));animation:sheetup .26s var(--ease) both}
+.sheet-bg.out{animation:fadeout .16s ease both}.sheet-bg.out .sheet{animation:sheetdown .16s ease both}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:var(--fs-h3)}
+.svc-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.svc-sw{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:14px;cursor:pointer}.svc-sw input{margin:0;flex:none;min-height:0}
+@keyframes fadein{from{opacity:0}}@keyframes fadeout{to{opacity:0}}
+@keyframes sheetup{from{transform:translateY(40px);opacity:0}}@keyframes sheetdown{to{transform:translateY(30px);opacity:0}}
+@media(min-width:900px){.sheet-bg{align-items:center}.sheet{border-bottom:1px solid var(--line);border-radius:var(--r-lg);max-height:86vh}}
 @media print{header.top,nav,.toast,.inst,.btn{display:none!important}body{background:#fff;color:#000}.box,.row{box-shadow:none;border-color:#ccc;background:#fff}}

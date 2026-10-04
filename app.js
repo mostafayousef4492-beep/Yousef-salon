@@ -22,7 +22,7 @@ me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
 const staff=["owner","cashier","barber","assistant"].includes(me.role);
 if(APP_MODE=="customer"&&staff)return wrongPage("staff");if(APP_MODE=="staff"&&!staff)return wrongPage("customer");
 const own=me.role=="owner";
-if(staff){const T=[];if(can("use_pos"))T.push(["pos","الكاشير"]);if(can("use_pos"))T.push(["cash","الخزنة"]);if(can("manage_appts"))T.push(["appts","الحجوزات"]);if(can("view_stock"))T.push(["stock","المخزون"]);if(can("view_invoices"))T.push(["inv","الفواتير"]);if(can("view_customers"))T.push(["cust","العملاء"]);if(can("view_reports"))T.push(["rep","التقارير"]);if(me.role=="barber"||me.role=="assistant"||can("use_attendance"))T.push(["me","شاشتي"]);if(own)T.push(["fin","المالية"],["team","الموظفين"],["set","الإعدادات"]);C.tabs=[...T,["out","خروج"]];go(T[0]?T[0][0]:"none")}
+if(staff){const T=[];if(can("use_pos"))T.push(["pos","الكاشير"]);if(can("use_pos"))T.push(["cash","الخزنة"]);if(can("manage_appts"))T.push(["appts","الحجوزات"]);if(can("view_stock"))T.push(["stock","المخزون"]);if(can("view_invoices"))T.push(["inv","الفواتير"]);if(can("view_customers"))T.push(["cust","العملاء"]);if(can("view_reports"))T.push(["rep","التقارير"]);if(me.role=="barber"||me.role=="assistant"||can("use_attendance"))T.push(["me","شاشتي"]);if(own)T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"],["set","الإعدادات"]);C.tabs=[...T,["out","خروج"]];go(T[0]?T[0][0]:"none")}
 else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","نقاطي"],["menu","المنيو"]];go("book")}}
 
 function go(t){clearInterval(C.poll);if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
@@ -476,7 +476,7 @@ let h=`<h1>الإعدادات</h1><div class="chips">${SEC.map(x=>`<button class
 if(FLD[sec])h+=`<div class="box">${FLD[sec].map(fld).join("")}${sec=="staff"?`<button class="btn g s" style="margin-bottom:8px" onclick="setHere()">📍 استخدم موقعي الحالي (وانت في الصالون)</button>`:""}<button class="btn" style="width:100%" onclick="saveSec()">حفظ</button></div>`;
 const row=(t,x,d)=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${d}${x.active?"":" · موقوف"}</div></div><div><button class="btn s g" onclick="editItem('${t}',${x.id})">تعديل</button> <button class="btn s g" onclick="toggleItem('${t}',${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div></div>`;
 if(sec=="general")h+=`<h2>نسخة احتياطية</h2><div class="box"><p class="m" style="margin-top:0">بتنزّل ملف واحد (JSON) فيه كل بيانات الصالون: الفواتير والعملاء والموظفين والمخزون والإعدادات. احتفظ بيه في مكان آمن، لأن فيه أرقام العملاء.</p><button class="btn" id="bkb" style="width:100%" onclick="backupAll()">⬇️ تنزيل نسخة احتياطية الآن</button><div class="m" id="bkm" style="margin-top:8px">${lastBk()}</div></div>`;
-if(sec=="book")h+=`<h2>صفحة الحجز المستقلة</h2><div class="chips"><a class="btn g s" style="text-decoration:none" href="/qr" target="_blank">🔳 باركود تطبيق الحجز</a><button class="btn g s" onclick="copyBook()">نسخ رابط الحجز</button></div><div class="m" style="margin-bottom:6px">العملاء بيحجزوا من الرابط ده من غير تسجيل ولا تطبيق.</div><h2>منيو الخدمات</h2>`+sv.map(x=>row("services",x,`${esc(x.category||"")} · ${x.price} · ${x.duration_min} دقيقة`)).join("")+`<button class="btn g s" onclick="addItem('services')">+ خدمة جديدة</button>`;
+if(sec=="book")h+=`<h2>صفحة الحجز المستقلة</h2><div class="chips"><a class="btn g s" style="text-decoration:none" href="/qr" target="_blank">🔳 باركود تطبيق الحجز</a><button class="btn g s" onclick="copyBook()">نسخ رابط الحجز</button></div><div class="m" style="margin-bottom:6px">العملاء بيحجزوا من الرابط ده من غير تسجيل ولا تطبيق.</div><h2>منيو الخدمات</h2><button class="btn g s" onclick="go('svc')">إدارة الخدمات (إضافة / تعديل / إيقاف)</button>`;
 if(sec=="stock")h+=`<h2>المنتجات</h2>`+pr.map(x=>row("products",x,`بيع ${x.price} · شراء ${x.cost} · الحد الأدنى ${x.min_stock}`)).join("")+`<button class="btn g s" onclick="addItem('products')">+ منتج جديد</button>`;
 if(sec=="loy")h+=`<h2>مكافآت الولاء</h2>`+(rw||[]).map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${x.cost} نقطة ${x.active?"":"· موقوفة"}</div></div><button class="btn s g" onclick="togRw(${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div>`).join("")+`<button class="btn g s" onclick="addRw()">+ مكافأة جديدة</button>`;
 if(sec=="staff")h+=`<h2>إدارة الموظفين</h2><div class="chips"><button class="btn g" onclick="go('team')">الموظفين والصلاحيات والشيفتات</button><button class="btn g" onclick="resetAllPerms()">إرجاع صلاحيات الكل للافتراضي</button></div>`;
@@ -562,7 +562,7 @@ book:'<path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2
 mine:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
 loy:'<path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/>',
 menu:'<circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>',
-dot:'<circle cx="12" cy="12" r="3"/>',dot3:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
+dot:'<circle cx="12" cy="12" r="3"/>',svc:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>',dot3:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
 IC.queue=IC.appts;IC.team=IC.cust;
 const ic=k=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]||IC.dot}</svg>`;
 const SK='<div class="sk" style="height:30px;width:52%"></div><div class="sk" style="height:130px"></div><div class="sk" style="height:70px"></div><div class="sk" style="height:70px"></div>';
@@ -585,5 +585,41 @@ ${vo?.length?`<h2>كوبوناتك — قدّم الكود للكاشير</h2>`+
 <h2>استبدل نقاطك</h2>`+(rw||[]).map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${x.cost} نقطة</div></div><button class="btn s" ${c.points<x.cost?"disabled":""} onclick="redeem(${x.id})">استبدل</button></div>`).join("")+`<h2>إزاي تكسب نقاط؟</h2><div class="box m" style="line-height:2">كل ${g.points_per_currency} ${g.currency} = نقطة (× مستواك)<br>${g.review_bonus} نقطة على كل تقييم<br>${g.visit_bonus_points} نقطة كل ${g.visit_bonus_every} زيارات<br>${g.welcome_bonus} نقطة هدية التسجيل</div><h2>آخر الحركات</h2>`+((lg||[]).length?lg.map(l=>`<div class="row"><div>${RSN[l.reason]||l.reason}<div class="m">${new Date(l.created_at).toLocaleDateString("ar-EG")}</div></div><b style="color:${l.points>0?"var(--ok)":"var(--red)"}">${l.points>0?"+":""}${l.points}</b></div>`).join(""):`<p class="m">لسه مفيش حركات.</p>`))};
 
 async function startNotif(){if(C.nch||APP_MODE=="staff")return;try{const{data:{user}}=await sb.auth.getUser();if(!user)return;C.nch=sb.channel("cn-"+user.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"customer_notifications"},p=>{const n=p.new||{};toast((n.title||"")+(n.body?" — "+n.body:""));try{if(window.Notification&&Notification.permission=="granted")new Notification(n.title||"",{body:n.body||""})}catch(e){}tab=="queue"&&V.queue()}).subscribe();if(window.Notification&&Notification.permission=="default")Notification.requestPermission()}catch(e){}}
+
+// ===== نظام الخدمات (شاشة مستقلة للمالك) =====
+V.svc=async()=>{const{data,error}=await sb.from("services").select("*").order("category").order("price");
+if(error)return put(`<h1>الخدمات</h1><p class="m">${esc(error.message)}</p>`);
+C.svc={l:data||[],q:"",c:"",e:0};drawSvc()};
+const svcCats=()=>[...new Set(C.svc.l.map(x=>x.category||"قصات"))];
+function drawSvc(){const S=C.svc,on=S.l.filter(x=>x.active).length;
+put(`<h1>الخدمات</h1><div class="m">${num(on)} شغّالة${S.l.length-on?" · "+num(S.l.length-on)+" موقوفة":""}</div>
+<button class="btn" style="width:100%;margin:14px 0 12px" onclick="svcOpen()">+ خدمة جديدة</button>
+${S.l.length>6?`<input id="svq" type="search" placeholder="دوّر على خدمة..." aria-label="بحث" oninput="C.svc.q=this.value;svcList()">`:""}
+<div class="chips" id="svch"></div><div id="svl"></div>`);svcChips();svcList()}
+function svcChips(){const S=C.svc,cs=svcCats(),h=$("svch");if(!h)return;
+h.innerHTML=cs.length>1?`<button class="chip ${S.c?"":"sel"}" onclick="C.svc.c='';svcChips();svcList()">الكل</button>`+cs.map((c,i)=>`<button class="chip ${S.c===c?"sel":""}" data-i="${i}" onclick="C.svc.c=svcCats()[${i}];svcChips();svcList()">${esc(c)}</button>`).join(""):""}
+function svcList(){const S=C.svc,q=S.q.trim().toLowerCase(),g={};
+S.l.filter(x=>(!S.c||(x.category||"قصات")==S.c)&&(!q||(x.name+" "+(x.category||"")).toLowerCase().includes(q))).forEach(x=>(g[x.category||"قصات"]=g[x.category||"قصات"]||[]).push(x));
+const ks=Object.keys(g);
+$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
+function svcClose(){const w=$("sheet");if(w){w.classList.add("out");setTimeout(()=>w.remove(),160)}}
+function svcOpen(id){const x=id?C.svc.l.find(y=>y.id==id):{name:"",price:"",duration_min:30,category:"",description:"",active:true};if(!x)return;C.svc.e=id||0;
+const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
+w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${id?"تعديل خدمة":"خدمة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
+<label class="m" for="sf-n">اسم الخدمة</label><input id="sf-n" value="${esc(x.name)}" placeholder="مثال: قصة + دقن" autocomplete="off">
+<div class="svc-2"><div><label class="m" for="sf-p">السعر (${esc(C.cfg.currency)})</label><input id="sf-p" type="number" inputmode="decimal" min="0" value="${esc(x.price)}"></div><div><label class="m" for="sf-d">المدة (دقيقة)</label><input id="sf-d" type="number" inputmode="numeric" min="5" step="5" value="${esc(x.duration_min||30)}"></div></div>
+<label class="m" for="sf-c">القسم</label><input id="sf-c" value="${esc(id?(x.category||"قصات"):"")}" placeholder="قصات / ذقن / عناية ..." autocomplete="off">
+<div class="chips">${svcCats().map((c,i)=>`<button type="button" class="chip" onclick="$('sf-c').value=svcCats()[${i}]">${esc(c)}</button>`).join("")}</div>
+<label class="m" for="sf-ds">وصف قصير (اختياري)</label><input id="sf-ds" value="${esc(x.description||"")}" autocomplete="off">
+<label class="svc-sw"><input id="sf-a" type="checkbox" ${x.active?"checked":""}><span>شغّالة — ظاهرة للعملاء وفي الكاشير</span></label>
+<button class="btn" id="sf-s" style="width:100%" onclick="svcSave()">${id?"حفظ التعديل":"إضافة الخدمة"}</button></div>`;
+document.body.appendChild(w);setTimeout(()=>$("sf-n").focus(),60)}
+async function svcSave(){const n=$("sf-n").value.trim(),p=parseFloat($("sf-p").value),d=Math.round(+$("sf-d").value)||30;
+if(!n)return toast("اكتب اسم الخدمة");if(!(p>=0))return toast("اكتب سعر صحيح");
+const o={name:n,price:p,duration_min:d,category:$("sf-c").value.trim()||"قصات",description:$("sf-ds").value.trim()||null,active:$("sf-a").checked};
+const b=$("sf-s");b.disabled=true;
+const{error}=C.svc.e?await sb.from("services").update(o).eq("id",C.svc.e):await sb.from("services").insert(o);
+b.disabled=false;if(error)return toast(error.message);svcClose();toast("تم الحفظ ✓");V.svc()}
+document.addEventListener("keydown",e=>{if(e.key=="Escape")svcClose()});
 document.addEventListener("click",e=>{const n=$("nav");n&&n.classList.contains("open")&&!e.target.closest("nav")&&n.classList.remove("open")});
 boot();
