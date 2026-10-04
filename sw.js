@@ -1,6 +1,6 @@
 // صالون أبو يوسف - Service Worker (الشبكة أولًا عشان التحديثات تظهر فورًا)
-const V = "salon-v2";
-const SHELL = ["/", "/staff", "/app.js", "/config.js", "/style.css", "/icon-192.png", "/manifest.webmanifest", "/manifest-staff.webmanifest"];
+const V = "salon-v3";
+const SHELL = ["/", "/staff", "/admin", "/app.js", "/config.js", "/style.css", "/icon-192.png", "/manifest.webmanifest", "/manifest-staff.webmanifest", "/manifest-admin.webmanifest", "/icon-staff-192.png", "/icon-admin-192.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
@@ -19,5 +19,5 @@ self.addEventListener("fetch", e => {
   e.respondWith(fetch(r).then(res => {
     if (res.ok && !res.redirected) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); }
     return res;
-  }).catch(() => caches.match(r).then(m => m || caches.match(r.mode === "navigate" ? (u.pathname.startsWith("/staff") ? "/staff" : "/") : r))));
+  }).catch(() => caches.match(r).then(m => m || caches.match(r.mode === "navigate" ? (u.pathname.startsWith("/admin") ? "/admin" : u.pathname.startsWith("/staff") ? "/staff" : "/") : r))));
 });
