@@ -193,7 +193,7 @@ sb.rpc("staff_schedule",{p_staff:id}),sb.from("attendance").select("*").eq("staf
 if(e1)return $("panel").innerHTML=`<p class="m">${esc(e1.message)}</p>`;
 const s=sm?.[0]||{},avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
 const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c)=>`<div class="box kpi"><div class="kpi-l">${l}</div><div class="kpi-v" style="color:${c||"inherit"}">${v}</div></div>`;
-const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"}),DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const attOn=owner||can("use_attendance");
 const attBox=!owner&&can("use_attendance")?`<div class="box" style="margin:10px 0;text-align:center">${op?.length?`<div class="m">حاضر من ${hm(op[0].check_in)}</div><button class="btn" style="width:100%" onclick="att('check_out')">تسجيل انصراف</button>`:`<button class="btn" style="width:100%;background:var(--ok)" onclick="att('check_in')">تسجيل حضور</button>`}</div>`:"";
 C.attRows=Object.fromEntries((at||[]).map(r=>[String(r.id),r]));const hrs=(at||[]).reduce((a,r)=>a+((r.check_out?new Date(r.check_out):new Date())-new Date(r.check_in))/36e5,0),late=(at||[]).reduce((a,r)=>a+r.late_min,0);
