@@ -364,3 +364,7 @@ button.ch:active{transform:scale(.985)}
 button.ch:active{transform:scale(.985)}
 @media(max-width:340px){.ch-t{font-size:20px}.cc-n{font-size:24px}button.ch{min-height:136px;padding:12px}}
 @media(prefers-reduced-motion:reduce){.okf .okc svg{animation:none;stroke-dashoffset:0}}
+/* كروت الكراسي على الشاشات الضيقة: رقم الكرسي ما يتكسرش، واسم العميل في سطر واحد */
+.ch-top{flex-wrap:wrap}.ch-no{white-space:nowrap}.ch-top .tag{white-space:nowrap}
+button.ch>.m:not(.ch-sv){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+@media(max-width:340px){button.ch .tag{padding:3px 8px;font-size:11px}}
