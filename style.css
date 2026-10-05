@@ -371,3 +371,11 @@ button.ch>.m:not(.ch-sv){overflow:hidden;text-overflow:ellipsis;white-space:nowr
 /* شريط التابات الفرعية داخل التاب المدمج: بيلف على سطرين بدل ما يخبي أزرار */
 .hubbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px}
 .hubbar .chip{flex:0 0 auto;white-space:nowrap}
+
+/* ===== الإشعارات: زر الجرس + بانر التفعيل ===== */
+.bell{position:absolute;inset-inline-end:12px;top:calc(env(safe-area-inset-top,0px) + 9px);width:38px;height:38px;padding:0;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mute);display:grid;place-items:center;cursor:pointer}
+.bell svg{width:19px;height:19px}
+.bell.on{color:var(--gold2);border-color:var(--gold3)}
+.bell:not(.on)::after{content:"";position:absolute;top:5px;inset-inline-end:5px;width:9px;height:9px;border-radius:50%;background:var(--red)}
+#pbn{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+@media(min-width:900px){#pbn{bottom:84px}}
