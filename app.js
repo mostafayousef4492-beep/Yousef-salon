@@ -17,6 +17,11 @@ const staffTabs=p=>{const T=[],cn=k=>can(k,p);if(cn("use_pos"))T.push(["pos","ا
 // المرتبات: المالك بس بيقراها (عمود salary مقفول عن الـ API لباقي المستخدمين)
 const PCOLS="id,full_name,role,commission_pct,created_at,perms,code";
 async function addSalary(rows){if(me.role!="owner"||!rows)return;try{const{data}=await sb.rpc("owner_salaries"),m=Object.fromEntries((data||[]).map(r=>[r.id,r.salary]));rows.forEach(p=>{if(p.id in m)p.salary=m[p.id]})}catch(e){}}
+
+// ===== دمج التابات: كل شاشة موجودة زي ما هي، بس المتشابهين اتجمعوا تحت تاب واحد بشريط فرعي =====
+const HUBS=[["h_ops","التشغيل","pos",["pos","cash","appts","inv"]],["h_mgmt","الإدارة","stock",["stock","svc","rep","fin","team"]],["h_team","الفريق","me",["me","ann","lb","tgt"]],["h_ctl","التحكم","set",["ctl","set"]]];
+function hubTabs(T){const tabs=[],hubs={},done=new Set();T.forEach(x=>{const H=HUBS.find(h=>h[3].includes(x[0]));if(!H){tabs.push(x);return}if(done.has(H[0]))return;done.add(H[0]);
+const m=T.filter(y=>H[3].includes(y[0]));if(m.length<2){tabs.push(x);return}hubs[H[0]]=m;tabs.push([H[0],H[1],H[2],m.map(y=>y[0])])});return{tabs,hubs}}
 async function boot(){
 await loadCfg();
 const{data:{session}}=await sb.auth.getSession();
@@ -28,12 +33,14 @@ me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
 const staff=["owner","cashier","barber","assistant"].includes(me.role);
 const whose=me.role=="owner"?"admin":staff?"staff":"customer";if(whose!=APP_MODE)return wrongPage(whose);
 const own=me.role=="owner";
-if(staff){const T=staffTabs(me);if(own||(me.role=="cashier"&&(can("use_pos")||can("manage_appts")))){T.unshift(["home","الرئيسية"]);const PRI=["home","pos","appts","cust"];T.sort((a,b)=>{const x=PRI.indexOf(a[0]),y=PRI.indexOf(b[0]);return(x<0?99:x)-(y<0?99:y)})}if(own)T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"],["ctl","مركز التحكم"],["set","الإعدادات"]);C.tabs=[...T,["out","خروج"]];go(T[0]?T[0][0]:"none");annCount()}
+if(staff){const T=staffTabs(me);if(own||(me.role=="cashier"&&(can("use_pos")||can("manage_appts")))){T.unshift(["home","الرئيسية"]);const PRI=["home","pos","appts","cust"];T.sort((a,b)=>{const x=PRI.indexOf(a[0]),y=PRI.indexOf(b[0]);return(x<0?99:x)-(y<0?99:y)})}if(own)T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"],["ctl","مركز التحكم"],["set","الإعدادات"]);const HT=hubTabs(T);C.hubs=HT.hubs;C.tabs=[...HT.tabs,["out","خروج"]];go(T[0]?T[0][0]:"none");annCount()}
 else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","حسابي"]];go("book")}}
 
-function go(t){clearInterval(C.poll);if(t=="out"){sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
-tab=t;$("app").classList.remove("still");const NV=C.tabs.length>5?4:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==t?"on":"")+(i>=NV?" x":"")}" onclick="go('${x[0]}')">${ic(x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==t)?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
-const put=h=>{$("app").innerHTML=h;polish()};
+function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()});return}
+let hb=null;if(C.hubs){if(C.hubs[t]){hb=t;t=(C.hubLast||{})[hb]||C.hubs[hb][0][0]}else for(const k in C.hubs)if(C.hubs[k].some(x=>x[0]==t)){hb=k;break}}
+if(hb){(C.hubLast=C.hubLast||{})[hb]=t;C.hubBar=`<div class="hubbar">${C.hubs[hb].map(x=>`<button class="chip ${x[0]==t?"sel":""}" onclick="go(\'${x[0]}\')">${x[1]}</button>`).join("")}</div>`}else C.hubBar="";
+tab=t;$("app").classList.remove("still");const NV=C.tabs.length>5?4:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==(hb||t)?"on":"")+(i>=NV?" x":"")}" data-v="${(x[3]||[x[0]]).join(" ")}" onclick="go('${x[0]}')">${ic(x[2]||x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==(hb||t))?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
+const put=h=>{$("app").innerHTML=(C.hubBar||"")+h;polish()};
 function polish(){const A=$("app");A.querySelectorAll(".tag").forEach(t=>{const k=Object.keys(ST).find(x=>ST[x]==t.textContent.trim());if(k)t.classList.add("st-"+k)});A.querySelectorAll(":scope>p.m").forEach(p=>{if(/^(مفيش|لسه|لا يوجد|ما فيش)/.test(p.textContent.trim()))p.classList.add("empty")})}
 
 function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1><div class="box"><input id="nm" placeholder="الاسم (للتسجيل الجديد فقط)"><input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة السر (6 حروف على الأقل)"><div class="chips"><button class="btn" onclick="login()">دخول</button><button class="btn g" onclick="signup()">حساب جديد</button></div></div>`)}
@@ -570,7 +577,7 @@ function drawKpi(){const P=C.kp;if(!P||!$("kpi"))return;const d=P.dr,cards=kpiCa
 async function copyLink(p){const u=location.origin+p;try{await navigator.clipboard.writeText(u);toast("تم نسخ الرابط ✓")}catch(e){prompt("انسخ الرابط:",u)}}
 // ===== واجهات patch11: الإعلانات / المتصدرين / التسوية / الراتب اليومي / الحجز الإداري / لم يحضر =====
 async function annCount(){try{const[{data:L},{data:R}]=await Promise.all([sb.from("team_announcements").select("id,expires_at").eq("active",true).limit(100),sb.from("announcement_reads").select("announcement_id").eq("user_id",me.id)]);const rd=new Set((R||[]).map(x=>x.announcement_id));C.annN=(L||[]).filter(a=>(!a.expires_at||new Date(a.expires_at)>Date.now())&&!rd.has(a.id)).length}catch(e){C.annN=0}annDot()}
-function annDot(){const b=document.querySelector('nav button[onclick="go(\'ann\')"]');if(!b)return;const o=b.querySelector(".adot");if(o)o.remove();if(C.annN>0&&tab!="ann"){const i=document.createElement("i");i.className="adot";i.textContent=C.annN>9?"9+":C.annN;i.style.cssText="position:absolute;top:2px;right:10px;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-style:normal;padding:0 5px;line-height:16px";b.style.position="relative";b.appendChild(i)}}
+function annDot(){const b=document.querySelector('nav button[data-v~="ann"]');if(!b)return;const o=b.querySelector(".adot");if(o)o.remove();if(C.annN>0&&tab!="ann"){const i=document.createElement("i");i.className="adot";i.textContent=C.annN>9?"9+":C.annN;i.style.cssText="position:absolute;top:2px;right:10px;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-style:normal;padding:0 5px;line-height:16px";b.style.position="relative";b.appendChild(i)}}
 V.ann=async()=>{const[{data:L,error},{data:R}]=await Promise.all([sb.from("team_announcements").select("*").order("pinned",{ascending:false}).order("created_at",{ascending:false}).limit(60),sb.from("announcement_reads").select("announcement_id").eq("user_id",me.id)]);
   if(error)return put(`<h1>الإعلانات</h1><p class="m">${esc(error.message)} — شغّل patch11.sql في Supabase الأول.</p>`);
   const rd=new Set((R||[]).map(x=>x.announcement_id)),post=can("manage_announcements"),live=a=>a.active&&(!a.expires_at||new Date(a.expires_at)>Date.now());

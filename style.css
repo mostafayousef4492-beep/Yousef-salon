@@ -368,3 +368,6 @@ button.ch:active{transform:scale(.985)}
 .ch-top{flex-wrap:wrap}.ch-no{white-space:nowrap}.ch-top .tag{white-space:nowrap}
 button.ch>.m:not(.ch-sv){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 @media(max-width:340px){button.ch .tag{padding:3px 8px;font-size:11px}}
+/* شريط التابات الفرعية داخل التاب المدمج: بيلف على سطرين بدل ما يخبي أزرار */
+.hubbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px}
+.hubbar .chip{flex:0 0 auto;white-space:nowrap}
