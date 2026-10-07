@@ -379,3 +379,5 @@ button.ch>.m:not(.ch-sv){overflow:hidden;text-overflow:ellipsis;white-space:nowr
 .bell:not(.on)::after{content:"";position:absolute;top:5px;inset-inline-end:5px;width:9px;height:9px;border-radius:50%;background:var(--red)}
 #pbn{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 @media(min-width:900px){#pbn{bottom:84px}}
+/* دور المدير: إخفاء أزرار الحذف والتصفير (الحماية الفعلية في قاعدة البيانات) */
+body.mgr [onclick^="delInv("],body.mgr [onclick^="delStaff("],body.mgr [onclick^="delAppt("],body.mgr [onclick^="delC("],body.mgr [onclick^="delExp("],body.mgr [onclick^="delTx("],body.mgr [onclick^="delMove("],body.mgr [onclick^="delPay("],body.mgr [onclick^="delClose("],body.mgr [onclick^="voidPur("],body.mgr [onclick^="undoStl("],body.mgr [onclick^="delLeave("],body.mgr [onclick^="annDel("],body.mgr [onclick^="attDel("],body.mgr [onclick^="tgDel("],body.mgr [onclick^="tierDel("],body.mgr [onclick^="resetAllPerms("],body.mgr [onclick^="resetPerms("],body.mgr [onclick^="doReset("],body.mgr [onclick^="cancelAw("],body.mgr [onclick^="ownerDel("]{display:none!important}
