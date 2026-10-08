@@ -20,7 +20,7 @@ const PCOLS="id,full_name,role,commission_pct,created_at,perms,code";
 async function addSalary(rows){if(!isAdm(me)||!rows)return;try{const{data}=await sb.rpc("owner_salaries"),m=Object.fromEntries((data||[]).map(r=>[r.id,r.salary]));rows.forEach(p=>{if(p.id in m)p.salary=m[p.id]})}catch(e){}}
 
 // ===== دمج التابات: كل شاشة موجودة زي ما هي، بس المتشابهين اتجمعوا تحت تاب واحد بشريط فرعي =====
-const HUBS=[["h_ops","التشغيل","pos",["pos","cash","appts","inv"]],["h_mgmt","الإدارة","stock",["stock","svc","rep","fin","team"]],["h_team","الفريق","me",["me","ann","lb","tgt"]],["h_ctl","التحكم","set",["ctl","set"]]];
+const HUBS=[["h_ops","التشغيل","pos",["pos","cash","appts","inv"]],["h_mgmt","الإدارة","stock",["stock","svc","rep","fin","team","att"]],["h_team","الفريق","me",["me","ann","lb","tgt"]],["h_ctl","التحكم","set",["ctl","set"]]];
 function hubTabs(T){const tabs=[],hubs={},done=new Set();T.forEach(x=>{const H=HUBS.find(h=>h[3].includes(x[0]));if(!H){tabs.push(x);return}if(done.has(H[0]))return;done.add(H[0]);
 const m=T.filter(y=>H[3].includes(y[0]));if(m.length<2){tabs.push(x);return}hubs[H[0]]=m;tabs.push([H[0],H[1],H[2],m.map(y=>y[0])])});return{tabs,hubs}}
 async function boot(){
@@ -34,7 +34,7 @@ me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
 const staff=["owner","manager","cashier","barber","assistant"].includes(me.role);
 const whose=isAdm(me)?"admin":staff?"staff":"customer";if(whose!=APP_MODE)return wrongPage(whose);
 const own=isAdm(me);
-if(staff){const T=staffTabs(me);if(own||(me.role=="cashier"&&(can("use_pos")||can("manage_appts")))){T.unshift(["home","الرئيسية"]);const PRI=["home","pos","appts","cust"];T.sort((a,b)=>{const x=PRI.indexOf(a[0]),y=PRI.indexOf(b[0]);return(x<0?99:x)-(y<0?99:y)})}if(own){T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"]);if(me.role=="owner")T.push(["ctl","مركز التحكم"]);T.push(["set","الإعدادات"])}const HT=hubTabs(T);C.hubs=HT.hubs;C.tabs=[...HT.tabs,["out","خروج"]];go(T[0]?T[0][0]:"none");annCount()}
+if(staff){const T=staffTabs(me);if(own||(me.role=="cashier"&&(can("use_pos")||can("manage_appts")))){T.unshift(["home","الرئيسية"]);const PRI=["home","pos","appts","cust"];T.sort((a,b)=>{const x=PRI.indexOf(a[0]),y=PRI.indexOf(b[0]);return(x<0?99:x)-(y<0?99:y)})}if(own){T.push(["svc","الخدمات"],["fin","المالية"],["team","الموظفين"],["att","الحضور"]);if(me.role=="owner")T.push(["ctl","مركز التحكم"]);T.push(["set","الإعدادات"])}const HT=hubTabs(T);C.hubs=HT.hubs;C.tabs=[...HT.tabs,["out","خروج"]];go(T[0]?T[0][0]:"none");annCount()}
 else{const{data:cu}=await sb.from("customers").select("id").eq("user_id",session.user.id).maybeSingle();if(!cu)return authView("c");C.tabs=[["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","حسابي"]];go("book")}}
 
 function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";pushUnlink().finally(()=>sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()}));return}
@@ -178,7 +178,7 @@ C.chOpenAfter=n;go("pos")}
 async function setS(id,s){await sb.from("appointments").update({status:s}).eq("id",id);go("appts")}
 async function restock(id,q){const{error}=await sb.rpc("restock_product",{p_id:id,p_qty:10});error?toast(error.message):go("stock")}
 // ===== شاشة الموظف والإدارة =====
-const mm=x=>x==null?"—":fm(x);const KIND={advance:"سحب",deduction:"خصم",bonus:"مكافأة"};C.rg="month";
+const mm=x=>x==null?"—":fm(x);const KIND={advance:"سحب / سلفة",deduction:"خصم",bonus:"إيداع / مكافأة"};C.rg="month";
 const rangeOf=k=>{const a=new Date();a.setHours(0,0,0,0);const b=new Date(a);
 if(k=="week"){a.setDate(a.getDate()-((a.getDay()+1)%7));b.setTime(a.getTime());b.setDate(b.getDate()+7)}
 else if(k=="month"){a.setDate(1);b.setTime(a.getTime());b.setMonth(b.getMonth()+1)}else b.setDate(b.getDate()+1);
@@ -202,7 +202,7 @@ const td=new Date().toLocaleDateString("en-CA"),attAdm=owner?`<div class="box" i
 const shBox=`<h2>جدول شغلي</h2>${sh?.length?[0,1,2,3,4,5,6].map(d=>{const x=sh.find(y=>y.weekday==d);return x?`<div class="row"><b>${DN[d]}</b><span>${x.is_off?"إجازة":x.start_time.slice(0,5)+" ← "+x.end_time.slice(0,5)}</span></div>`:""}).join(""):`<p class="m">لسه مفيش شيفت محدد.</p>`}${lv?.length?`<div class="m">إجازات جاية:</div>`+lv.map(l=>`<div class="row"><span>${l.from_date} ← ${l.to_date}</span><span class="m">${esc(l.reason||"")}</span></div>`).join(""):""}`;
 $("panel").innerHTML=`${attBox}<div class="chips">${[["day","اليوم"],["week","الأسبوع"],["month","الشهر"]].map(x=>`<button class="chip ${C.rg==x[0]?"sel":""}" onclick="C.rg='${x[0]}';C.reload()">${x[1]}</button>`).join("")}</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${s.who=="assistant"?card("راتب الفترة",mm(s.salary),"var(--ok)","pnNet()")+card("خدمات شاركت فيها",s.assisted??0,"","pnAl()"):card("مبيعاتي"+(s.cuts==null?"":" ("+s.cuts+" زبون)"),mm(s.sales),"","pnInv()")+card("عمولتي",mm(s.commission),"var(--ok)","pnInv()")+(s.assistant_cuts==null?"":card("خصم مساعد",mm(s.assistant_cuts),"var(--red)","pnAl()"))+(+s.salary>0?card("راتب ثابت",mm(s.salary),"var(--ok)","pnNet()"):"")}${card("مكافآت",mm(s.bonuses),"var(--ok)","pnTx('bonus')")}${card("سحب",mm(s.advances),"var(--red)","pnTx('advance')")}${card("خصومات",mm(s.deductions),"var(--red)","pnTx('deduction')")}${card("الصافي المستحق",mm(s.net),"var(--brass)","pnNet()")}</div>
-${owner?`<h2>تسجيل حركة</h2><div class="box"><select id="tk">${Object.entries(KIND).map(k=>`<option value="${k[0]}">${k[1]}</option>`).join("")}</select><input id="ta" type="number" inputmode="decimal" placeholder="المبلغ"><input id="tn" placeholder="ملاحظة (اختياري)"><button class="btn" onclick="addTx('${id}')">حفظ الحركة</button></div>`:""}
+${S.f?(setTimeout(()=>stmtLoad(id),0),`<div id="stmt"></div>`):""}${owner?`<h2>تسجيل حركة</h2><div class="box"><select id="tk">${Object.entries(KIND).map(k=>`<option value="${k[0]}">${k[1]}</option>`).join("")}</select><input id="ta" type="number" inputmode="decimal" placeholder="المبلغ"><input id="tn" placeholder="ملاحظة (اختياري)"><button class="btn" onclick="addTx('${id}')">حفظ الحركة</button></div>`:""}
 ${owner?(setTimeout(()=>{stlLoad(id);dwgLoad(id)},0),`<div id="stl"></div><div id="dwg"></div>`):""}
 ${al?.length?`<h2>${s.who=="assistant"?"الخدمات اللي شاركت فيها":"خصم المساعدين على خدماتك"}</h2>`+al.map(x=>`<div class="row"><div><b>#${x.inv_no}</b> · ${esc(x.service_name)} · ${fm(x.price)}<div class="m">${new Date(x.created).toLocaleDateString("ar-EG")} · ${s.who=="assistant"?"مع الحلاق "+esc(x.barber_name||"—"):"اتخصم للمساعد "+esc(x.assistant_name)}</div></div>${s.who=="assistant"?"":`<b style="color:var(--red)">- ${fm(x.cut)}</b>`}</div>`).join(""):""}
 <h2 ${S.f?"":"hidden"}>الحركات</h2>${tx?.length?tx.map(x=>`<div class="row"><div><b style="color:${x.kind=="bonus"?"var(--ok)":"var(--red)"}">${KIND[x.kind]}</b> · ${fm(x.amount)}<div class="m">${new Date(x.created_at).toLocaleDateString("ar-EG")} ${esc(x.note||"")}</div></div>${owner?`<button class="btn s g" onclick="delTx(${x.id})">حذف</button>`:""}</div>`).join(""):`<p class="m" ${S.f?"":"hidden"}>مفيش حركات في الفترة دي.</p>`}
@@ -1053,6 +1053,36 @@ async function stlNet(){const S=C.stl;if(!S)return;dsLoad("إزاي طلع ال�
   dsOpen("إزاي طلع الصافي",`<div class="m" style="margin-bottom:6px">من ${dsT(S.pv.from)} لحد دلوقتي</div><div class="box">${L.map(r=>dsKv(r[0],fm(r[1]))).join("")}${dsKv("الصافي",fm(+s.net||0),1)}</div>`)}
 function stlPaid(){const S=C.stl;if(!S)return;dsQ("اللي اتصرف من آخر تسوية",sb.from("salary_payments").select("amount,paid_on,paid_from,note,created_at").eq("staff_id",S.id).gt("created_at",S.pv.from).order("created_at",{ascending:false}),L=>`<div class="m" style="margin-bottom:8px">${L.length} عملية · <b>${fm(sumOf(L,x=>x.amount))}</b></div>`+L.map(p=>dsRow(`<b>${fm(p.amount)}</b>`,`${p.paid_on} · ${p.paid_from=="drawer"?"من الدرج":"من برا الدرج"}${p.note?" · "+esc(p.note):""}`)).join(""))}
 function stlBal(){const S=C.stl;if(!S)return;const b=+S.pv.balance;dsOpen("الرصيد",`<div class="box">${dsKv("الصافي المستحق",fm(+S.pv.net||0))}${dsKv("اتصرف",fm(-(+S.pv.paid||0)))}${dsKv("الرصيد",fm(b),1)}</div><div class="m" style="margin-top:6px">${b>0?"لسه له فلوس عند الصالون.":b<0?"واخد أكتر من مستحقه.":"الحساب متساوي."}</div>`)}
+
+
+// ================= كشف حساب الموظف (زي البنك) + لوحة الحضور =================
+const STK={salary:"راتب يوم",commission:"عمولة",wage:"يومية حضور",deposit:"إيداع",adj:"تسوية ساعات",withdraw:"سحب",deduction:"خصم",payout:"صرف راتب",settle:"تسوية حساب"};
+const dsHm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+async function stmtLoad(id){if(!$("stmt"))return;const[f,t]=rangeOf(C.rg);
+  const{data,error}=await sb.rpc("staff_statement",{p_staff:id,p_from:f,p_to:t});if(!$("stmt"))return;
+  if(error)return $("stmt").innerHTML=`<h2>كشف الحساب</h2><p class="m">${esc(error.message)}</p>`;
+  C.sm=data;drawStmt()}
+function stmtFilter(f){C.smf=f;drawStmt()}
+function drawStmt(){const box=$("stmt"),d=C.sm;if(!box||!d)return;const f=C.smf||"all",cl=+d.closing||0,canInv=isAdm(me)||can("view_invoices");
+  const E=(d.entries||[]).filter(x=>f=="all"||(f=="in"?+x.credit>0:+x.debit>0)).slice().reverse().slice(0,200);
+  box.innerHTML=`<h2>كشف الحساب</h2><div class="box" style="text-align:center"><div class="m">رصيد الحساب</div><div style="font-size:30px;font-weight:800;color:${cl>=0?"var(--ok)":"var(--red)"}">${fm(cl)}</div><div class="m">أول الفترة ${fm(d.opening)} · داخل +${fm(d.credits)} · خارج −${fm(d.debits)}</div></div><div class="chips" style="margin:8px 0">${[["all","الكل"],["in","داخل"],["out","خارج"]].map(x=>`<button class="chip ${f==x[0]?"sel":""}" onclick="stmtFilter('${x[0]}')">${x[1]}</button>`).join("")}</div>`+
+  (E.length?E.map(x=>{const cr=+x.credit>0,click=x.kind=="commission"&&x.ref&&canInv;return `<div class="row"${click?` role="button" style="cursor:pointer" onclick="dsInvOne(${x.ref})"`:""}><div><b>${esc(x.label)}</b><div class="m">${dsT(x.at)} · ${STK[x.kind]||esc(x.kind)}</div></div><div style="text-align:left"><b style="color:${cr?"var(--ok)":"var(--red)"}">${cr?"+"+fm(x.credit):"−"+fm(x.debit)}</b><div class="m">الرصيد ${fm(x.balance)}</div></div></div>`}).join(""):`<p class="m">مفيش حركات في الفترة دي.</p>`)+
+  `<div class="m" style="margin-top:6px">أي فلوس تدخل (راتب، يومية، عمولة، إيداع) بتتضاف للرصيد، وأي سحب أو خصم أو صرف بيتخصم منه. الراتب الشهري بيدخل يوم بيوم من يوم فتح الحساب.</div>`}
+
+const ATL={in:"حاضرين دلوقتي",out:"انصرفوا النهارده",none:"لسه ما حضروش",off:"راحة / إجازة"};
+const attSt=r=>r.today_open?"in":r.today_out?"out":r.today_off?"off":"none";
+V.att=async()=>{C.am=C.am||ymd(new Date()).slice(0,7);const[,b]=monthR(C.am),e=new Date(b);e.setDate(e.getDate()-1);
+  const{data,error}=await sb.rpc("attendance_report",{p_from:C.am+"-01",p_to:ymd(e)});
+  if(error)return put(`<h1>الحضور والانصراف</h1><p class="m">${esc(error.message)}</p>`);
+  C.ar=data;const R=data.rows||[],cnt=k=>R.filter(r=>attSt(r)==k).length,sm=f=>R.reduce((a,r)=>a+(+r[f]||0),0);
+  const bd=r=>{const s=attSt(r);return `<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="openStaff('${r.id}','${esc(r.name)}')"><div><b>${esc(r.name)}</b><div class="m">${RL[r.role]||r.role}${r.today_in?" · حضر "+dsHm(r.today_in):""}${r.today_out&&!r.today_open?" · انصرف "+dsHm(r.today_out):""}${+r.today_late>0?" · تأخير "+r.today_late+" د":""}</div></div><span class="tag" style="${s=="in"?"background:var(--ok);color:#fff":s=="none"?"background:var(--red);color:#fff":""}">${{in:"حاضر",out:"انصرف",off:"راحة",none:"لسه"}[s]}</span></button>`};
+  put(`<h1>الحضور والانصراف</h1><h2>النهارده</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${kc("حاضرين دلوقتي",cnt("in"),"var(--ok)","attList('in')")}${kc("انصرفوا",cnt("out"),"","attList('out')")}${kc("لسه ما حضروش",cnt("none"),cnt("none")?"var(--red)":"","attList('none')")}${kc("راحة / إجازة",cnt("off"),"","attList('off')")}</div>${R.map(bd).join("")}
+<h2>تقرير الشهر</h2><div class="chips" style="align-items:center"><input type="month" value="${C.am}" style="width:auto;margin:0" onchange="C.am=this.value||'${C.am}';V.att()"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">${kc("أيام غياب",sm("absent_days"),sm("absent_days")?"var(--red)":"","attKpi('absent_days','أيام الغياب','يوم')")}${kc("دقايق تأخير",sm("late_min"),"","attKpi('late_min','دقايق التأخير','دقيقة')")}${kc("ساعات شغل",sm("hours").toFixed(1),"","attKpi('hours','ساعات الشغل','ساعة')")}${kc("نسي الانصراف",sm("missing_out"),sm("missing_out")?"var(--red)":"","attKpi('missing_out','نسيوا الانصراف','مرة')")}</div>
+${tbl(["الموظف","حضور","غياب","تأخير","ساعات"],R.map(r=>[`<a href="#" style="color:var(--gold2)" onclick="openStaff('${r.id}','${esc(r.name)}');return false">${esc(r.name)}</a><div class="m">${RL[r.role]||r.role}</div>`,r.present_days,+r.absent_days?`<b style="color:var(--red)">${r.absent_days}</b>`:r.absent_days,+r.late_min?r.late_min+" د":"—",(+r.hours).toFixed(1)]))}
+<div class="m" style="margin-top:6px">الغياب بيتحسب من جدول الشيفتات والإجازات (الموظف اللي ملوش شيفت مش بيتحسب له غياب). اضغط على اسم الموظف تشوف يومه بيومه وتسجّل يدوي.</div>`)};
+function attList(k){const R=((C.ar||{}).rows||[]).filter(r=>attSt(r)==k);dsOpen(ATL[k],R.length?R.map(r=>dsRow(`<b>${esc(r.name)}</b>`,(RL[r.role]||r.role)+(r.today_in?" · حضر "+dsHm(r.today_in):"")+(r.today_out&&!r.today_open?" · انصرف "+dsHm(r.today_out):""),+r.today_late>0?`<span class="tag">تأخير ${r.today_late} د</span>`:"")).join(""):dsEmpty("مفيش حد."))}
+function attKpi(f,t,u){const R=((C.ar||{}).rows||[]).filter(r=>+r[f]>0).sort((a,b)=>b[f]-a[f]);dsOpen(t+" — "+mAr(C.am+"-01"),R.length?R.map(r=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="svcClose();openStaff('${r.id}','${esc(r.name)}')"><div><b>${esc(r.name)}</b><div class="m">${RL[r.role]||r.role}</div></div><b>${f=="hours"?(+r[f]).toFixed(1):r[f]} ${u}</b></button>`).join(""):dsEmpty("مفيش حاجة الشهر ده."))}
 
 
 boot();
