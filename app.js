@@ -1097,16 +1097,33 @@ function dfNext(t){const d=new Date(t+"T00:00");d.setDate(d.getDate()+1);return 
 function dfQ(q,col,k,ts){const d=dfGet(k);if(d.f)q=q.gte(col,ts?new Date(d.f+"T00:00").toISOString():d.f);if(d.t)q=ts?q.lt(col,new Date(dfNext(d.t)+"T00:00").toISOString()):q.lte(col,d.t);return q}
 function dfBar(k,run){const d=dfGet(k);return `<div class="box" style="margin:8px 0"><div class="chips" style="align-items:center"><span class="m">من</span><input type="date" value="${d.f}" style="width:auto;margin:0" onchange="dfSet('${k}','f',this.value);${run}"><span class="m">إلى</span><input type="date" value="${d.t}" style="width:auto;margin:0" onchange="dfSet('${k}','t',this.value);${run}">${dfOn(k)?`<button class="btn s g" onclick="dfClr('${k}');${run}">مسح الفلتر</button>`:""}</div></div>`}
 
-/* ===== تسجيل حضور / انصراف بكود الموظف (للمالك والإدارة) ===== */
-function attCodeBox(){return `<div class="box" style="margin:8px 0"><div class="m" style="margin-bottom:6px">تسجيل بكود الموظف (بالوقت الحالي)</div><input id="ac_c" type="text" inputmode="numeric" autocomplete="off" placeholder="اكتب كود الموظف (مثلاً 101)" onkeydown="if(event.key==='Enter')attCode('in')"><div class="chips"><button class="btn" style="flex:1;background:var(--ok)" onclick="attCode('in')">تسجيل حضور</button><button class="btn g" style="flex:1" onclick="attCode('out')">تسجيل انصراف</button></div></div>`}
-async function attCode(kind){if(C.acBusy)return;const c=($("ac_c").value||"").trim();if(!c)return toast("اكتب كود الموظف");C.acBusy=1;try{
+/* ===== تسجيل حضور / انصراف بكود الموظف (للمالك والإدارة) — بيدعم يوم سابق ===== */
+function attCodeBox(){const td=ymd(new Date());return `<div class="box" style="margin:8px 0"><div class="m" style="margin-bottom:6px">تسجيل بكود الموظف</div><input id="ac_c" type="text" inputmode="numeric" autocomplete="off" placeholder="اكتب كود الموظف (مثلاً 101)"><label class="m">اليوم (سيبه النهارده للتسجيل الحالي)</label><input id="ac_d" type="date" max="${td}" value="${C.acd||td}" onchange="C.acd=this.value||''"><div class="chips" style="align-items:center"><div style="flex:1"><label class="m">وقت الحضور</label><input id="ac_i" type="time" style="margin:0"></div><div style="flex:1"><label class="m">وقت الانصراف</label><input id="ac_o" type="time" style="margin:0"></div></div><div class="m" style="margin:4px 0">النهارده: سيب الوقت فاضي = الوقت الحالي. يوم سابق: اكتب الوقت (حضور وانصراف مع بعض، أو واحد منهم).</div><div class="chips"><button class="btn" style="flex:1;background:var(--ok)" onclick="attCode('in')">تسجيل حضور</button><button class="btn g" style="flex:1" onclick="attCode('out')">تسجيل انصراف</button></div></div>`}
+async function attCode(kind){if(C.acBusy)return;const c=($("ac_c").value||"").trim();if(!c)return toast("اكتب كود الموظف");
+const now=new Date(),td=ymd(now),d=$("ac_d").value||td,ti=$("ac_i").value,to=$("ac_o").value,isT=d==td,hh=x=>x.toTimeString().slice(0,5);
+if(d>td)return toast("مينفعش تسجل يوم لسه ماجاش");
+if(kind=="in"&&!ti&&!isT)return toast("اكتب وقت الحضور لليوم ده");
+if(kind=="out"&&!to&&!isT)return toast("اكتب وقت الانصراف لليوم ده");
+C.acBusy=1;try{
 const{data:p,error}=await sb.from("profiles").select("id,full_name,role,code").eq("code",c).neq("role","customer").limit(1);
 if(error)return toast(error.message);if(!p||!p.length)return toast("مفيش موظف بالكود ده");const st=p[0];
-const{data:op,error:e1}=await sb.from("attendance").select("id,check_in").eq("staff_id",st.id).is("check_out",null).order("check_in",{ascending:false}).limit(1);
-if(e1)return toast(e1.message);const now=new Date(),hh=x=>x.toTimeString().slice(0,5),has=op&&op.length;
-let args;
-if(kind=="in"){if(has)return toast(st.full_name+" حاضر بالفعل من "+hh(new Date(op[0].check_in)));args={p_id:null,p_staff:st.id,p_day:ymd(now),p_in:hh(now),p_out:null,p_late_min:null,p_note:"تسجيل بالكود"}}
-else{if(!has)return toast(st.full_name+" مش مسجّل حضور دلوقتي");const a=new Date(op[0].check_in);args={p_id:String(op[0].id),p_staff:st.id,p_day:ymd(a),p_in:hh(a),p_out:hh(now),p_late_min:null,p_note:"تسجيل بالكود"}}
-const{data,error:e2}=await sb.rpc("admin_att_save",args);if(e2)return toast(/duplicate key|unique/i.test(e2.message||"")?st.full_name+" عنده تسجيل حضور النهارده قبل كده":e2.message);
-toast(st.full_name+" — "+(kind=="in"?"حضور":"انصراف")+" "+hh(now)+" ✓"+(data?.late_min>0&&kind=="in"?" (متأخر "+data.late_min+" د)":""));$("ac_c").value="";V.att()
+const[{data:dy,error:e0},{data:op,error:e1}]=await Promise.all([
+ sb.from("attendance").select("id,check_in,check_out").eq("staff_id",st.id).gte("check_in",new Date(d+"T00:00").toISOString()).lt("check_in",new Date(dfNext(d)+"T00:00").toISOString()).order("check_in",{ascending:false}),
+ sb.from("attendance").select("id,check_in").eq("staff_id",st.id).is("check_out",null).order("check_in",{ascending:false}).limit(1)]);
+if(e0||e1)return toast((e0||e1).message);
+const D=dy||[],open=op&&op.length?op[0]:null;let args,lbl;
+if(kind=="in"){
+ if(isT&&open)return toast(st.full_name+" حاضر بالفعل من "+hh(new Date(open.check_in)));
+ if(D.length)return toast(st.full_name+" عنده تسجيل في اليوم ده قبل كده — استخدم انصراف أو عدّله من صفحته");
+ const t=ti||hh(now);args={p_id:null,p_staff:st.id,p_day:d,p_in:t,p_out:to||null,p_late_min:null,p_note:"تسجيل بالكود"};lbl="حضور "+t+(to?" ← انصراف "+to:"")}
+else{
+ const o=to||hh(now);let row=isT?open:D.find(r=>!r.check_out);
+ if(!row){
+  if(D.some(r=>r.check_out))return toast("انصراف "+st.full_name+" متسجل بالفعل في اليوم ده");
+  if(!ti)return toast(isT?st.full_name+" مش مسجّل حضور دلوقتي":"مفيش حضور مسجّل لـ"+st.full_name+" في اليوم ده — اكتب وقت الحضور كمان");
+  args={p_id:null,p_staff:st.id,p_day:d,p_in:ti,p_out:o,p_late_min:null,p_note:"تسجيل بالكود"};lbl="حضور "+ti+" ← انصراف "+o}
+ else{const a=new Date(row.check_in);args={p_id:String(row.id),p_staff:st.id,p_day:ymd(a),p_in:hh(a),p_out:o,p_late_min:null,p_note:"تسجيل بالكود"};lbl="انصراف "+o}}
+const{data,error:e2}=await sb.rpc("admin_att_save",args);
+if(e2)return toast(/duplicate key|unique/i.test(e2.message||"")?st.full_name+" عنده تسجيل في اليوم ده قبل كده":e2.message);
+toast(st.full_name+" — "+lbl+(isT?"":" ("+d+")")+" ✓"+(data?.late_min>0&&kind=="in"?" · متأخر "+data.late_min+" د":""));V.att()
 }finally{C.acBusy=0}}
