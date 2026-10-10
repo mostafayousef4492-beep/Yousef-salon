@@ -381,3 +381,11 @@ button.ch>.m:not(.ch-sv){overflow:hidden;text-overflow:ellipsis;white-space:nowr
 @media(min-width:900px){#pbn{bottom:84px}}
 /* دور المدير: إخفاء أزرار الحذف والتصفير (الحماية الفعلية في قاعدة البيانات) */
 body.mgr [onclick^="delInv("],body.mgr [onclick^="delStaff("],body.mgr [onclick^="delAppt("],body.mgr [onclick^="delC("],body.mgr [onclick^="delExp("],body.mgr [onclick^="delTx("],body.mgr [onclick^="delMove("],body.mgr [onclick^="delPay("],body.mgr [onclick^="delClose("],body.mgr [onclick^="voidPur("],body.mgr [onclick^="undoStl("],body.mgr [onclick^="delLeave("],body.mgr [onclick^="annDel("],body.mgr [onclick^="attDel("],body.mgr [onclick^="tgDel("],body.mgr [onclick^="tierDel("],body.mgr [onclick^="resetAllPerms("],body.mgr [onclick^="resetPerms("],body.mgr [onclick^="doReset("],body.mgr [onclick^="cancelAw("],body.mgr [onclick^="ownerDel("]{display:none!important}
+
+/* مركز القيادة: لوحة الحلاقين والكراسي */
+.cc-chairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.cc-chair{padding:12px 14px;margin:0;border-inline-start:4px solid var(--ok,#2e9e6b)}
+.cc-chair.busy{border-inline-start-color:var(--gold,#c9a24a)}
+.cc-chair b{display:block;margin:2px 0;overflow-wrap:anywhere}
+.hubbar{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.hubbar::-webkit-scrollbar{display:none}
