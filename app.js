@@ -13,14 +13,14 @@ const PD={cashier:{use_attendance:1,use_pos:1,view_stock:1,view_invoices:1,manag
 const isAdm=p=>!!p&&(p.role=="owner"||p.role=="manager");
 const can=(k,p=me)=>p.role=="owner"||(p.perms&&k in p.perms?!!p.perms[k]:(p.role=="manager"||!!(PD[p.role]||{})[k]));
 async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);const sfx=APP_MODE=="staff"?" · الموظفين":APP_MODE=="admin"?" · الإدارة":"";document.title=C.cfg.salon_name+sfx;$("brand").innerHTML=ic("menu")+"<span>"+esc(C.cfg.salon_name)+sfx+"</span>"}
-const staffTabs=p=>{const T=[],cn=k=>can(k,p);if(cn("use_pos"))T.push(["pos","الكاشير"]);if(cn("use_pos"))T.push(["cash","الخزنة"]);if(cn("manage_appts"))T.push(["appts","الحجوزات"]);if(cn("view_stock"))T.push(["stock","المخزون"]);if(cn("view_invoices"))T.push(["inv","الفواتير"]);if(cn("view_customers"))T.push(["cust","العملاء"]);if(cn("view_reports"))T.push(["rep","التقارير"]);if(p.role=="barber"||p.role=="assistant"||cn("use_attendance"))T.push(["me","شاشتي"]);T.push(["ann","الإعلانات"]);if(p.role!="assistant"&&p.role!="customer")T.push(["lb","المتصدرين"]);if(isAdm(p)||(p.role=="barber"&&cn("view_own_target")))T.push(["tgt","التارجت"]);return T};
+const staffTabs=p=>{const T=[],cn=k=>can(k,p);if(cn("use_pos"))T.push(["pos","الكاشير"]);if(cn("use_pos"))T.push(["cash","الخزنة"]);if(cn("manage_appts"))T.push(["appts","الحجوزات"]);if(cn("view_stock"))T.push(["stock","المخزون"]);if(cn("view_invoices"))T.push(["inv","الفواتير"]);if(cn("view_customers"))T.push(["cust","العملاء"]);if(cn("view_customers"))T.push(["rem","التذكير","cust"]);if(cn("view_reports"))T.push(["rep","التقارير"]);if(p.role=="barber"||p.role=="assistant"||cn("use_attendance"))T.push(["me","شاشتي"]);T.push(["ann","الإعلانات"]);if(p.role!="assistant"&&p.role!="customer")T.push(["lb","المتصدرين"]);if(isAdm(p)||(p.role=="barber"&&cn("view_own_target")))T.push(["tgt","التارجت"]);return T};
 
 // المرتبات: المالك بس بيقراها (عمود salary مقفول عن الـ API لباقي المستخدمين)
 const PCOLS="id,full_name,role,commission_pct,created_at,perms,code";
 async function addSalary(rows){if(!isAdm(me)||!rows)return;try{const{data}=await sb.rpc("owner_salaries"),m=Object.fromEntries((data||[]).map(r=>[r.id,r.salary]));rows.forEach(p=>{if(p.id in m)p.salary=m[p.id]})}catch(e){}}
 
 // ===== دمج التابات: كل شاشة موجودة زي ما هي، بس المتشابهين اتجمعوا تحت تاب واحد بشريط فرعي =====
-const HUBS=[["h_ops","الكاشير","pos",["pos","cash","inv"]],["h_book","الحجوزات","appts",["appts","cust"]],["h_mgmt","الإدارة","stock",["rep","fin","stock","svc","team","att"]],["h_more","المزيد","set",["me","ann","lb","tgt","ctl","set"]]];
+const HUBS=[["h_ops","الكاشير","pos",["pos","cash","inv"]],["h_book","الحجوزات","appts",["appts","cust","rem"]],["h_mgmt","الإدارة","stock",["rep","fin","stock","svc","team","att"]],["h_more","المزيد","set",["me","ann","lb","tgt","ctl","set"]]];
 function hubTabs(T){const tabs=[],hubs={},done=new Set();T.forEach(x=>{const H=HUBS.find(h=>h[3].includes(x[0]));if(!H){tabs.push(x);return}if(done.has(H[0]))return;done.add(H[0]);
 const m=T.filter(y=>H[3].includes(y[0]));if(m.length<2){tabs.push(x);return}hubs[H[0]]=m;tabs.push([H[0],H[1],H[2],m.map(y=>y[0])])});return{tabs,hubs}}
 async function boot(){
@@ -44,7 +44,6 @@ tab=t;$("app").classList.remove("still");const NV=C.tabs.length>6?5:C.tabs.lengt
 const put=h=>{$("app").innerHTML=(C.hubBar||"")+h;polish()};
 function polish(){const A=$("app");A.querySelectorAll(".tag").forEach(t=>{const k=Object.keys(ST).find(x=>ST[x]==t.textContent.trim());if(k)t.classList.add("st-"+k)});A.querySelectorAll(":scope>p.m").forEach(p=>{if(/^(مفيش|لسه|لا يوجد|ما فيش)/.test(p.textContent.trim()))p.classList.add("empty")})}
 
-function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1><div class="box"><input id="nm" placeholder="الاسم (للتسجيل الجديد فقط)"><input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة السر (6 حروف على الأقل)"><div class="chips"><button class="btn" onclick="login()">دخول</button><button class="btn g" onclick="signup()">حساب جديد</button></div></div>`)}
 async function login(){const{error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});error?toast("بيانات الدخول غلط"):boot()}
 async function signup(){const{error}=await sb.auth.signUp({email:$("em").value.trim(),password:$("pw").value,options:{data:{full_name:$("nm").value.trim()}}});if(error)return toast(error.message);toast("تم إنشاء الحساب");boot()}
 
@@ -295,26 +294,37 @@ async function delLeave(id){await sb.from("staff_leaves").delete().eq("id",id);o
 const PERIODS=[["morning","الصبح","6ص–12ظ",12],["afternoon","العصر","12–5م",17],["evening","المساء","5م–12",24],["night","بعد منتصف الليل","12–6ص",6]];
 const PLB={morning:"الصبح",afternoon:"العصر",evening:"المساء",night:"بعد منتصف الليل"};
 const MAIL="@staff.abu-yousef-salon.com";
-function authView(m="c"){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1>`+(m=="c"?`<p class="m">اكتب رقم موبايلك وادخل. لو أول مرة اكتب اسمك كمان وهنسجلك، ولو مسجل قبل كده هتدخل علطول من أي جهاز.</p><div class="box"><input id="cn" placeholder="اسمك (أول مرة بس)"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)"><button class="btn" style="width:100%" onclick="regCustomer()">دخول / تسجيل</button></div><p class="m" style="text-align:center;margin-top:18px"><a href="#" style="color:var(--blue)" onclick="authView('s');return false">دخول الموظفين</a></p>`:`<div class="box"><input id="em" placeholder="كود الموظف (أو البريد للمالك)"><input id="pw" type="password" placeholder="كلمة السر"><button class="btn" style="width:100%" onclick="login()">دخول</button></div><p class="m"><a href="#" style="color:var(--blue)" onclick="authView('c');return false">← رجوع للعملاء</a></p>`))}
 async function login(){const x=$("em").value.trim(),email=x.includes("@")?x:x+MAIL;const{error}=await sb.auth.signInWithPassword({email,password:$("pw").value});error?toast("الكود أو كلمة السر غلط"):boot()}
-// كلمة سر العميل مشتقة من رقمه (لازم تطابق patch_customer_login.sql) — الرقم هو الهوية: مسجل قبل كده يدخل علطول، جديد يتسجل.
-const CPW=ph=>"ay-"+ph+"-c9f3a1";
-async function regCustomer(){const n=$("cn").value.trim(),ph=$("cp").value.replace(/\D/g,"");
+// دخول العميل: سر عشوائي لكل جهاز (بيتولّد في الجهاز ومش مشتق من الرقم). جهاز جديد = كود من الصالون (patch_customer_login_secure.sql)
+const CPW_OLD=ph=>"ay-"+ph+"-c9f3a1"; // قديم: للترحيل التلقائي للحسابات القديمة بس، وهيتشال بعد ما patch_rotate_legacy يتشغل
+const rndPw=()=>{const a=new Uint8Array(24);crypto.getRandomValues(a);return[...a].map(x=>x.toString(16).padStart(2,"0")).join("")};
+const saveCred=(e,p)=>{try{localStorage.setItem("salon_cred",JSON.stringify({e,p}))}catch(_){}};
+async function regCustomer(){const n=$("cn").value.trim(),ph=$("cp").value.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,""),code=($("cc")&&$("cc").value||"").trim();
 if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
-const email=ph+"@c.abu-yousef-salon.com",pw=CPW(ph),bt=document.querySelector('[onclick="regCustomer()"]');if(bt)bt.disabled=true;
+const email=ph+"@c.abu-yousef-salon.com",bt=document.querySelector('[onclick="regCustomer()"]');if(bt)bt.disabled=true;
 try{
-let r=await sb.auth.signInWithPassword({email,password:pw});
-if(r.error){let cr=null;try{cr=JSON.parse(localStorage.getItem("salon_cred"))}catch(e){}
-if(cr&&cr.e==email&&cr.p!=pw){r=await sb.auth.signInWithPassword({email,password:cr.p});if(!r.error)await sb.auth.updateUser({password:pw}).catch(()=>{})}}
-if(r.error){
-if(n.length<2)return toast("الرقم ده جديد — اكتب اسمك كمان عشان نسجلك");
-const sg=await sb.auth.signUp({email,password:pw,options:{data:{full_name:n}}});
-if(sg.error)return toast(sg.error.message);
-if(!sg.data.user||!(sg.data.user.identities||[]).length)return toast("حسابك محتاج تفعيل بسيط من الصالون، كلّمهم وهتدخل علطول");
-if(!sg.data.session){r=await sb.auth.signInWithPassword({email,password:pw});if(r.error)return toast(r.error.message)}}
+let cr=null;try{cr=JSON.parse(localStorage.getItem("salon_cred"))}catch(_){}
+let r={error:true};
+if(cr&&cr.e==email)r=await sb.auth.signInWithPassword({email,password:cr.p}); // 1) نفس الجهاز
+if(r.error&&code){ // 2) جهاز جديد بكود من الصالون
+ const np=rndPw(),{data:ok,error:ce}=await sb.rpc("claim_login",{p_phone:ph,p_code:code,p_new_pw:np});
+ if(ce||!ok)return toast("الكود غلط أو منتهي — اطلب كود جديد من الصالون");
+ r=await sb.auth.signInWithPassword({email,password:np});if(r.error)return toast(r.error.message);saveCred(email,np)}
+if(r.error){ // 3) ترحيل الحسابات القديمة (سر قديم مشتق من الرقم): ندخل مرة ونبدّله بسر عشوائي فورًا
+ const lg=await sb.auth.signInWithPassword({email,password:CPW_OLD(ph)});
+ if(!lg.error){const np=rndPw(),u=await sb.auth.updateUser({password:np});if(u.error)return toast("تعذّر تأمين الحساب — جرّب تاني");saveCred(email,np);r=lg}}
+if(r.error){ // 4) رقم جديد: تسجيل بسر عشوائي
+ if(n.length<2)return toast("الرقم ده جديد — اكتب اسمك كمان عشان نسجلك");
+ const np=rndPw(),sg=await sb.auth.signUp({email,password:np,options:{data:{full_name:n}}});
+ if(sg.error)return toast(sg.error.message);
+ if(!sg.data.user||!(sg.data.user.identities||[]).length){C.needCode=true;authView("c");return toast("الرقم ده مسجّل على جهاز تاني — اطلب كود دخول من الصالون واكتبه هنا")}
+ saveCred(email,np);if(!sg.data.session){r=await sb.auth.signInWithPassword({email,password:np});if(r.error)return toast(r.error.message)}}
 const{error:e2}=await sb.rpc("register_customer",{p_name:n.length>=2?n:"عميل",p_phone:ph});if(e2)return toast(e2.message);
-try{localStorage.setItem("salon_cred",JSON.stringify({e:email,p:pw}))}catch(e){}
-boot()}finally{if(bt)bt.disabled=false}}
+C.needCode=false;boot()}finally{if(bt)bt.disabled=false}}
+// الموظف/المالك بيطلع كود دخول مؤقت (15 دقيقة) للعميل اللي غيّر جهازه
+async function issueLoginCode(ph){const{data,error}=await sb.rpc("staff_issue_login_code",{p_phone:ph});if(error)return toast(error.message);
+ const t="كود دخول التطبيق: "+data+"\n(صالح 15 دقيقة، اكتب رقم موبايلك والكود في التطبيق)";prompt("كود الدخول للعميل — ابعته له:",data);
+ if(typeof waBtn=="function"&&confirm("تبعته على واتساب؟"))window.open("https://wa.me/"+waNum(ph)+"?text="+encodeURIComponent(t),"_blank","noopener")}
 const bkDays=()=>[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
 V.book=async()=>{if(!C.cfg.booking_open)return put(`<h1>احجز دورك</h1><p class="m">الحجز متوقف حاليًا.</p>`);
 const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];C.b=C.b||{s:[],barber:undefined,day:0,period:null};drawBk()};
@@ -403,7 +413,6 @@ const{error}=await sb.from("loyalty_rewards").insert(o);error?toast(error.messag
 async function togRw(id,a){await sb.from("loyalty_rewards").update({active:a}).eq("id",id);V.set()}
 
 // ================= صفحتين منفصلتين: عميل / موظف =================
-function authView(){put(`<h1>أهلاً بيك في ${esc(C.cfg.salon_name)}</h1>`+(APP_MODE!="customer"?`<p class="m">${APP_MODE=="admin"?"لوحة الإدارة.":"تطبيق الموظفين."}</p><div class="box"><input id="em" placeholder="كود الموظف (أو البريد للمالك)" autocomplete="username"><input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password"><button class="btn" style="width:100%" onclick="login()">دخول</button></div>`:`<p class="m">اكتب رقم موبايلك وادخل. لو أول مرة اكتب اسمك كمان وهنسجلك، ولو مسجل قبل كده هتدخل علطول من أي جهاز.</p><div class="box"><input id="cn" placeholder="اسمك (أول مرة بس)"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)"><button class="btn" style="width:100%" onclick="regCustomer()">دخول / تسجيل</button></div>`))}
 function wrongPage(k){const M={staff:["تطبيق الموظفين","/staff"],admin:["تطبيق الإدارة","/admin"],customer:["تطبيق العملاء","/"]}[k];put(`<h1>الحساب ده مش لهنا</h1><p class="m">حسابك مخصص لـ${M[0]}.</p><div class="chips"><a class="btn" style="text-decoration:none" href="${M[1]}">${M[0]}</a><button class="btn g" onclick="sb.auth.signOut().then(()=>boot())">تسجيل خروج</button></div>`)}
 // ================= الإعدادات: تاب لكل قسم + تصفير =================
 const SEC=[["general","عام"],["book","الحجوزات"],["staff","الموظفين"],["pos","الكاشير"],["stock","المخزون"],["loy","العملاء والولاء"],["danger","تصفير"]];
@@ -700,6 +709,16 @@ async function resetAllPerms(){if(!confirm("ترجّع صلاحيات كل ال�
 // ================= العملاء =================
 V.cust=async()=>{dfClr("cu");const{data}=await sb.rpc("customers_overview");C.CU=data||[];C.cq="";
 put(`<h1>العملاء</h1>${can("use_pos")?`<button class="btn s" onclick="addCustForm()">+ إضافة عميل</button><div id="ac"></div>`:""}<input placeholder="ابحث بالاسم أو الموبايل" oninput="C.cq=this.value;$('cl').innerHTML=custRows()"><div id="cl">${custRows()}</div>`)};
+// ===== التذكير: عملاء غايبين من مدة (الأيام من إعداد المالك) + زر واتساب لكل واحد =====
+const remDays=()=>Math.max(1,+C.cfg.reminder_days||30);
+const remMsg=(n,d)=>`أهلاً ${n||""} 👋\nوحشتنا في ${waSalon()}! بقالك ${d} يوم مجيتش، تحب نحجزلك دور؟\nاحجز من هنا: ${location.origin}/book`;
+V.rem=async()=>{const{data,error}=await sb.rpc("customers_overview");if(error)return put(`<h1>التذكير</h1><p class="m">${esc(error.message)}</p>`);
+ C.REM=(data||[]).filter(x=>x.last_visit).map(x=>({...x,days:Math.floor((Date.now()-new Date(x.last_visit).getTime())/864e5)})).filter(x=>x.days>=remDays()).sort((a,b)=>b.days-a.days);
+ put(`<h1>التذكير</h1><div class="box"><div class="m">العملاء اللي غايبين من</div><div class="chips" style="align-items:center"><input id="rem_d" type="number" min="1" max="365" value="${remDays()}" style="width:90px"><span class="m">يوم أو أكتر</span>${isAdm(me)?`<button class="btn s" onclick="saveRemDays()">حفظ المدة</button>`:""}</div></div>
+ <input placeholder="ابحث بالاسم أو الموبايل" oninput="C.rq=this.value;$('rl').innerHTML=remRows()"><div id="rl">${remRows()}</div>`)};
+function remRows(){const q=(C.rq||"").trim().toLowerCase(),L=(C.REM||[]).filter(x=>!q||(x.name||"").toLowerCase().includes(q)||String(x.phone||"").includes(q));
+ return L.length?`<p class="m">${L.length} عميل</p>`+L.map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${esc(x.phone||"")} · آخر زيارة من ${x.days} يوم · ${x.visits||0} زيارة</div></div><div>${waBtn(x.phone,0,remMsg(x.name,x.days))}</div></div>`).join(""):`<p class="m empty">مفيش عملاء غايبين المدة دي.</p>`}
+async function saveRemDays(){const v=Math.round(+$("rem_d").value);if(!(v>=1&&v<=365))return toast("اكتب عدد أيام من 1 لـ 365");const{error}=await sb.from("app_settings").upsert([{key:"reminder_days",value:v}]);error?toast(error.message):(C.cfg.reminder_days=v,toast("تم حفظ المدة ✓"),V.rem())}
 function addCustForm(){const e=$("ac");if(e.innerHTML)return e.innerHTML="";e.innerHTML=`<div class="box" style="margin:10px 0"><input id="ac_n" placeholder="اسم العميل"><input id="ac_p" type="tel" inputmode="numeric" placeholder="رقم الموبايل (01xxxxxxxxx)"><div class="chips"><button class="btn" onclick="saveCust()">حفظ العميل</button><button class="btn g" onclick="$('ac').innerHTML=''">إلغاء</button></div></div>`;$("ac_n").focus()}
 async function saveCust(){const n=$("ac_n").value.trim(),ph=$("ac_p").value.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
 if(n.length<2)return toast("اكتب اسم العميل");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
@@ -709,7 +728,7 @@ async function openCust(id){const x=C.CU.find(y=>y.id==id);const[{data},{data:ap
 const A=ap||[],staff=[...new Set(A.map(a=>a.profiles?.full_name).filter(Boolean))],fv=n=>n?new Date(n).toLocaleDateString("ar-EG"):"—";
 put(`<button class="btn g s" style="margin-top:12px" onclick="V.cust()">‹ رجوع</button><h1>${esc(x.name)}</h1><div class="m" dir="ltr" style="text-align:right">${esc(x.phone||"")}</div>
 <div class="cc-grid" style="margin-top:10px"><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">زيارات</div><div class="cc-n">${x.visits}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">إجمالي الدفع</div><div class="cc-n">${fm(x.spent)}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsLoyC(${x.id})"><div class="cc-l">نقاط</div><div class="cc-n">${x.points}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">آخر زيارة</div><div class="cc-n" style="font-size:1rem">${fv(x.last_visit)}</div></div></div>
-<div class="chips" style="margin-top:10px">${waBtn(x.phone,1,waAppMsg(x.name))}${can("use_pos")?`<button class="btn" onclick="custSell(${id})">بيع</button>`:""}${can("manage_appts")?`<button class="btn g" onclick="custBook(${id})">حجز</button>`:""}${isAdm(me)?`<button class="btn s g" onclick="adjP(${id})">تعديل النقاط</button><button class="btn s g" style="color:var(--red)" onclick="delC(${id})">حذف</button>`:""}</div>
+<div class="chips" style="margin-top:10px">${waBtn(x.phone,1,waAppMsg(x.name))}${can("use_pos")?`<button class="btn" onclick="custSell(${id})">بيع</button>`:""}${can("manage_appts")?`<button class="btn g" onclick="custBook(${id})">حجز</button>`:""}${can("manage_appts")||isAdm(me)?`<button class="btn s g" onclick="issueLoginCode('${esc(x.phone)}')">كود دخول</button>`:""}${isAdm(me)?`<button class="btn s g" onclick="adjP(${id})">تعديل النقاط</button><button class="btn s g" style="color:var(--red)" onclick="delC(${id})">حذف</button>`:""}</div>
 ${staff.length?`<h2>اتخدم عند</h2><div class="m">${staff.map(esc).join(" · ")}</div>`:""}
 ${dfBar("cu","openCust("+id+")")}<h2>${dfOn("cu")?"الفواتير":"آخر الفواتير"}</h2>`+((data||[]).length?data.map(i=>`<div class="row" role="button" style="cursor:pointer;width:100%;text-align:right;gap:8px" onclick="dsInvOne(${i.id})"><div><b>#${i.no}</b> · ${fv(i.created_at)}<div class="m">${i.invoice_items.map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join(" + ")}</div></div><div style="display:flex;gap:6px;align-items:center"><b>${fm(i.total)}</b>${waBtn(x.phone,0,waInvText(i,x.name))}</div></div>`).join(""):`<p class="m">مفيش فواتير.</p>`)+`<h2>الحجوزات</h2>`+(A.length?A.map(a=>`<div class="row"><div><b>${fv(a.day)}</b><div class="m">${(a.appointment_services||[]).map(z=>esc(z.services?.name||"")).filter(Boolean).join(" + ")||"—"}${a.profiles?.full_name?" · "+esc(a.profiles.full_name):""}</div></div><span class="tag">${esc(ST[a.status]||a.status)}</span></div>`).join(""):`<p class="m">مفيش حجوزات.</p>`))}
 async function custSell(id){const x=C.CU.find(y=>y.id==id),{data:L}=await sb.from("open_invoices").select("chair,customer_id");const ex=(L||[]).find(r=>r.customer_id==id);let n=ex?ex.chair:0;
@@ -790,7 +809,7 @@ dot:'<circle cx="12" cy="12" r="3"/>',svc:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0
 IC.queue=IC.appts;IC.team=IC.cust;
 const ic=k=>`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]||IC.dot}</svg>`;
 const SK='<div class="sk" style="height:30px;width:52%"></div><div class="sk" style="height:130px"></div><div class="sk" style="height:70px"></div><div class="sk" style="height:70px"></div>';
-function authView(){put(`<div class="hero"><div class="emblem">${ic("menu")}</div><h1>${esc(C.cfg.salon_name)}</h1><div class="tagline">${APP_MODE=="staff"?"تطبيق الموظفين":APP_MODE=="admin"?"لوحة الإدارة الشاملة":"حجز بدون انتظار · نقاط ولاء · تجربة راقية"}</div></div>`+(APP_MODE!="customer"?`<div class="box"><input id="em" placeholder="${APP_MODE=="admin"?"البريد الإلكتروني":"كود الموظف"}" autocomplete="username"><input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password"><button class="btn" style="width:100%" onclick="login()">دخول</button></div>`:`<div class="box"><input id="cn" placeholder="اسمك (أول مرة بس)"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)"><button class="btn" style="width:100%" onclick="regCustomer()">دخول / تسجيل</button><p class="m" style="text-align:center;margin:12px 0 0">سجّل مرة واحدة بس، وهتدخل على حسابك علطول</p></div>`))}
+function authView(){put(`<div class="hero"><div class="emblem">${ic("menu")}</div><h1>${esc(C.cfg.salon_name)}</h1><div class="tagline">${APP_MODE=="staff"?"تطبيق الموظفين":APP_MODE=="admin"?"لوحة الإدارة الشاملة":"حجز بدون انتظار · نقاط ولاء · تجربة راقية"}</div></div>`+(APP_MODE!="customer"?`<div class="box"><input id="em" placeholder="${APP_MODE=="admin"?"البريد الإلكتروني":"كود الموظف"}" autocomplete="username"><input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password"><button class="btn" style="width:100%" onclick="login()">دخول</button></div>`:`<div class="box"><input id="cn" placeholder="اسمك (أول مرة بس)"><input id="cp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)">${C.needCode?`<input id="cc" inputmode="numeric" placeholder="كود الدخول من الصالون" autocomplete="one-time-code">`:""}<button class="btn" style="width:100%" onclick="regCustomer()">دخول / تسجيل</button><p class="m" style="text-align:center;margin:12px 0 0">سجّل مرة واحدة بس، وهتدخل على حسابك علطول</p></div>`))}
 function drawQ(s){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
 let cur=-1;steps.forEach((x,i)=>{if(x[1])cur=i});
 put(`<div class="hello">دورك مع ${esc(s.barber_name)}</div><h1>دوري</h1>
