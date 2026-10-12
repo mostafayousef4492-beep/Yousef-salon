@@ -296,7 +296,6 @@ const PLB={morning:"الصبح",afternoon:"العصر",evening:"المساء",ni
 const MAIL="@staff.abu-yousef-salon.com";
 async function login(){const x=$("em").value.trim(),email=x.includes("@")?x:x+MAIL;const{error}=await sb.auth.signInWithPassword({email,password:$("pw").value});error?toast("الكود أو كلمة السر غلط"):boot()}
 // دخول العميل: سر عشوائي لكل جهاز (بيتولّد في الجهاز ومش مشتق من الرقم). جهاز جديد = كود من الصالون (patch_customer_login_secure.sql)
-const CPW_OLD=ph=>"ay-"+ph+"-c9f3a1"; // قديم: للترحيل التلقائي للحسابات القديمة بس، وهيتشال بعد ما patch_rotate_legacy يتشغل
 const rndPw=()=>{const a=new Uint8Array(24);crypto.getRandomValues(a);return[...a].map(x=>x.toString(16).padStart(2,"0")).join("")};
 const saveCred=(e,p)=>{try{localStorage.setItem("salon_cred",JSON.stringify({e,p}))}catch(_){}};
 async function regCustomer(){const n=$("cn").value.trim(),ph=$("cp").value.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,""),code=($("cc")&&$("cc").value||"").trim();
@@ -310,10 +309,7 @@ if(r.error&&code){ // 2) جهاز جديد بكود من الصالون
  const np=rndPw(),{data:ok,error:ce}=await sb.rpc("claim_login",{p_phone:ph,p_code:code,p_new_pw:np});
  if(ce||!ok)return toast("الكود غلط أو منتهي — اطلب كود جديد من الصالون");
  r=await sb.auth.signInWithPassword({email,password:np});if(r.error)return toast(r.error.message);saveCred(email,np)}
-if(r.error){ // 3) ترحيل الحسابات القديمة (سر قديم مشتق من الرقم): ندخل مرة ونبدّله بسر عشوائي فورًا
- const lg=await sb.auth.signInWithPassword({email,password:CPW_OLD(ph)});
- if(!lg.error){const np=rndPw(),u=await sb.auth.updateUser({password:np});if(u.error)return toast("تعذّر تأمين الحساب — جرّب تاني");saveCred(email,np);r=lg}}
-if(r.error){ // 4) رقم جديد: تسجيل بسر عشوائي
+if(r.error){ // 3) رقم جديد: تسجيل بسر عشوائي
  if(n.length<2)return toast("الرقم ده جديد — اكتب اسمك كمان عشان نسجلك");
  const np=rndPw(),sg=await sb.auth.signUp({email,password:np,options:{data:{full_name:n}}});
  if(sg.error)return toast(sg.error.message);
