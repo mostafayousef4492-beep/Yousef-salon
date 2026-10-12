@@ -1,0 +1,39 @@
+/* features/team/targets.js — التارجت والحوافز */
+
+// ---- التارجت والتحفيزات (patch13) ----
+
+const TM={sales:"المبيعات",cuts:"عدد الخدمات",customers:"عدد العملاء",rating:"متوسط التقييم"},TPD={day:"يومي",week:"أسبوعي",month:"شهري"};
+
+const tgFmt=(m,v)=>m=="sales"?fm(v):m=="rating"?(+v).toFixed(1):num(Math.round(+v));
+
+function tgBar(it){const p=Math.max(0,Math.min(+it.pct||0,100));return `<div class="box" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(it.title||TM[it.metric]+" "+TPD[it.period])}</b><span class="m">${TPD[it.period]} · باقي ${it.days_left} يوم</span></div><div style="height:10px;background:rgba(255,255,255,.08);border-radius:6px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${p}%;background:${+it.pct>=100?"var(--ok)":"var(--gold2)"}"></div></div><div class="m">${TM[it.metric]}: ${tgFmt(it.metric,it.actual)} من ${tgFmt(it.metric,it.target)} (${it.pct}%)</div>${(it.tiers||[]).map(t=>`<div class="m" style="padding:2px 0;${t.reached?"color:var(--ok)":""}">${t.reached?"✓":"○"} ${t.pct}% — ${esc(t.label)}${+t.amount>0?" · "+fm(t.amount):""}</div>`).join("")}${it.next?`<div class="m" style="margin-top:4px">الهدف الجاي: ${esc(it.next.label)} — باقي ${tgFmt(it.metric,it.next.remaining)}${+it.next.amount>0?" لمكافأة "+fm(it.next.amount):""}</div>`:""}</div>`}
+
+const AWS={earned:"مستحقة",paid:"اتصرفت",cancelled:"ملغية"};
+
+V.tgt=async()=>{if(isAdm(me))return tgtOwner();
+  const[{data:pr,error},{data:aw}]=await Promise.all([sb.rpc("my_targets_progress"),sb.from("staff_target_awards").select("*").eq("staff_id",me.id).order("created_at",{ascending:false}).limit(20)]);
+  if(error)return put(`<h1>التارجت</h1><p class="m">${esc(error.message)} — شغّل patch13.sql في Supabase الأول.</p>`);
+  put(`<h1>التارجت والتحفيزات</h1>`+((pr||[]).length?pr.map(tgBar).join(""):`<p class="m">مفيش تارجت متحدد لك دلوقتي.</p>`)+`<h2>حوافزك</h2>`+((aw||[]).length?aw.map(a=>`<div class="row"><div><b>${esc(a.label||"")}</b>${+a.amount>0?" · "+fm(a.amount):""}<div class="m">${a.period_start} ← ${a.period_end} · ${TM[a.metric]||""}</div></div><span class="tag">${AWS[a.status]||a.status}</span></div>`).join(""):`<p class="m">لسه مفيش حوافز.</p>`))};
+
+async function tgtOwner(){const[{data:ov,error},{data:tg},{data:aw},{data:br}]=await Promise.all([sb.rpc("targets_overview"),sb.from("staff_targets").select("*,profiles(full_name),staff_target_tiers(*)").order("id"),sb.from("staff_target_awards").select("*").order("created_at",{ascending:false}).limit(40),sb.from("profiles").select("id,full_name").eq("role","barber").order("full_name")]);
+  if(error)return put(`<h1>التارجت</h1><p class="m">${esc(error.message)} — شغّل patch13.sql في Supabase الأول.</p>`);
+  const nm={};(br||[]).forEach(x=>nm[x.id]=x.full_name);const earned=(aw||[]).filter(a=>a.status=="earned"),done=(aw||[]).filter(a=>a.status!="earned").slice(0,10);
+  put(`<h1>التارجت والتحفيزات</h1><h2>تقدّم الحلاقين</h2>`+((ov||[]).some(o=>o.items.length)?ov.filter(o=>o.items.length).map(o=>`<div class="m" style="margin-top:10px"><b>${esc(o.name)}</b></div>${o.items.map(tgBar).join("")}`).join(""):`<p class="m">مفيش تارجت شغّال لسه. ضيف واحد من تحت.</p>`)+
+  `<h2>الحوافز المستحقة (${earned.length})</h2>`+(earned.length?earned.map(a=>`<div class="row"><div><b>${esc(nm[a.staff_id]||"—")}</b> · ${esc(a.label||"")}${+a.amount>0?" · "+fm(a.amount):""}<div class="m">${a.period_start} ← ${a.period_end} · ${TM[a.metric]||""} · ${a.achieved_pct}%</div></div><div style="text-align:left"><button class="btn s" onclick="payAw(${a.id})">صرف</button> <button class="btn s g" onclick="cancelAw(${a.id})">إلغاء</button></div></div>`).join(""):`<p class="m">مفيش حوافز مستحقة دلوقتي.</p>`)+
+  (done.length?`<h2>آخر الحوافز</h2>`+done.map(a=>`<div class="row"><div><b>${esc(nm[a.staff_id]||"—")}</b> · ${esc(a.label||"")}${+a.amount>0?" · "+fm(a.amount):""}<div class="m">${a.period_start}</div></div><span class="tag">${AWS[a.status]}</span></div>`).join(""):"")+
+  `<h2>إدارة التارجتات</h2>`+((tg||[]).length?tg.map(t=>`<div class="box" style="margin-top:8px;${t.active?"":"opacity:.55"}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(t.title||TM[t.metric])}</b><span class="m">${t.profiles?.full_name||"كل الحلاقين"} · ${TPD[t.period]}</span></div><div class="m">${TM[t.metric]}: ${tgFmt(t.metric,t.target_value)}</div>${(t.staff_target_tiers||[]).sort((x,y)=>x.threshold_pct-y.threshold_pct).map(x=>`<div class="row" style="margin:4px 0"><span>${+x.threshold_pct}% — ${esc(x.label)}${+x.reward_amount>0?" · "+fm(x.reward_amount):""}</span><button class="btn s g" onclick="tierDel(${x.id})">حذف</button></div>`).join("")}<div class="chips" style="margin-top:6px;align-items:center"><input id="tr_p${t.id}" type="number" inputmode="decimal" placeholder="% من الهدف" style="width:92px;margin:0"><input id="tr_l${t.id}" placeholder="اسم المستوى" style="width:120px;margin:0"><input id="tr_a${t.id}" type="number" inputmode="decimal" placeholder="مكافأة" style="width:90px;margin:0"><button class="btn s" onclick="tierAdd(${t.id})">+ مستوى</button></div><div class="chips" style="margin-top:8px"><button class="btn s g" onclick="tgTog(${t.id},${!t.active})">${t.active?"إيقاف":"تفعيل"}</button><button class="btn s g" onclick="tgDel(${t.id})">حذف</button></div></div>`).join(""):`<p class="m">مفيش تارجتات.</p>`)+
+  `<div class="box" style="margin-top:10px"><div class="m">تارجت جديد</div><select id="tg_s"><option value="">كل الحلاقين</option>${(br||[]).map(x=>`<option value="${x.id}">${esc(x.full_name)}</option>`).join("")}</select><select id="tg_m">${Object.entries(TM).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select><select id="tg_p">${Object.entries(TPD).map(([k,v])=>`<option value="${k}" ${k=="month"?"selected":""}>${v}</option>`).join("")}</select><input id="tg_v" type="number" inputmode="decimal" placeholder="الهدف (رقم)"><input id="tg_t" placeholder="اسم التارجت (اختياري)"><button class="btn" onclick="tgAdd()">إضافة التارجت</button></div>`)}
+
+async function tgAdd(){const v=parseFloat($("tg_v").value);if(!(v>0))return toast("اكتب الهدف (رقم أكبر من صفر)");const{error}=await sb.from("staff_targets").insert({staff_id:$("tg_s").value||null,metric:$("tg_m").value,period:$("tg_p").value,target_value:v,title:$("tg_t").value.trim()||null});error?toast(error.code=="23505"?"فيه تارجت شغّال لنفس الحلاق والمقياس والفترة":error.message):(toast("تمت الإضافة ✓"),tgtOwner())}
+
+async function tierAdd(id){const p=parseFloat($("tr_p"+id).value),l=$("tr_l"+id).value.trim(),a=parseFloat($("tr_a"+id).value)||0;if(!(p>0)||!l)return toast("اكتب النسبة واسم المستوى");const{error}=await sb.from("staff_target_tiers").insert({target_id:id,threshold_pct:p,label:l,reward_amount:a});error?toast(error.code=="23505"?"المستوى ده موجود بنفس النسبة":error.message):tgtOwner()}
+
+async function tierDel(id){if(!confirm("تحذف المستوى ده؟"))return;const{error}=await sb.from("staff_target_tiers").delete().eq("id",id);error?toast(error.message):tgtOwner()}
+
+async function tgTog(id,v){const{error}=await sb.from("staff_targets").update({active:v,updated_at:new Date().toISOString()}).eq("id",id);error?toast(error.code=="23505"?"فيه تارجت شغّال تاني بنفس النطاق":error.message):tgtOwner()}
+
+async function tgDel(id){if(!confirm("تحذف التارجت ده ومستوياته؟ الحوافز المسجّلة بتفضل في السجل."))return;const{error}=await sb.from("staff_targets").delete().eq("id",id);error?toast(error.message):tgtOwner()}
+
+async function payAw(id){if(!confirm("تصرف الحافز ده؟ هيتسجل كمكافأة في حساب الحلاق."))return;const{error}=await sb.rpc("pay_target_award",{p_id:id});error?toast(error.message):(toast("تم صرف الحافز ✓"),tgtOwner())}
+
+async function cancelAw(id){if(!confirm("تلغي الحافز ده؟"))return;const{error}=await sb.rpc("cancel_target_award",{p_id:id});error?toast(error.message):tgtOwner()}
