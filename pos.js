@@ -1,0 +1,100 @@
+/* features/floor/pos.js — الكراسي والكاشير */
+
+// ===== كاشير =====
+
+function drawPos(){const P=C.P,sub=P.s.reduce((a,i)=>a+P.sv.find(x=>x.id==i).price,0)+P.p.reduce((a,i)=>a+P.pr.find(x=>x.id==i.id).price*i.q,0),d=Math.min(sub,sub*P.disc/100+(+P.dfx||0)),cb=P.cust?`<div class="cust-pick"><div><b>${esc(P.cust.name)}</b><div class="m">${esc(P.cust.phone||"")} · ${P.cust.visits} زيارة · ${P.cust.points} نقطة</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:P.walk?`<div class="cust-pick"><div><b>عميل عابر</b><div class="m">من غير رقم موبايل</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:`<div class="cust-find"><input id="cp" type="tel" inputmode="numeric" autocomplete="off" placeholder="رقم موبايل العميل (01xxxxxxxxx)" oninput="chPh()"><div id="cpr"></div><button class="btn s g" onclick="chCust('walk')">عميل عابر (من غير رقم)</button></div>`;chSave();
+const lines=P.s.map(id=>{const v=P.sv.find(x=>x.id==id);return `<div class="pos-line"><span>${esc(v.name)}</span><b>${fm(v.price)}</b></div>`}).concat(P.p.map(c=>{const v=P.pr.find(x=>x.id==c.id);return `<div class="pos-line"><span>${esc(v.name)} ×${c.q}</span><b>${fm(v.price*c.q)}</b></div>`})).join("");
+const payBtns=[["cash","كاش"],["card","كارت"],["wallet","محفظة"]].filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false)).map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("");
+put(`<div class="ch-bar"><button class="btn s g" onclick="chBack()">‹ الكراسي</button></div><div class="pos-head"><h1>كرسي ${P.chair}</h1><span class="m">الفاتورة بتتحفظ تلقائي</span></div>
+<div class="pos-grid">
+<section class="box pos-cust"><h3 class="sec">العميل</h3>${cb}${P.vs?.length?`<select onchange="C.P.rid=this.value;chSave()"><option value="">بدون كوبون ولاء</option>${P.vs.map(v=>`<option value="${v.id}" ${P.rid==v.id?"selected":""}>${esc(v.loyalty_rewards.name)} (${v.code})</option>`).join("")}</select>`:""}<h3 class="sec">الحلاق</h3><select onchange="C.P.bid=this.value;chSave()"><option value="">اختار الحلاق</option>${P.br.map(c=>`<option value="${c.id}" ${P.bid==c.id?"selected":""}>${esc(c.full_name)}</option>`).join("")}</select>
+${P.as.length&&P.s.length?`<h3 class="sec">المساعد (اختياري)</h3>${P.s.map(id=>{const v=P.sv.find(x=>x.id==id);return `<div class="m" style="margin-top:6px">${esc(v.name)}</div><select onchange="P_a(${id},this.value)"><option value="">بدون مساعد</option>${P.as.map(a=>`<option value="${a.id}" ${P.sa[id]==a.id?"selected":""}>${esc(a.full_name)} (${+a.commission_pct}%)</option>`).join("")}</select>`}).join("")}`:""}</section>
+<section class="box pos-items"><h3 class="sec">الخدمات</h3><div class="chips pos-tiles">${P.sv.map(x=>`<button class="chip ${P.s.includes(x.id)?"sel":""}" onclick="P_s(${x.id})"><b>${esc(x.name)}</b><span class="m">${fm(x.price)}</span></button>`).join("")}</div><h3 class="sec">المنتجات</h3><div class="chips pos-tiles">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div></section>
+<section class="box pos-bill"><h3 class="sec">الفاتورة</h3><div class="pos-lines">${lines||`<p class="m">اختار خدمة أو منتج عشان يتضاف هنا.</p>`}</div>
+<div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x&&!P.dfx?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${fixOpts().map(x=>`<button class="chip ${P.dfx==x?"sel":""}" onclick="pickFix(${x})">خصم ${x} ج${fxPct(x,sub)>discLim()?" 🔒":""}</button>`).join("")}</div>
+<div class="chips">${payBtns}</div>
+<div class="tot"><span class="m">المجموع</span><span>${fm(sub)}</span></div>${d>0?`<div class="tot"><span class="m">الخصم</span><span>- ${fm(d)}</span></div>`:""}<div class="tot f"><span>المطلوب</span><span class="pos-total">${fm(sub-d)}</span></div><button class="btn" style="width:100%;margin-top:10px" ${sub?"":"disabled"} onclick="checkout()">دفع وإغلاق الفاتورة</button><button class="btn g" style="width:100%;margin-top:8px" onclick="chCancel()">إلغاء الفاتورة وتفضية الكرسي</button></section>
+</div>`)}
+
+function P_s(id){const P=C.P;if(P.s.includes(id))delete P.sa[id];P.s=P.s.includes(id)?P.s.filter(x=>x!=id):[...P.s,id];drawPos()}
+
+function P_a(id,v){if(v)C.P.sa[id]=v;else delete C.P.sa[id];chSave()}
+
+function P_p(id){const P=C.P,c=P.p.find(x=>x.id==id),pr=P.pr.find(x=>x.id==id);if(c){c.q<pr.stock?c.q++:toast("الكمية خلصت")}else P.p.push({id,q:1});drawPos()}
+
+// ===== كاشير: كل كرسي = فاتورة مفتوحة (محفوظة على السيرفر، كل الأجهزة تشوفها) =====
+
+const chN=()=>Math.min(12,Math.max(1,+C.cfg.chairs||4));
+
+const chTot=(r,sv,pr)=>{const sub=(r.services||[]).reduce((a,id)=>a+(+(sv.find(x=>x.id==id)||{}).price||0),0)+(r.products||[]).reduce((a,i)=>a+(+(pr.find(x=>x.id==i.id)||{}).price||0)*i.q,0);return Math.max(0,sub-sub*(+r.discount_pct||0)/100-(+r.discount_fixed||0))};
+
+async function chLoadRefs(){const[{data:sv},{data:pr}]=await Promise.all([sb.from("services").select("*").eq("active",true),sb.from("products").select("*").eq("active",true)]);return{sv:sv||[],pr:pr||[]}}
+
+V.pos=async()=>{if(C.chOpenAfter){const n=C.chOpenAfter;C.chOpenAfter=null;return chOpen(n)}
+C.chEdit=0;if(C.P&&!C.P.chair)C.P=null;
+const[{data:L,error},R]=await Promise.all([sb.from("open_invoices").select("*,customers(name),profiles(full_name)").order("chair"),chLoadRefs()]);
+if(error)return put(`<h1>الكاشير</h1><p class="m">مقدرتش أحمّل الكراسي: ${esc(error.message)}<br>لو ده أول مرة، شغّل patch_open_invoices.sql في Supabase.</p>`);
+C.OI=L||[];const N=chN(),by=Object.fromEntries(C.OI.map(r=>[r.chair,r]));let h=`<h1>الكاشير</h1>${waLastCard()}<div class="m">${C.OI.length} من ${N} كراسي شغالة</div><div class="ch-grid">`;
+for(let i=1;i<=N;i++){const r=by[i];
+if(!r){h+=`<button class="box ch ch-free" onclick="chOpen(${i})"><div class="ch-no">كرسي ${i}</div><div class="m">متاح</div><div class="ch-plus">+ فاتورة جديدة</div></button>`;continue}
+const nms=(r.services||[]).map(id=>(R.sv.find(x=>x.id==id)||{}).name).filter(Boolean),pn=(r.products||[]).length,pay=r.status=="paying";
+h+=`<button class="box ch ch-busy" onclick="chOpen(${i})"><div class="ch-top"><span class="ch-no">كرسي ${i}</span><span class="tag ${pay?"st-checked_in":"st-in_service"}">${pay?"بتتدفع":"شغالة"}</span></div><b>${esc(r.profiles?.full_name||"من غير حلاق")}</b><div class="m">${esc(r.customers?.name||"عميل عابر")}</div><div class="m ch-sv">${nms.map(esc).join(" + ")||"لسه من غير خدمات"}${pn?" · "+pn+" منتج":""}</div><div class="ch-t">${fm(chTot(r,R.sv,R.pr))}</div></button>`}
+put(h+`</div>`+(C.OI.length?"":`<p class="m">كل الكراسي متاحة. افتح فاتورة جديدة لما يبدأ عميل.</p>`));
+clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="pos"&&!C.chEdit){$("app").classList.add("still");V.pos()}},12000)};
+
+async function chOpen(n){let{data:r}=await sb.from("open_invoices").select("*").eq("chair",n).maybeSingle();
+if(!r){const ins=await sb.from("open_invoices").insert({chair:n}).select("*").single();if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتفتح من جهاز تاني":ins.error.message);return go("pos")}r=ins.data}
+if(r.status=="paying"){if(!confirm("الفاتورة دي معلّقة وبتتدفع (يمكن من جهاز تاني). تفتحها تاني؟"))return go("pos");await sb.from("open_invoices").update({status:"open"}).eq("chair",n)}
+const[R,{data:br},{data:asx},cr]=await Promise.all([chLoadRefs(),sb.from("profiles").select("id,full_name").eq("role","barber"),sb.from("profiles").select("id,full_name,commission_pct").eq("role","assistant"),r.customer_id?sb.from("customers").select("id,name,phone,points,visits").eq("id",r.customer_id).maybeSingle():Promise.resolve({data:null})]);
+C.P={chair:n,sv:R.sv,pr:R.pr,cu:[],br:br||[],as:asx||[],sa:r.assistants||{},s:(r.services||[]).filter(id=>R.sv.some(x=>x.id==id)),p:(r.products||[]).filter(i=>R.pr.some(x=>x.id==i.id)),cid:r.customer_id?String(r.customer_id):"",cust:cr.data||null,bid:r.barber_id||"",appt:r.appointment_id||null,disc:+r.discount_pct||0,dfx:+r.discount_fixed||0,pay:r.payment_method||"cash",rid:r.redemption_id?String(r.redemption_id):"",vs:[]};
+C.chEdit=1;clearInterval(C.poll);C.P.cid?loadV():drawPos()}
+
+let chT=0;
+
+function chSave(){clearTimeout(chT);chT=setTimeout(chSaveNow,500)}
+
+async function chSaveNow(){clearTimeout(chT);const P=C.P;if(!P||!P.chair||P.paying)return;const{error}=await sb.from("open_invoices").update({barber_id:P.bid||null,customer_id:P.cid?+P.cid:null,appointment_id:P.appt||null,services:P.s,products:P.p,assistants:P.sa||{},discount_pct:P.disc||0,discount_fixed:+P.dfx||0,payment_method:P.pay,redemption_id:P.rid?+P.rid:null,updated_at:new Date().toISOString()}).eq("chair",P.chair).eq("status","open");if(error)toast("مقدرتش أحفظ الفاتورة: "+error.message)}
+
+async function chBack(){await chSaveNow();go("pos")}
+
+async function chCancel(){const P=C.P;if(!confirm("تلغي الفاتورة المفتوحة دي وتفضّي الكرسي؟"))return;P.paying=1;clearTimeout(chT);const{error}=await sb.from("open_invoices").delete().eq("chair",P.chair);if(error){P.paying=0;return toast(error.message)}C.P=null;toast("اتفضّى كرسي "+P.chair);go("pos")}
+
+// تحديد العميل برقم الموبايل: لو موجود نستخدمه، ولو جديد نطلب الاسم بس
+
+const chDig=v=>String(v||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
+
+function chCust(c){const P=C.P;if(c=="walk"){P.cid="";P.cust=null;P.walk=1}else if(c){P.cid=String(c.id);P.cust=c;P.walk=0}else{P.cid="";P.cust=null;P.walk=0}P.rid="";loadV()}
+
+async function chPh(){const el=$("cp");if(!el)return;const ph=chDig(el.value),o=$("cpr");if(!o)return;
+if(ph.length<11){o.innerHTML=ph.length?`<div class="m">${ph.length}/11</div>`:"";return}
+if(!/^01\d{9}$/.test(ph)){o.innerHTML=`<div class="m" style="color:var(--red)">الرقم لازم يبدأ بـ 01 ويبقى 11 رقم</div>`;return}
+o.innerHTML=`<div class="m">بندوّر...</div>`;
+const{data,error}=await sb.from("customers").select("id,name,phone,points,visits").in("phone",[ph,"+2"+ph,"2"+ph]).order("id").limit(5);
+if(error){o.innerHTML=`<div class="m" style="color:var(--red)">${esc(error.message)}</div>`;return}
+if(data&&data.length){if(data.length>1)toast("تنبيه: الرقم ده متسجل لأكتر من عميل. استخدمت الأقدم.");return chCust(data[0])}
+o.innerHTML=`<div class="box" style="margin-top:8px"><div class="m">عميل جديد · ${ph}</div><input id="cn" placeholder="اسم العميل"><button class="btn s" onclick="chNew('${ph}')">إضافة وإكمال</button></div>`}
+
+async function chNew(ph){const n=($("cn")?.value||"").trim();if(n.length<2)return toast("اكتب اسم العميل");
+const{error}=await sb.rpc("add_customer",{p_name:n,p_phone:ph});if(error)return toast(error.message);
+const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq("phone",ph).order("id").limit(1);
+if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أجيبه، دوّر عليه تاني");okFlash("تمت إضافة العميل",n);chCust(data[0])}
+
+async function checkout(){const P=C.P;if(P.paying)return;if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
+const ch=P.chair;await chSaveNow();P.paying=1;
+const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"}).eq("chair",ch).eq("status","open").select("chair");
+if(le||!lk||!lk.length){P.paying=0;return toast("الفاتورة دي بتتدفع من جهاز تاني أو اتقفلت")}
+const items=[...P.s.map(id=>({type:"service",id,qty:1,assistant:(P.sa||{})[id]||null})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
+const{data,error}=await sb.rpc("pos_checkout",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc||0,p_discount_fixed:P.dfx||0,p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null});
+if(error){P.paying=0;await sb.from("open_invoices").update({status:"open"}).eq("chair",ch);return toast(error.message)}
+const wc=P.cust,wcid=P.cid;let de=(await sb.from("open_invoices").delete().eq("chair",ch)).error;if(de)await sb.from("open_invoices").delete().eq("chair",ch);
+C.P=null;await waPrep(data,wc,wcid);okFlash("تم الدفع","فاتورة رقم "+(data&&typeof data=="object"?JSON.stringify(data):data)+" · كرسي "+ch+" اتفضّى");go("pos")}
+
+async function payAppt(id){const a=(C.A||[]).find(x=>x.id==id);if(!a)return;const{data:L}=await sb.from("open_invoices").select("chair,appointment_id");
+const ex=(L||[]).find(r=>r.appointment_id==id);let n=ex?ex.chair:0;
+if(!n){const used=new Set((L||[]).map(r=>r.chair));for(let i=1;i<=chN();i++)if(!used.has(i)){n=i;break}
+if(!n){toast("كل الكراسي مشغولة. اقفل فاتورة الأول");return go("pos")}
+const ins=await sb.from("open_invoices").insert({chair:n,customer_id:a.customer_id,barber_id:a.barber_id||null,appointment_id:id,services:(a.appointment_services||[]).map(x=>x.service_id)});
+if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتاخد، جرّب تاني":ins.error.message);return go("pos")}}
+C.chOpenAfter=n;go("pos")}
+
+async function setS(id,s){await sb.from("appointments").update({status:s}).eq("id",id);go("appts")}
