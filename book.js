@@ -28,7 +28,7 @@ async function start(){
 
 function draw(){const b=C.b,days=bkDays();
   put(`<h1>احجز دورك</h1><p class="m" style="margin:0 0 4px">من غير تسجيل ولا تحميل تطبيق — اختار وخد رقم دورك.</p>
-<h2>الخدمات <span class="m">(اختياري)</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+<h2>الخدمات</h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
 <div id="bl"></div>
@@ -37,7 +37,7 @@ function draw(){const b=C.b,days=bkDays();
   if(b.period)loadBarbers();upd()}
 function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];draw()}
 function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=sv.reduce((a,x)=>a+x.price,0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
-  btn.disabled=!(b.period&&b.barber!==undefined)||!!C.busy;
+  btn.disabled=!(b.s.length&&b.period&&b.barber!==undefined);
   btn.textContent=b.s.length?`تأكيد وخد رقم دورك · ${fm(tot)}${dur?" · ~"+dur+" دقيقة":""}`:"تأكيد وخد رقم دورك"}
 async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
   const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
@@ -45,21 +45,12 @@ async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
   if(b.barber&&!L.some(x=>x.id==b.barber))b.barber=undefined;
   $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers();upd()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers();upd()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join(""):`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`);upd()}
 
-const isNetErr=e=>!!e&&!e.code&&!e.hint&&!e.details;
-async function bookNow(){if(C.busy)return;const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
+async function bookNow(){const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
   if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
-  const btn=$("cbtn");C.busy=true;btn.disabled=true;
-  const args={p_name:n,p_phone:ph,p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s};
-  let r=await sb.rpc("public_book_v2",args),t=null,existing=false;
-  if(!r.error&&r.data&&r.data.ticket){t=r.data.ticket;existing=!!r.data.existing}
-  // مفيش fallback للدالة القديمة: public_book_v2 هي اللي بتضمن حجز نشط واحد + القفل. لو مش موجودة الحجز بيتوقف برسالة واضحة.
-  else if(r.error&&(r.error.code=="PGRST202"||r.error.code=="42883"||/public_book_v2/.test(r.error.message||""))){C.busy=false;if(btn)btn.disabled=false;return toast("الحجز الأونلاين متوقف مؤقتًا لتحديث النظام. كلّمنا على الصالون.")}
-  C.busy=false;
-  if(r.error||!t){if(btn)btn.disabled=false;
-    // مفيش تأكيد وهمي: الحجز ما اتأكدش. لو الرد ضاع بعد ما اتحفظ، إعادة المحاولة هترجّع نفس الحجز (حجز نشط واحد لكل رقم).
-    return toast(isNetErr(r.error)?"الحجز لم يتأكد — النت واقف. جرّب تاني (مش هيتكرر).":(r.error?.code=="23505"?"حد حجز قبلك، جرّب تاني":(r.error?.message||"الحجز لم يتأكد، جرّب تاني")))}
-  C.f.p=ph;store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:t.id,p:ph});
-  toast(existing?"عندك حجز نشط بالفعل — ده دورك":"تم الحجز ✓ ده رقم دورك");showTicket()}
+  const btn=$("cbtn");btn.disabled=true;
+  const{data,error}=await sb.rpc("public_book",{p_name:n,p_phone:ph,p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
+  if(error){btn.disabled=false;return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message)}
+  C.f.p=ph;store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:data[0].t_id,p:ph});toast("تم الحجز ✓ ده رقم دورك");showTicket()}
 
 // ===== تذكرة الدور (بتتحدّث لوحدها كل 8 ثواني) =====
 async function showTicket(quiet){const L=store.get("salon_book_last");if(!L)return start();
@@ -67,7 +58,7 @@ async function showTicket(quiet){const L=store.get("salon_book_last");if(!L)retu
   if(!error&&s){try{const{data:v2,error:e2}=await sb.rpc("public_queue_status_v2",{p_id:L.id,p_phone:L.p});if(!e2&&v2){s.ahead=v2.ahead;s.est_min=v2.est_wait_min;s.current_no=v2.current_no;s.ticket_no=v2.ticket_no;s.near_turn=v2.near_turn}}catch(e){}}
   if(error||!s){clearInterval(C.poll);store.del("salon_book_last");return start()}
   if(s.status=="done"||s.status=="cancelled"||s.status=="no_show"){clearInterval(C.poll);store.del("salon_book_last");
-    return put(`<h1>${s.status=="done"?"شكرًا لزيارتك 🙏":s.status=="no_show"?"الكاشير تخطّى دورك":"اتلغى الحجز"}</h1><div class="box" style="text-align:center"><p class="m">${s.status=="done"?"نورتنا — نتمنى نشوفك تاني قريب.":s.status=="no_show"?"الكاشير سجّل إنك مش موجود وقت دورك. كلّم الصالون أو احجز دور جديد.":"تقدر تحجز دور جديد في أي وقت."}</p><button class="btn" onclick="start()">احجز دور جديد</button></div>${contact()}`)}
+    return put(`<h1>${s.status=="done"?"شكرًا لزيارتك 🙏":s.status=="no_show"?"اتلغى دورك":"اتلغى الحجز"}</h1><div class="box" style="text-align:center"><p class="m">${s.status=="done"?"نورتنا — نتمنى نشوفك تاني قريب.":s.status=="no_show"?"اتلغى دورك لأنك ما حضرتش في الميعاد. تقدر تحجز دور جديد.":"تقدر تحجز دور جديد في أي وقت."}</p><button class="btn" onclick="start()">احجز دور جديد</button></div>${contact()}`)}
   drawT(s,quiet);clearInterval(C.poll);C.poll=setInterval(()=>showTicket(true),8000)}
 function drawT(s,quiet){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
   put(`<h1>دورك</h1><div class="box" style="text-align:center"><div class="m">رقمك</div><div style="font-size:64px;font-weight:800;color:var(--red);line-height:1.1">${s.ticket_no==null?"—":s.ticket_no}</div><div class="m">${PLB[s.period]||""} · ${s.day}</div>
@@ -76,16 +67,8 @@ ${s.near_turn&&!s.called&&st=="upcoming"?`<div class="box" style="margin:10px 0;
 <div class="row" style="margin-top:10px"><span>${esc(s.services)}</span><b>${fm(s.total)}</b></div>
 ${s.called&&st=="upcoming"?`<div class="box" style="margin:10px 0;border-color:var(--red)"><b>🔔 اتنادى عليك!</b><div class="chips" style="margin-top:8px"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:var(--ok)" onclick="eta('arrived')">وصلت</button></div></div>`:""}
 <div style="margin:12px 0">${steps.map(x=>`<div style="padding:3px 0;${x[1]?"":"opacity:.4"}">${x[1]?"✓":"○"} ${x[0]}</div>`).join("")}</div>
-${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%;margin-bottom:8px" onclick="changeB()">تغيير الحلاق</button><button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}${contact()}`)}
+${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}${contact()}`)}
 async function eta(state){const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_eta",{p_id:L.id,p_phone:L.p,p_state:state});error?toast(error.message):(toast(state=="arrived"?"تمام، الصالون عرف إنك وصلت":"تمام، مستنينك"),showTicket())}
-async function changeB(){const L=store.get("salon_book_last");if(!L)return;
-  const{data:t}=await sb.rpc("public_ticket",{p_id:L.id,p_phone:L.p});const s=t?.[0];if(!s)return toast("مقدرناش نحمّل الحجز");
-  const{data,error}=await sb.rpc("available_barbers",{p_day:s.day,p_period:s.period});if(error)return toast(error.message);
-  const O=(data||[]).filter(x=>x.full_name!==s.barber_name);if(!O.length)return toast("مفيش حلاق تاني متاح في الفترة دي");
-  put(`<h1>غيّر الحلاق</h1><p class="m">هتفضل محتفظ بأسبقية تسجيلك قدر الإمكان.</p>${O.map(x=>`<button class="row" style="cursor:pointer" onclick="doChangeB('${x.id}')"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور</span></button>`).join("")}<button class="btn g" style="width:100%;margin-top:10px" onclick="showTicket()">رجوع</button>`)}
-async function doChangeB(id){const L=store.get("salon_book_last");if(!L||C.busy)return;C.busy=true;
-  const{error}=await sb.rpc("public_change_barber",{p_id:L.id,p_phone:L.p,p_barber:id});C.busy=false;
-  if(error)return toast(isNetErr(error)?"التغيير لم يتأكد — النت واقف":error.message);toast("تم تغيير الحلاق ✓");showTicket()}
 async function cancelT(){if(!confirm("تلغي الحجز؟"))return;const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_cancel",{p_id:L.id,p_phone:L.p});
   if(error)return toast(error.message);clearInterval(C.poll);store.del("salon_book_last");toast("اتلغى الحجز");start()}
 init();
