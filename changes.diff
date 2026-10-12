@@ -1,0 +1,170 @@
+diff -ruN --label a --label b -x sql -x tests a b
+--- a
++++ b
+@@ -20,7 +20,7 @@
+ async function addSalary(rows){if(!isAdm(me)||!rows)return;try{const{data}=await sb.rpc("owner_salaries"),m=Object.fromEntries((data||[]).map(r=>[r.id,r.salary]));rows.forEach(p=>{if(p.id in m)p.salary=m[p.id]})}catch(e){}}
+ 
+ // ===== دمج التابات: كل شاشة موجودة زي ما هي، بس المتشابهين اتجمعوا تحت تاب واحد بشريط فرعي =====
+-const HUBS=[["h_ops","التشغيل","pos",["pos","cash","appts","inv"]],["h_mgmt","الإدارة","stock",["stock","svc","rep","fin","team","att"]],["h_team","الفريق","me",["me","ann","lb","tgt"]],["h_ctl","التحكم","set",["ctl","set"]]];
++const HUBS=[["h_ops","الكاشير","pos",["pos","cash","inv"]],["h_book","الحجوزات","appts",["appts","cust"]],["h_mgmt","الإدارة","stock",["rep","fin","stock","svc","team","att"]],["h_more","المزيد","set",["me","ann","lb","tgt","ctl","set"]]];
+ function hubTabs(T){const tabs=[],hubs={},done=new Set();T.forEach(x=>{const H=HUBS.find(h=>h[3].includes(x[0]));if(!H){tabs.push(x);return}if(done.has(H[0]))return;done.add(H[0]);
+ const m=T.filter(y=>H[3].includes(y[0]));if(m.length<2){tabs.push(x);return}hubs[H[0]]=m;tabs.push([H[0],H[1],H[2],m.map(y=>y[0])])});return{tabs,hubs}}
+ async function boot(){
+@@ -40,7 +40,7 @@
+ function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";pushUnlink().finally(()=>sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()}));return}
+ let hb=null;if(C.hubs){if(C.hubs[t]){hb=t;t=(C.hubLast||{})[hb]||C.hubs[hb][0][0]}else for(const k in C.hubs)if(C.hubs[k].some(x=>x[0]==t)){hb=k;break}}
+ if(hb){(C.hubLast=C.hubLast||{})[hb]=t;C.hubBar=`<div class="hubbar">${C.hubs[hb].map(x=>`<button class="chip ${x[0]==t?"sel":""}" onclick="go(\'${x[0]}\')">${x[1]}</button>`).join("")}</div>`}else C.hubBar="";
+-tab=t;$("app").classList.remove("still");const NV=C.tabs.length>5?4:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==(hb||t)?"on":"")+(i>=NV?" x":"")}" data-v="${(x[3]||[x[0]]).join(" ")}" onclick="go('${x[0]}')">${ic(x[2]||x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==(hb||t))?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
++tab=t;$("app").classList.remove("still");const NV=C.tabs.length>6?5:C.tabs.length;$("nav").className="";$("nav").innerHTML=(C.tabs.length>NV?"<i class=\"brk\"></i>":"")+C.tabs.map((x,i)=>`<button class="${(x[0]==(hb||t)?"on":"")+(i>=NV?" x":"")}" data-v="${(x[3]||[x[0]]).join(" ")}" onclick="go('${x[0]}')">${ic(x[2]||x[0])}<span>${x[1]}</span></button>`).join("")+(C.tabs.length>NV?`<button class="more${C.tabs.slice(NV).some(x=>x[0]==(hb||t))?" on":""}" aria-label="المزيد" onclick="event.stopPropagation();$('nav').classList.toggle('open')">${ic("dot3")}<span>المزيد</span></button>`:"");put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
+ const put=h=>{$("app").innerHTML=(C.hubBar||"")+h;polish()};
+ function polish(){const A=$("app");A.querySelectorAll(".tag").forEach(t=>{const k=Object.keys(ST).find(x=>ST[x]==t.textContent.trim());if(k)t.classList.add("st-"+k)});A.querySelectorAll(":scope>p.m").forEach(p=>{if(/^(مفيش|لسه|لا يوجد|ما فيش)/.test(p.textContent.trim()))p.classList.add("empty")})}
+ 
+@@ -175,7 +175,7 @@
+ const ins=await sb.from("open_invoices").insert({chair:n,customer_id:a.customer_id,barber_id:a.barber_id||null,appointment_id:id,services:(a.appointment_services||[]).map(x=>x.service_id)});
+ if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتاخد، جرّب تاني":ins.error.message);return go("pos")}}
+ C.chOpenAfter=n;go("pos")}
+-async function setS(id,s){await sb.from("appointments").update({status:s}).eq("id",id);go("appts")}
++async function setS(id,s){const{error}=await sb.from("appointments").update({status:s}).eq("id",id);if(error)toast(netErr(error)?"التحديث لم يتأكد — النت واقف":error.message);go("appts")}
+ async function restock(id,q){const{error}=await sb.rpc("restock_product",{p_id:id,p_qty:10});error?toast(error.message):go("stock")}
+ // ===== شاشة الموظف والإدارة =====
+ const mm=x=>x==null?"—":fm(x);const KIND={advance:"سحب / سلفة",deduction:"خصم",bonus:"إيداع / مكافأة"};C.rg="month";
+@@ -365,7 +365,7 @@
+ V.appts=async()=>{const t=new Date().toLocaleDateString("en-CA");
+ if(+C.cfg.no_show_after_minutes>0){try{await sb.rpc("run_no_show_sweep")}catch(e){}}
+ let q=sb.from("appointments").select("id,day,period,ticket_no,status,called_at,eta,finished_at,customer_id,barber_id,customers(name),profiles(full_name),appointment_services(service_id,services(name))");q=dfOn("ap")?dfQ(q,"day","ap"):q.gte("day",t).not("status","in","(cancelled,done)");const{data}=await q.order("day").order("ticket_no");
+-C.A=(data||[]).filter(a=>a.status!="no_show");put(`<h1>الدور</h1><button class="btn s" onclick="admForm()">+ حجز إداري</button><div id="adm"></div>${dfBar("ap","V.appts()")}`+(C.A.length?C.A.map(a=>`<div class="row"><div><b>#${a.ticket_no}</b> · ${esc(a.customers?.name)}<div class="m">${a.day} · ${PLB[a.period]} · ${a.appointment_services.map(x=>esc(x.services.name)).join(" + ")} · ${esc(a.profiles?.full_name||"-")}</div></div><div style="text-align:left"><span class="tag">${a.finished_at?"خلص":a.called_at&&a.status=="upcoming"?"مستدعى"+(a.eta=="on_way"?" (في الطريق)":""):ST[a.status]}</span><br>${a.status=="upcoming"&&!a.called_at?`<button class="btn s" onclick="tk('call_ticket',${a.id})">استدعاء</button> `:""}${a.status=="upcoming"||a.status=="checked_in"?`<button class="btn s g" onclick="setS(${a.id},'in_service')">ابدأ</button> `:""}${a.status=="in_service"?`<button class="btn s" onclick="payAppt(${a.id})">دفع</button> `:""}${(a.status=="upcoming"||a.status=="checked_in")&&a.called_at?`<button class="btn s g" onclick="noShow(${a.id})">لم يحضر</button> `:""}${a.status!="in_service"?`<button class="btn s g" onclick="setS(${a.id},'cancelled')">إلغاء</button>`:""}${me.role=="owner"?` <button class="btn s g" style="color:var(--red)" onclick="delAppt('${a.id}')">حذف</button>`:""}</div></div>`).join(""):`<p class="m">${dfOn("ap")?"مفيش حجوزات في الفترة دي.":"مفيش دور محجوز."}</p>`));clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="appts"&&!($("adm")&&$("adm").innerHTML)){$("app").classList.add("still");V.appts()}},30000)};
++C.A=(data||[]).filter(a=>a.status!="no_show");const SK=(data||[]).filter(a=>a.status=="no_show");put(`<h1>الدور</h1><button class="btn s" onclick="admForm()">+ حجز إداري</button><div id="adm"></div>${dfBar("ap","V.appts()")}`+(C.A.length?C.A.map(a=>`<div class="row"><div><b>#${a.ticket_no}</b> · ${esc(a.customers?.name)}<div class="m">${a.day} · ${PLB[a.period]} · ${a.appointment_services.map(x=>esc(x.services.name)).join(" + ")} · ${esc(a.profiles?.full_name||"-")}</div></div><div style="text-align:left"><span class="tag">${a.finished_at?"خلص":a.called_at&&a.status=="upcoming"?"مستدعى"+(a.eta=="on_way"?" (في الطريق)":""):ST[a.status]}</span><br>${a.status=="upcoming"&&!a.called_at?`<button class="btn s" onclick="tk('call_ticket',${a.id})">استدعاء</button> `:""}${a.status=="upcoming"?`<button class="btn s g" onclick="setS(${a.id},'checked_in')">وصل</button> `:""}${a.status=="upcoming"||a.status=="checked_in"?`<button class="btn s g" onclick="setS(${a.id},'in_service')">ابدأ</button> <button class="btn s g" onclick="moveT(${a.id})">نقل</button> `:""}${a.status=="in_service"?`<button class="btn s" onclick="payAppt(${a.id})">دفع</button> `:""}${(a.status=="upcoming"||a.status=="checked_in")&&a.called_at?`<button class="btn s g" onclick="noShow(${a.id})">تخطي (لم يحضر)</button> `:""}${a.status!="in_service"?`<button class="btn s g" onclick="setS(${a.id},'cancelled')">إلغاء</button>`:""}${me.role=="owner"?` <button class="btn s g" style="color:var(--red)" onclick="delAppt('${a.id}')">حذف</button>`:""}</div></div>`).join(""):`<p class="m">${dfOn("ap")?"مفيش حجوزات في الفترة دي.":"مفيش دور محجوز."}</p>`)+(SK.length?`<h2>المتخطّين (سجلهم محفوظ)</h2>`+SK.map(a=>`<div class="row"><div><b>#${a.ticket_no}</b> · ${esc(a.customers?.name)}<div class="m">${a.day} · ${PLB[a.period]} · ${esc(a.profiles?.full_name||"-")}</div></div><button class="btn s" onclick="setS(${a.id},'upcoming')">رجّعه للدور</button></div>`).join(""):""));clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="appts"&&!($("adm")&&$("adm").innerHTML)){$("app").classList.add("still");V.appts()}},30000)};
+ // ===== الرئيسية: مركز قيادة الصالون (بيانات حقيقية، من غير أي شيء شكلي) =====
+ function qa(t,f,id){go(t);let n=0;const w=setInterval(()=>{if($(id)||++n>40){clearInterval(w);if($(id))window[f]()}},100)}
+ async function homeCall(id){const{error}=await sb.rpc("call_ticket",{p_id:id});error?toast(error.message):(toast("تم الاستدعاء ✓"),go("home"))}
+@@ -659,12 +659,23 @@
+ async function cancelAw(id){if(!confirm("تلغي الحافز ده؟"))return;const{error}=await sb.rpc("cancel_target_award",{p_id:id});error?toast(error.message):tgtOwner()}
+ 
+ // ---- الحجز الإداري + لم يحضر ----
+-async function admForm(){const e=$("adm");if(e.innerHTML)return e.innerHTML="";const[{data:sv},{data:br}]=await Promise.all([sb.from("services").select("id,name,price").eq("active",true).order("id"),sb.from("profiles").select("id,full_name").eq("role","barber").order("full_name")]);C.ad={s:[],sv:sv||[],br:br||[]};drawAdm()}
++async function admForm(){const e=$("adm");if(e.innerHTML)return e.innerHTML="";const[{data:sv},{data:br}]=await Promise.all([sb.from("services").select("id,name,price").eq("active",true).order("id"),sb.from("profiles").select("id,full_name").eq("role","barber").order("full_name")]);C.ad={s:[],walk:false,sv:sv||[],br:br||[]};drawAdm()}
+ function drawAdm(){const A=C.ad,e=$("adm");if(!e)return;const nm=$("ad_n")?$("ad_n").value:"",ph=$("ad_p")?$("ad_p").value:"",day=$("ad_d")?$("ad_d").value:ymd(new Date()),pe=$("ad_pe")?$("ad_pe").value:"evening",bb=$("ad_b")?$("ad_b").value:"";
+-  e.innerHTML=`<div class="box" style="margin:10px 0"><div class="m">حجز إداري (بيدخل الدور زي أي حجز)</div><input id="ad_n" placeholder="اسم العميل" value="${esc(nm)}"><input id="ad_p" type="tel" inputmode="numeric" placeholder="موبايل العميل" value="${esc(ph)}"><div class="chips">${A.sv.map(x=>`<button class="chip ${A.s.includes(x.id)?"sel":""}" onclick="admTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div><select id="ad_b"><option value="">أي حلاق (الأقل زحمة)</option>${A.br.map(x=>`<option value="${x.id}" ${bb==x.id?"selected":""}>${esc(x.full_name)}</option>`).join("")}</select><input id="ad_d" type="date" value="${day}" min="${ymd(new Date())}"><select id="ad_pe">${Object.entries(PLB).map(([k,v])=>`<option value="${k}" ${pe==k?"selected":""}>${v}</option>`).join("")}</select><div class="chips"><button class="btn" onclick="admSave()">حجز</button><button class="btn g" onclick="$('adm').innerHTML=''">إلغاء</button></div></div>`}
++  e.innerHTML=`<div class="box" style="margin:10px 0"><div class="m">حجز إداري (بيدخل الدور زي أي حجز) — الخدمات اختيارية</div><div class="chips"><button class="chip ${A.walk?"sel":""}" onclick="admWk()">وصل الصالون دلوقتي (Walk-in)</button></div><input id="ad_n" placeholder="اسم العميل" value="${esc(nm)}"><input id="ad_p" type="tel" inputmode="numeric" placeholder="موبايل العميل" value="${esc(ph)}"><div class="chips">${A.sv.map(x=>`<button class="chip ${A.s.includes(x.id)?"sel":""}" onclick="admTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div><select id="ad_b"><option value="">أي حلاق (الأقل زحمة)</option>${A.br.map(x=>`<option value="${x.id}" ${bb==x.id?"selected":""}>${esc(x.full_name)}</option>`).join("")}</select>${A.walk?`<div class="m">هيتسجّل في دور الحلاق المختار النهارده (لو سيبته فاضي بيقترح الأقل زحمة).</div>`:`<input id="ad_d" type="date" value="${day}" min="${ymd(new Date())}"><select id="ad_pe">${Object.entries(PLB).map(([k,v])=>`<option value="${k}" ${pe==k?"selected":""}>${v}</option>`).join("")}</select>`}<div class="chips"><button class="btn" onclick="admSave()">حجز</button><button class="btn g" onclick="$('adm').innerHTML=''">إلغاء</button></div></div>`}
++function admWk(){C.ad.walk=!C.ad.walk;drawAdm()}
+ function admTg(id){const A=C.ad;A.s=A.s.includes(id)?A.s.filter(x=>x!=id):[...A.s,id];drawAdm()}
+-async function admSave(){const A=C.ad,n=$("ad_n").value.trim(),ph=($("ad_p").value||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");if(n.length<2)return toast("اكتب اسم العميل");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");if(!A.s.length)return toast("اختار خدمة");
+-  const{error}=await sb.rpc("admin_book_ticket",{p_name:n,p_phone:ph,p_barber:$("ad_b").value||null,p_day:$("ad_d").value,p_period:$("ad_pe").value,p_services:A.s});error?toast(error.message):(toast("تم الحجز ✓"),go("appts"))}
++async function admSave(){if(C.admBusy)return;const A=C.ad,n=$("ad_n").value.trim(),ph=($("ad_p").value||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");if(n.length<2)return toast("اكتب اسم العميل");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
++  const br=$("ad_b").value||null;C.admBusy=true;
++  const r=A.walk?await sb.rpc("walk_in_ticket_v2",{p_customer:null,p_name:n,p_phone:ph,p_barber:br,p_services:A.s}):await sb.rpc("admin_book_ticket",{p_name:n,p_phone:ph,p_barber:br,p_day:$("ad_d").value,p_period:$("ad_pe").value,p_services:A.s});
++  C.admBusy=false;const{data,error}=r;
++  if(error)return toast(netErr(error)?"فشل — النت واقف، الحجز لم يتأكد. جرّب تاني (مش هيتكرر)":/walk_in_ticket_v2|PGRST202/.test(error.message||"")?"لازم تطبّق تحديث الداتابيز الأول (sql/booking_queue_upgrade.sql)":error.message);
++  if(data&&data.existing){toast("العميل عنده حجز نشط بالفعل (دور #"+(data.no||data.ticket?.no||"-")+") — اتعرض بدل ما نكرره. أكّد وصوله من القايمة لو وصل.");return go("appts")}
++  toast(A.walk?"اتسجّل في دور الحلاق ✓":"تم الحجز ✓");go("appts")}
++const netErr=e=>!!e&&!e.code&&!e.hint&&!e.details;
++async function moveT(id){const{data:br}=await sb.from("profiles").select("id,full_name").eq("role","barber").order("full_name");if(!br?.length)return toast("مفيش حلاقين");
++  const k=prompt("انقل لأي حلاق؟ اكتب الرقم:\n"+br.map((x,i)=>(i+1)+") "+x.full_name).join("\n"));if(!k)return;const x=br[+k-1];if(!x)return toast("رقم غلط");
++  const{data,error}=await sb.rpc("reassign_ticket",{p_id:id,p_barber:x.id});if(error)return toast(netErr(error)?"النقل لم يتأكد — النت واقف":error.message);
++  toast(data&&data.changed===false?"الحجز عند نفس الحلاق":"اتنقل ✓");go("appts")}
+ async function noShow(id){if(!confirm("تسجّل العميل ده \"لم يحضر\"؟"))return;const{error}=await sb.from("appointments").update({status:"no_show"}).eq("id",id);error?toast(/enum|no_show/i.test(error.message)?"حالة no_show مش مضافة في قاعدة البيانات — شغّل: alter type appt_status add value if not exists 'no_show';":error.message):go("appts")}
+ async function copyBook(){const u=location.origin+"/book";try{await navigator.clipboard.writeText(u);toast("تم نسخ الرابط ✓")}catch(e){prompt("انسخ الرابط:",u)}}
+ V.set=async()=>{await loadCfg();
+@@ -1180,3 +1191,17 @@
+ const{data:inv}=await sb.from("invoices").select("no,subtotal,discount,total,payment_method,created_at,invoice_items(name,qty,unit_price)").eq("id",id).maybeSingle();
+ if(inv)C.lastWa={phone:ph,name:nm,no:inv.no,text:waInvText(inv,nm)}}catch(e){}}
+ function waLastCard(){const w=C.lastWa;if(!w)return"";return `<div class="box" style="margin:10px 0"><div class="m" style="margin-bottom:8px">فاتورة #${w.no} اتدفعت${w.name?" — "+esc(w.name):""}</div><div class="chips" style="align-items:center">${waBtn(w.phone,1,w.text)}<button class="btn s g" onclick="C.lastWa=null;V.pos()">إخفاء</button></div></div>`}
++
++// ===== مؤشر الاتصال: فحص فعلي لوصول السيرفر (مش navigator.onLine لوحده) =====
++(function(){const el=document.createElement("div");el.id="netpill";el.setAttribute("role","status");
++  el.style.cssText="position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:8px;z-index:9999;font:600 11px/1 system-ui,sans-serif;padding:5px 9px;border-radius:99px;color:#fff;pointer-events:none;opacity:.95";
++  const set=(t,c)=>{el.textContent=t;el.style.background=c};set("جارٍ فحص الاتصال…","#6b7280");
++  const add=()=>document.body&&document.body.appendChild(el);document.body?add():addEventListener("DOMContentLoaded",add);
++  let last=null;async function probe(){
++    if(navigator.onLine===false){last=false;return set("غير متصل","#b91c1c")}
++    const c=new AbortController(),t=setTimeout(()=>c.abort(),5000);
++    try{const r=await fetch(SUPABASE_URL+"/rest/v1/",{method:"HEAD",headers:{apikey:SUPABASE_KEY},cache:"no-store",signal:c.signal});clearTimeout(t);
++      if(r.status>=500)throw 0;last=true;set("متصل","#15803d")}
++    catch(e){clearTimeout(t);last=false;set("السيرفر مش متاح — العمليات الجديدة هتفشل ومش هتتأكد","#b91c1c")}}
++  addEventListener("online",probe);addEventListener("offline",probe);setInterval(probe,15000);probe();
++  window.netOk=()=>last!==false})();
+diff -ruN --label a --label b -x sql -x tests a b
+--- a
++++ b
+@@ -28,7 +28,7 @@
+ 
+ function draw(){const b=C.b,days=bkDays();
+   put(`<h1>احجز دورك</h1><p class="m" style="margin:0 0 4px">من غير تسجيل ولا تحميل تطبيق — اختار وخد رقم دورك.</p>
+-<h2>الخدمات</h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
++<h2>الخدمات <span class="m">(اختياري)</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+ <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
+ <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
+ <div id="bl"></div>
+@@ -37,7 +37,7 @@
+   if(b.period)loadBarbers();upd()}
+ function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];draw()}
+ function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=sv.reduce((a,x)=>a+x.price,0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
+-  btn.disabled=!(b.s.length&&b.period&&b.barber!==undefined);
++  btn.disabled=!(b.period&&b.barber!==undefined)||!!C.busy;
+   btn.textContent=b.s.length?`تأكيد وخد رقم دورك · ${fm(tot)}${dur?" · ~"+dur+" دقيقة":""}`:"تأكيد وخد رقم دورك"}
+ async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
+   const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
+@@ -45,12 +45,21 @@
+   if(b.barber&&!L.some(x=>x.id==b.barber))b.barber=undefined;
+   $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers();upd()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers();upd()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join(""):`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`);upd()}
+ 
+-async function bookNow(){const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
++const isNetErr=e=>!!e&&!e.code&&!e.hint&&!e.details;
++async function bookNow(){if(C.busy)return;const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
+   if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+-  const btn=$("cbtn");btn.disabled=true;
+-  const{data,error}=await sb.rpc("public_book",{p_name:n,p_phone:ph,p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
+-  if(error){btn.disabled=false;return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message)}
+-  C.f.p=ph;store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:data[0].t_id,p:ph});toast("تم الحجز ✓ ده رقم دورك");showTicket()}
++  const btn=$("cbtn");C.busy=true;btn.disabled=true;
++  const args={p_name:n,p_phone:ph,p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s};
++  let r=await sb.rpc("public_book_v2",args),t=null,existing=false;
++  if(!r.error&&r.data&&r.data.ticket){t=r.data.ticket;existing=!!r.data.existing}
++  // مفيش fallback للدالة القديمة: public_book_v2 هي اللي بتضمن حجز نشط واحد + القفل. لو مش موجودة الحجز بيتوقف برسالة واضحة.
++  else if(r.error&&(r.error.code=="PGRST202"||r.error.code=="42883"||/public_book_v2/.test(r.error.message||""))){C.busy=false;if(btn)btn.disabled=false;return toast("الحجز الأونلاين متوقف مؤقتًا لتحديث النظام. كلّمنا على الصالون.")}
++  C.busy=false;
++  if(r.error||!t){if(btn)btn.disabled=false;
++    // مفيش تأكيد وهمي: الحجز ما اتأكدش. لو الرد ضاع بعد ما اتحفظ، إعادة المحاولة هترجّع نفس الحجز (حجز نشط واحد لكل رقم).
++    return toast(isNetErr(r.error)?"الحجز لم يتأكد — النت واقف. جرّب تاني (مش هيتكرر).":(r.error?.code=="23505"?"حد حجز قبلك، جرّب تاني":(r.error?.message||"الحجز لم يتأكد، جرّب تاني")))}
++  C.f.p=ph;store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:t.id,p:ph});
++  toast(existing?"عندك حجز نشط بالفعل — ده دورك":"تم الحجز ✓ ده رقم دورك");showTicket()}
+ 
+ // ===== تذكرة الدور (بتتحدّث لوحدها كل 8 ثواني) =====
+ async function showTicket(quiet){const L=store.get("salon_book_last");if(!L)return start();
+@@ -58,7 +67,7 @@
+   if(!error&&s){try{const{data:v2,error:e2}=await sb.rpc("public_queue_status_v2",{p_id:L.id,p_phone:L.p});if(!e2&&v2){s.ahead=v2.ahead;s.est_min=v2.est_wait_min;s.current_no=v2.current_no;s.ticket_no=v2.ticket_no;s.near_turn=v2.near_turn}}catch(e){}}
+   if(error||!s){clearInterval(C.poll);store.del("salon_book_last");return start()}
+   if(s.status=="done"||s.status=="cancelled"||s.status=="no_show"){clearInterval(C.poll);store.del("salon_book_last");
+-    return put(`<h1>${s.status=="done"?"شكرًا لزيارتك 🙏":s.status=="no_show"?"اتلغى دورك":"اتلغى الحجز"}</h1><div class="box" style="text-align:center"><p class="m">${s.status=="done"?"نورتنا — نتمنى نشوفك تاني قريب.":s.status=="no_show"?"اتلغى دورك لأنك ما حضرتش في الميعاد. تقدر تحجز دور جديد.":"تقدر تحجز دور جديد في أي وقت."}</p><button class="btn" onclick="start()">احجز دور جديد</button></div>${contact()}`)}
++    return put(`<h1>${s.status=="done"?"شكرًا لزيارتك 🙏":s.status=="no_show"?"الكاشير تخطّى دورك":"اتلغى الحجز"}</h1><div class="box" style="text-align:center"><p class="m">${s.status=="done"?"نورتنا — نتمنى نشوفك تاني قريب.":s.status=="no_show"?"الكاشير سجّل إنك مش موجود وقت دورك. كلّم الصالون أو احجز دور جديد.":"تقدر تحجز دور جديد في أي وقت."}</p><button class="btn" onclick="start()">احجز دور جديد</button></div>${contact()}`)}
+   drawT(s,quiet);clearInterval(C.poll);C.poll=setInterval(()=>showTicket(true),8000)}
+ function drawT(s,quiet){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
+   put(`<h1>دورك</h1><div class="box" style="text-align:center"><div class="m">رقمك</div><div style="font-size:64px;font-weight:800;color:var(--red);line-height:1.1">${s.ticket_no==null?"—":s.ticket_no}</div><div class="m">${PLB[s.period]||""} · ${s.day}</div>
+@@ -67,8 +76,16 @@
+ <div class="row" style="margin-top:10px"><span>${esc(s.services)}</span><b>${fm(s.total)}</b></div>
+ ${s.called&&st=="upcoming"?`<div class="box" style="margin:10px 0;border-color:var(--red)"><b>🔔 اتنادى عليك!</b><div class="chips" style="margin-top:8px"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:var(--ok)" onclick="eta('arrived')">وصلت</button></div></div>`:""}
+ <div style="margin:12px 0">${steps.map(x=>`<div style="padding:3px 0;${x[1]?"":"opacity:.4"}">${x[1]?"✓":"○"} ${x[0]}</div>`).join("")}</div>
+-${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}${contact()}`)}
++${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%;margin-bottom:8px" onclick="changeB()">تغيير الحلاق</button><button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}${contact()}`)}
+ async function eta(state){const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_eta",{p_id:L.id,p_phone:L.p,p_state:state});error?toast(error.message):(toast(state=="arrived"?"تمام، الصالون عرف إنك وصلت":"تمام، مستنينك"),showTicket())}
++async function changeB(){const L=store.get("salon_book_last");if(!L)return;
++  const{data:t}=await sb.rpc("public_ticket",{p_id:L.id,p_phone:L.p});const s=t?.[0];if(!s)return toast("مقدرناش نحمّل الحجز");
++  const{data,error}=await sb.rpc("available_barbers",{p_day:s.day,p_period:s.period});if(error)return toast(error.message);
++  const O=(data||[]).filter(x=>x.full_name!==s.barber_name);if(!O.length)return toast("مفيش حلاق تاني متاح في الفترة دي");
++  put(`<h1>غيّر الحلاق</h1><p class="m">هتفضل محتفظ بأسبقية تسجيلك قدر الإمكان.</p>${O.map(x=>`<button class="row" style="cursor:pointer" onclick="doChangeB('${x.id}')"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور</span></button>`).join("")}<button class="btn g" style="width:100%;margin-top:10px" onclick="showTicket()">رجوع</button>`)}
++async function doChangeB(id){const L=store.get("salon_book_last");if(!L||C.busy)return;C.busy=true;
++  const{error}=await sb.rpc("public_change_barber",{p_id:L.id,p_phone:L.p,p_barber:id});C.busy=false;
++  if(error)return toast(isNetErr(error)?"التغيير لم يتأكد — النت واقف":error.message);toast("تم تغيير الحلاق ✓");showTicket()}
+ async function cancelT(){if(!confirm("تلغي الحجز؟"))return;const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_cancel",{p_id:L.id,p_phone:L.p});
+   if(error)return toast(error.message);clearInterval(C.poll);store.del("salon_book_last");toast("اتلغى الحجز");start()}
+ init();
+diff -ruN --label a --label b -x sql -x tests a b
+--- a
++++ b
+@@ -1,5 +1,5 @@
+ // صالون أبو يوسف - Service Worker (الشبكة أولًا عشان التحديثات تظهر فورًا)
+-const V = "salon-v15";
++const V = "salon-v17";
+ const SHELL = ["/", "/staff", "/admin", "/app.js", "/config.js", "/style.css", "/icon-192.png", "/manifest.webmanifest", "/manifest-staff.webmanifest", "/manifest-admin.webmanifest", "/icon-staff-192.png", "/icon-admin-192.png"];
+ self.addEventListener("install", e => {
+   e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
