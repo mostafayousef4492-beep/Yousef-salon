@@ -1,0 +1,201 @@
+/* ui/theme.css — نظام التصميم الجديد: ألوان فاتح/داكن + شكل الأقسام والقائمة
+   بيتحمّل بعد base.css، وبيغيّر الألوان والتخطيط بس من غير ما يمس أي وظيفة. */
+
+/* ===== ١) الألوان ===== */
+:root{
+  --bg:#0B0D12;--bg2:#0F1218;--side:#0F1218;--card:#151922;--card2:#1B202B;
+  --ink:#F1ECE2;--mute:#9AA1AF;
+  --gold:#D4AF6A;--gold2:#E6C98C;--gold3:#8F6F2A;--brass:var(--gold);--blue:var(--gold);
+  --on-gold:#1A1405;--gold-soft:rgba(212,175,106,.12);
+  --red:#E5736A;--ok:#5FC59A;--info:#7DAEE6;--warn:#E8B04A;
+  --line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.06);
+  --glass:rgba(15,18,24,.86);--overlay:rgba(5,6,9,.62);
+  --shadow:0 10px 28px -22px rgba(0,0,0,.9);
+  --side:#0F1218;
+  --side-w:264px;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#F5F2EA;--bg2:#EFEBE1;--side:#FFFFFF;--card:#FFFFFF;--card2:#F3EFE5;
+  --ink:#1B1710;--mute:#6B6558;
+  --gold:#8F6A1C;--gold2:#7A5A14;--gold3:#B89445;
+  --on-gold:#FFFFFF;--gold-soft:rgba(143,106,28,.10);
+  --red:#B4443A;--ok:#1F7A57;--info:#2F6DB5;--warn:#8F6200;
+  --line:rgba(27,23,16,.14);--line2:rgba(27,23,16,.08);
+  --glass:rgba(255,255,255,.9);--overlay:rgba(27,23,16,.38);
+  --shadow:0 10px 28px -24px rgba(60,45,10,.55);
+  color-scheme:light;
+}
+
+/* ===== ٢) الأساس ===== */
+body{background:var(--bg);color:var(--ink)}
+:root[data-theme="light"] body{background:var(--bg)}
+a{color:var(--gold2)}
+h1{font-size:28px;font-weight:700;margin:10px 0 4px;letter-spacing:0}
+h2{font-size:17px;font-weight:700;color:var(--ink);letter-spacing:0;margin:26px 0 12px}
+h2::after{background:linear-gradient(90deg,var(--line),transparent)}
+h3.sec{font-size:15px;font-weight:700;margin:14px 0 8px;color:var(--ink)}
+h3.sec:first-child{margin-top:0}
+.m,p.sub{color:var(--mute)}
+.box,.row,.card,.ticket{background:var(--card);border:1px solid var(--line2);box-shadow:var(--shadow);border-radius:18px}
+button.row:hover,.chip:hover:not(:disabled):not(.sel){border-color:var(--gold)}
+
+/* الأزرار: ذهبي مصمت وواضح */
+.btn{background:var(--gold);color:var(--on-gold);box-shadow:none;border:0}
+.btn.g{background:transparent;color:var(--gold2);border:1px solid var(--line)}
+.btn.g:hover{background:var(--gold-soft)}
+.btn:disabled{background:var(--card2);color:var(--mute);border:1px solid var(--line2)}
+.btn[style*="--ok"]{background:var(--ok);color:#fff}
+.chip{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.chip.sel{background:var(--gold);color:var(--on-gold);border-color:var(--gold);box-shadow:none}
+.tag{background:var(--gold-soft);color:var(--gold2);border-color:var(--line)}
+
+/* الحقول */
+input,select,textarea{background:var(--card2);color:var(--ink);border:1px solid var(--line);border-radius:14px}
+input::placeholder,textarea::placeholder{color:var(--mute);opacity:.8}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+select option{background:var(--card);color:var(--ink)}
+
+/* الهيدر (موبايل) */
+header.top{background:var(--glass);border-bottom:1px solid var(--line2)}
+.pole{background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.55}
+#brand{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--gold2)}
+#brand span{background:none;color:var(--gold2);-webkit-text-fill-color:initial}
+.hdr-theme{position:absolute;inset-inline-start:12px;top:calc(env(safe-area-inset-top,0px) + 9px);width:38px;height:38px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--gold2);display:grid;place-items:center;cursor:pointer}
+.hdr-theme svg{width:19px;height:19px}
+.bell{background:var(--card);border-color:var(--line);color:var(--mute)}
+.bell.on{color:var(--gold2);border-color:var(--gold)}
+
+/* أيقونة الشمس/القمر: كل وضع بيظهر عكسه */
+.ti-sun,.ti-moon{display:none;line-height:0}
+:root:not([data-theme="light"]) .ti-sun{display:inline-flex}
+:root[data-theme="light"] .ti-moon{display:inline-flex}
+
+/* ===== ٣) القائمة: شريط سفلي على الموبايل ===== */
+nav{background:var(--glass);border:1px solid var(--line);box-shadow:0 18px 40px -16px rgba(0,0,0,.45)}
+nav button{color:var(--mute)}
+nav button.on{color:var(--gold2);background:var(--gold-soft)}
+nav button.on::after{background:var(--gold)}
+nav .nav-brand,nav .navsp,nav .themebtn{display:none}
+
+/* ===== ٤) الشريط الفرعي داخل القسم: تابات واضحة ===== */
+.hubbar{display:flex;flex-wrap:nowrap;gap:4px;padding:5px;margin:10px 0 6px;border-radius:16px;background:var(--card);border:1px solid var(--line2);overflow-x:auto;scrollbar-width:none;width:max-content;max-width:100%}
+.hubbar .chip{border:0;border-radius:12px;min-height:40px;padding:8px 16px;background:transparent;color:var(--mute);font-weight:600;white-space:nowrap}
+.hubbar .chip.sel{background:var(--gold);color:var(--on-gold);box-shadow:none}
+.hubbar .chip:hover:not(.sel){color:var(--ink);border:0}
+
+/* ===== ٥) الرئيسية ===== */
+.dash-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px}
+.dash-head h1{margin:2px 0 8px}
+.dash-search{flex:1 1 280px;max-width:420px}
+.dash-search input{margin:0}
+.cc-stat{padding:18px 20px;border-radius:18px}
+.cc-l{font-size:14px;color:var(--mute)}
+.cc-n{font-size:30px;color:var(--ink)}
+.cc-grid{gap:14px;margin-top:16px}
+.dash-cols{display:block}
+.dash-side .row{margin-bottom:10px}
+.cc-chairs{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.cc-chair{padding:16px 18px;border-inline-start:0;border-top:3px solid var(--ok)}
+.cc-chair.busy{border-top-color:var(--gold)}
+.cc-act{gap:10px}
+@media(min-width:1100px){
+  .dash-cols{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:28px;align-items:start}
+}
+
+/* ===== ٦) الكاشير: ٣ لوحات ===== */
+.pos-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.pos-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-top:10px}
+.pos-grid>.box{padding:18px}
+.pos-line{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:12px;background:var(--card2)}
+.pos-tiles{gap:10px}
+.pos-tiles .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:68px;padding:12px 14px;border-radius:14px;text-align:start;flex:1 1 140px}
+.pos-tiles .chip b{font-weight:600}
+.pos-tiles .chip .m{opacity:.8;font-size:13px}
+.pos-total{font-size:28px;color:var(--gold2)}
+.tot.f{border-top:1px dashed var(--line)}
+@media(min-width:1100px){
+  .pos-grid{grid-template-columns:minmax(260px,.9fr) minmax(0,1.7fr) minmax(300px,1fr);align-items:start}
+}
+
+/* كراسي الكاشير */
+.ch-grid{gap:14px}
+button.ch{min-height:170px;border-radius:18px;padding:18px}
+.ch-t{color:var(--gold2)}
+.ch-busy{border-color:var(--gold3)}
+.ch-no{color:var(--gold2)}
+
+/* ===== ٧) عناصر بالألوان الداكنة في base.css ===== */
+.toast{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 14px 40px -12px rgba(0,0,0,.5)}
+.inst{background:var(--card);border-color:var(--gold3)}
+.sheet-bg{background:var(--overlay)}
+.sheet{background:var(--card);border-color:var(--line)}
+.pv{background:var(--glass)}
+.okf{background:var(--glass)}
+.stars button{color:var(--line)}
+.stars button.on{color:var(--gold)}
+.pass{background:linear-gradient(160deg,var(--card2),var(--card) 70%);border-color:var(--gold3)}
+.pass-no{background:none;-webkit-background-clip:initial;background-clip:initial;color:var(--gold2)}
+.pass::before,.pass::after{background:var(--bg)}
+.tl li::before{background:var(--bg)}
+.tag.st-upcoming{color:var(--info)}.tag.st-checked_in{color:var(--warn)}.tag.st-done{color:var(--ok)}.tag.st-cancelled{color:var(--red)}
+p.m.empty{border-color:var(--line);background:transparent}
+.nearbox{background:var(--gold-soft)}
+:root[data-theme="light"] .sk{background:linear-gradient(100deg,var(--card2) 30%,var(--card) 50%,var(--card2) 70%);background-size:220% 100%}
+:root[data-theme="light"] nav{box-shadow:0 14px 34px -18px rgba(60,45,10,.35)}
+:root[data-theme="light"] .tag.st-in_service{color:var(--gold2)}
+:root[data-theme="light"] .btn:disabled{opacity:.7}
+:root[data-theme="light"] .vip{color:#1A1406}
+
+/* ===== ٨) كمبيوتر وتابلت: قائمة جانبية ===== */
+@media(min-width:900px){
+  body:not(.m-customer) header.top{margin-inline-start:var(--side-w);background:transparent;border-bottom:0;backdrop-filter:none;-webkit-backdrop-filter:none}
+  body:not(.m-customer) header.top .pole,body:not(.m-customer) #brand{display:none}
+  body:not(.m-customer) header.top{height:56px}
+  body:not(.m-customer) .hdr-theme{display:none}
+  body:not(.m-customer) .bell{inset-inline-end:auto;inset-inline-start:24px;top:10px}
+  body:not(.m-customer) #app{--app-w:1180px;max-width:var(--app-w);padding:0 36px 64px;margin-inline:0;margin-right:calc(var(--side-w) + max(0px,(100vw - var(--side-w) - var(--app-w))/2));margin-left:auto}
+  body:not(.m-customer) #app[data-tab="team"],body:not(.m-customer) #app[data-tab="ann"],body:not(.m-customer) #app[data-tab="set"],body:not(.m-customer) #app[data-tab="ctl"],body:not(.m-customer) #app[data-tab="fin"],body:not(.m-customer) #app[data-tab="me"],body:not(.m-customer) #app[data-tab="svc"],body:not(.m-customer) #app[data-tab="stock"],body:not(.m-customer) #app[data-tab="lb"]{--app-w:920px}
+  body:not(.m-customer) nav{position:fixed;inset:0 0 0 auto;left:auto;right:0;top:0;bottom:0;width:var(--side-w);max-width:none;margin:0;border-radius:0;border:0;border-inline-start:1px solid var(--line2);
+    flex-direction:column;flex-wrap:nowrap;gap:4px;padding:22px 14px 20px;overflow-y:auto;background:var(--side);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+  body:not(.m-customer) nav .nav-brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px}
+  body:not(.m-customer) nav .nav-logo{width:44px;height:44px;border-radius:12px;background:var(--gold);color:var(--on-gold);display:grid;place-items:center;flex:none}
+  body:not(.m-customer) nav .nav-logo svg{width:24px;height:24px}
+  body:not(.m-customer) nav .nav-brand b{display:block;font-family:var(--brand);font-size:23px;line-height:1.2;color:var(--ink);font-weight:700}
+  body:not(.m-customer) nav .nav-brand span:not(.nav-logo){display:block;font-size:12px;color:var(--mute)}
+  body:not(.m-customer) nav button{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;min-height:46px;padding:10px 14px;font-size:15px;font-weight:500;border-radius:12px;color:var(--mute)}
+  body:not(.m-customer) nav button:hover:not(.on){background:var(--gold-soft);color:var(--ink)}
+  body:not(.m-customer) nav button.on{background:var(--gold-soft);color:var(--gold2);font-weight:600}
+  body:not(.m-customer) nav button.on::after{inset-inline-end:12px;bottom:auto;top:50%;transform:translateY(-50%)}
+  body:not(.m-customer) nav .navsp{display:block;flex:1;min-height:12px}
+  body:not(.m-customer) nav button.pin{border:1px dashed var(--line)}
+  body:not(.m-customer) nav button.themebtn{display:flex;border:0;margin-top:6px}
+  body:not(.m-customer) nav button.more,body:not(.m-customer) nav .brk{display:none}
+  body:not(.m-customer) nav button.x{display:flex}
+  body:not(.m-customer) .toast{top:20px}
+  body:not(.m-customer) #pbn{bottom:24px}
+  .m-customer #app{max-width:560px}
+}
+.m-customer #app{margin-inline:auto}
+@media(max-width:899px){nav.open{box-shadow:0 -30px 60px -10px rgba(0,0,0,.45)}}
+
+/* ===== ٩) تطبيق العميل: شريط سفلي على كل الأحجام (من غير قائمة جانبية) ===== */
+@media(min-width:900px){
+  .m-customer header.top{margin-inline-start:0}
+  .m-customer #app{margin-right:auto;margin-left:auto;padding:6px 16px 130px;max-width:560px}
+  .m-customer nav{position:fixed;inset:auto 12px calc(10px + env(safe-area-inset-bottom,0px)) 12px;top:auto;width:auto;max-width:560px;margin:0 auto;flex-direction:row;flex-wrap:nowrap;gap:2px;padding:6px;border-radius:24px;border:1px solid var(--line);background:var(--glass);overflow-x:auto}
+  .m-customer nav button{flex:1 1 0;flex-direction:column;justify-content:center;width:auto;min-width:62px;min-height:0;padding:8px 6px;font-size:11px;gap:3px}
+  .m-customer nav button.on::after{inset-inline-end:auto;top:auto;bottom:2px;transform:none}
+}
+.cc-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+@media(min-width:900px){.cc-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}}
+
+/* موبايل: كروت الأرقام عمودين */
+@media(max-width:899px){.cc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.cc-stat{padding:14px}.cc-n{font-size:24px}.cc-chairs{grid-template-columns:minmax(0,1fr)}}
+/* حجز العميل: خطوات مرقّمة */
+.m-customer #app[data-tab="book"]{counter-reset:st}
+.m-customer #app[data-tab="book"] h2{counter-increment:st}
+.m-customer #app[data-tab="book"] h2::before{content:counter(st,arabic-indic);display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--gold);color:var(--on-gold);font-size:13px;font-weight:700;flex:none}
+
+/* كود العميل السري */
+.code-big{font-family:var(--display);font-size:40px;font-weight:700;letter-spacing:8px;text-align:center;color:var(--gold2);margin:8px 0;font-variant-numeric:tabular-nums}
