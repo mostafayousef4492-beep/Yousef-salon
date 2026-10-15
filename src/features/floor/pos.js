@@ -31,16 +31,16 @@ const chTot=(r,sv,pr)=>{const sub=(r.services||[]).reduce((a,id)=>a+(+(sv.find(x
 async function chLoadRefs(){const[{data:sv},{data:pr}]=await Promise.all([sb.from("services").select("*").eq("active",true),sb.from("products").select("*").eq("active",true)]);return{sv:sv||[],pr:pr||[]}}
 
 V.pos=async()=>{if(C.chOpenAfter){const n=C.chOpenAfter;C.chOpenAfter=null;return chOpen(n)}
-C.chEdit=0;if(C.P&&!C.P.chair)C.P=null;
+C.chEdit=0;C.cxOpen=0;if(C.P&&!C.P.chair)C.P=null;
 const[{data:L,error},R]=await Promise.all([sb.from("open_invoices").select("*,customers(name),profiles(full_name)").order("chair"),chLoadRefs()]);
 if(error)return put(`<h1>الكاشير</h1><p class="m">مقدرتش أحمّل الكراسي: ${esc(error.message)}<br>لو ده أول مرة، شغّل patch_open_invoices.sql في Supabase.</p>`);
-C.OI=L||[];const N=chN(),by=Object.fromEntries(C.OI.map(r=>[r.chair,r]));let h=`<h1>الكاشير</h1>${waLastCard()}<div class="m">${C.OI.length} من ${N} كراسي شغالة</div><div class="ch-grid">`;
+C.OI=L||[];const N=chN(),by=Object.fromEntries(C.OI.map(r=>[r.chair,r]));let h=`<h1>الكاشير</h1>${waLastCard()}${can("cash_ops")?`<button class="btn s g" style="margin:6px 0" onclick="cxToggle()">+ مصروف / سحب / سلفة</button><div id="cx"></div>`:""}<div class="m">${C.OI.length} من ${N} كراسي شغالة</div><div class="ch-grid">`;
 for(let i=1;i<=N;i++){const r=by[i];
 if(!r){h+=`<button class="box ch ch-free" onclick="chOpen(${i})"><div class="ch-no">كرسي ${i}</div><div class="m">متاح</div><div class="ch-plus">+ فاتورة جديدة</div></button>`;continue}
 const nms=(r.services||[]).map(id=>(R.sv.find(x=>x.id==id)||{}).name).filter(Boolean),pn=(r.products||[]).length,pay=r.status=="paying";
 h+=`<button class="box ch ch-busy" onclick="chOpen(${i})"><div class="ch-top"><span class="ch-no">كرسي ${i}</span><span class="tag ${pay?"st-checked_in":"st-in_service"}">${pay?"بتتدفع":"شغالة"}</span></div><b>${esc(r.profiles?.full_name||"من غير حلاق")}</b><div class="m">${esc(r.customers?.name||"عميل عابر")}</div><div class="m ch-sv">${nms.map(esc).join(" + ")||"لسه من غير خدمات"}${pn?" · "+pn+" منتج":""}</div><div class="ch-t">${fm(chTot(r,R.sv,R.pr))}</div></button>`}
 put(h+`</div>`+(C.OI.length?"":`<p class="m">كل الكراسي متاحة. افتح فاتورة جديدة لما يبدأ عميل.</p>`));
-clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="pos"&&!C.chEdit){$("app").classList.add("still");V.pos()}},12000)};
+clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="pos"&&!C.chEdit&&!C.cxOpen){$("app").classList.add("still");V.pos()}},12000)};
 
 async function chOpen(n){let{data:r}=await sb.from("open_invoices").select("*").eq("chair",n).maybeSingle();
 if(!r){const ins=await sb.from("open_invoices").insert({chair:n}).select("*").single();if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتفتح من جهاز تاني":ins.error.message);return go("pos")}r=ins.data}
@@ -97,4 +97,26 @@ const ins=await sb.from("open_invoices").insert({chair:n,customer_id:a.customer_
 if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتاخد، جرّب تاني":ins.error.message);return go("pos")}}
 C.chOpenAfter=n;go("pos")}
 
-async function setS(id,s){await sb.from("appointments").update({status:s}).eq("id",id);go("appts")}
+// تغيير حالة تذكرة: بدء الخدمة للكاشير بس (start_service)، والإلغاء بيمرّ على حارس الحالات في قاعدة البيانات
+async function setS(id,s){const r=s=="in_service"?await sb.rpc("start_service",{p_id:id}):await sb.from("appointments").update({status:s}).eq("id",id);if(r.error)return toast(netErr(r.error)?"التحديث لم يتأكد — النت واقف":r.error.message);go(tab=="home"?"home":"appts")}
+
+function cxToggle(){const b=$("cx");if(!b)return;if(C.cxOpen){C.cxOpen=0;b.innerHTML="";return}C.cxOpen=1;b.innerHTML=`<p class="m">بنحمّل...</p>`;cxLoad()}
+
+async function cxLoad(){const box=$("cx");if(!box)return;const{data,error}=await sb.rpc("cashier_board");
+if(error){box.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"شغّل ملف cashier_ops.sql في Supabase الأول":esc(error.message)}</p>`;return}
+C.cx=data;cxDraw()}
+
+function cxDraw(){const box=$("cx"),d=C.cx;if(!box||!d)return;const K={withdraw:"سحب من الدرج",deposit:"إضافة للدرج"},cats=d.cats&&d.cats.length?d.cats:["إيجار","كهرباء ومياه","صيانة","تسويق","أخرى"];
+const form=d.closed?`<p class="m">اليوم اتقفل — مينفعش تسجل عمليات جديدة.</p>`:`<div class="box"><select id="cx_k" onchange="cxKind()"><option value="expense">مصروف</option><option value="withdraw">سحب من الدرج (مالك / إيداع بنك)</option><option value="deposit">إضافة للدرج (فكة / ضخ)</option><option value="advance">سلفة / سحب موظف</option></select><div id="cx_e"><select id="cx_c">${cats.map(c=>`<option>${esc(c)}</option>`).join("")}</select><select id="cx_p">${paySrc("drawer")}</select></div><div id="cx_a" style="display:none"><select id="cx_s"><option value="">اختار الموظف</option>${(d.staff||[]).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select></div><input id="cx_m" type="number" inputmode="decimal" placeholder="المبلغ"><input id="cx_n" placeholder="ملاحظة (اختياري)"><button class="btn" style="width:100%" onclick="cxSave()">حفظ</button></div>`;
+const rows=[...(d.expenses||[]).map(x=>[`مصروف · ${esc(x.category)}${x.paid_from=="other"?" (من برا الدرج)":""}`,x.amount,x.note]),...(d.moves||[]).map(x=>[K[x.kind]||x.kind,x.amount,x.note]),...(d.advances||[]).map(x=>[`سلفة · ${esc(x.staff)}`,x.amount,x.note])];
+box.innerHTML=`<div class="chips" style="align-items:center;justify-content:space-between"><h2>تسجيل من الخزنة</h2><button class="btn s g" onclick="cxToggle()">إغلاق</button></div>${form}<h2>عمليات النهارده</h2>`+(rows.length?rows.map(r=>`<div class="row"><div><b>${r[0]}</b> · ${fm(r[1])}<div class="m">${esc(r[2]||"")}</div></div></div>`).join(""):`<p class="m">لسه مفيش عمليات النهارده.</p>`)}
+
+function cxKind(){const k=$("cx_k").value;$("cx_e").style.display=k=="expense"?"":"none";$("cx_a").style.display=k=="advance"?"":"none"}
+
+async function cxSave(){if(C.cxBusy)return;const k=$("cx_k").value,a=parseFloat($("cx_m").value),n=$("cx_n").value.trim()||null;if(!(a>0))return toast("اكتب المبلغ");
+let fn,args,txt;
+if(k=="expense"){fn="cashier_add_expense";args={p_category:$("cx_c").value,p_amount:a,p_note:n,p_paid_from:$("cx_p").value};txt="مصروف "+$("cx_c").value}
+else if(k=="advance"){const sel=$("cx_s");if(!sel.value)return toast("اختار الموظف");fn="cashier_add_advance";args={p_staff:sel.value,p_amount:a,p_note:n};txt="سلفة "+sel.options[sel.selectedIndex].text}
+else{fn="cashier_add_move";args={p_kind:k,p_amount:a,p_note:n};txt=k=="withdraw"?"سحب من الدرج":"إضافة للدرج"}
+if(!confirm("تسجّل "+txt+" بمبلغ "+fm(a)+"؟"))return;
+C.cxBusy=1;try{const{error}=await sb.rpc(fn,args);if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف cashier_ops.sql في Supabase الأول":error.message);toast("تم التسجيل ✓");cxLoad()}finally{C.cxBusy=0}}

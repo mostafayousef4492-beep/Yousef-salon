@@ -15,7 +15,7 @@ function waSalon(){return(C.cfg&&C.cfg.salon_name)||"الصالون"}
 function waAppMsg(name){return `أهلاً ${name||""} 👋\nسجّل في تطبيق ${waSalon()} وتابع دورك ونقاطك من الرابط ده (نفس الباركود اللي في الصالون):\n${location.origin}/\n\nأو احجز من غير تسجيل:\n${location.origin}/book`}
 
 function waInvText(i,name){const L=(i.invoice_items||[]).map(z=>`• ${z.name}${z.qty>1?" ×"+z.qty:""} — ${fm((+z.unit_price||0)*(z.qty||1))}`).join("\n");
-const dt=new Date(i.created_at).toLocaleString("ar-EG",{dateStyle:"medium",timeStyle:"short"});
+const dt=new Date(i.created_at).toLocaleString("ar-EG",{hourCycle:"h23",dateStyle:"medium",timeStyle:"short"});
 return `*${waSalon()}*\nفاتورة رقم ${i.no}\n${dt}${name?"\nالعميل: "+name:""}\n──────────\n${L}\n──────────\n`+(+i.discount>0?`الإجمالي: ${fm(i.subtotal)}\nالخصم: ${fm(i.discount)}\n`:"")+`*المطلوب: ${fm(i.total)}*\nالدفع: ${WA_PAY[i.payment_method]||i.payment_method}\n\nشكراً لزيارتكم 🙏`}
 
 async function waPrep(id,cust,cid){C.lastWa=null;try{if(!id||typeof id=="object")return;let ph=cust&&cust.phone,nm=cust&&cust.name;

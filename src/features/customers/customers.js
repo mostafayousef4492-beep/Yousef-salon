@@ -2,8 +2,9 @@
 
 // ================= العملاء =================
 
-V.cust=async()=>{dfClr("cu");const{data}=await sb.rpc("customers_overview");C.CU=data||[];C.cq="";
-put(`<h1>إدارة العملاء</h1>${can("use_pos")?`<button class="btn s" onclick="addCustForm()">+ إضافة عميل</button><div id="ac"></div>`:""}<input placeholder="ابحث بالاسم أو الموبايل" oninput="C.cq=this.value;$('cl').innerHTML=custRows()"><div id="cl">${custRows()}</div>`)};
+V.cust=async()=>{dfClr("cu");const[{data},cl]=await Promise.all([sb.rpc("customers_overview"),can("use_pos")?sb.rpc("pending_claims"):Promise.resolve({data:null})]);C.CU=data||[];C.cq="";
+const CL=cl.data||[];
+put(`<h1>العملاء</h1>${CL.length?`<h2>طلبات ربط حساب (${CL.length})</h2>`+CL.map(r=>`<div class="row"><div><b>${esc(r.customer_name)}</b><div class="m" dir="ltr">${esc(r.phone||"")}</div></div><button class="btn s" onclick="claimOk(${r.id})">موافقة على الربط</button></div>`).join(""):""}${can("use_pos")?`<button class="btn s" onclick="addCustForm()">+ إضافة عميل</button><div id="ac"></div>`:""}<input placeholder="ابحث بالاسم أو الموبايل" oninput="C.cq=this.value;$('cl').innerHTML=custRows()"><div id="cl">${custRows()}</div>`)};
 
 function addCustForm(){const e=$("ac");if(e.innerHTML)return e.innerHTML="";e.innerHTML=`<div class="box" style="margin:10px 0"><input id="ac_n" placeholder="اسم العميل"><input id="ac_p" type="tel" inputmode="numeric" placeholder="رقم الموبايل (01xxxxxxxxx)"><div class="chips"><button class="btn" onclick="saveCust()">حفظ العميل</button><button class="btn g" onclick="$('ac').innerHTML=''">إلغاء</button></div></div>`;$("ac_n").focus()}
 
@@ -18,7 +19,7 @@ const A=ap||[],staff=[...new Set(A.map(a=>a.profiles?.full_name).filter(Boolean)
 put(`<button class="btn g s" style="margin-top:12px" onclick="V.cust()">‹ رجوع</button><h1>${esc(x.name)}</h1><div class="m" dir="ltr" style="text-align:right">${esc(x.phone||"")}</div>
 <div class="cc-grid" style="margin-top:10px"><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">زيارات</div><div class="cc-n">${x.visits}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">إجمالي الدفع</div><div class="cc-n">${fm(x.spent)}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsLoyC(${x.id})"><div class="cc-l">نقاط</div><div class="cc-n">${x.points}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsCust(${x.id})"><div class="cc-l">آخر زيارة</div><div class="cc-n" style="font-size:1rem">${fv(x.last_visit)}</div></div></div>
 <div class="chips" style="margin-top:10px">${waBtn(x.phone,1,waAppMsg(x.name))}${can("use_pos")?`<button class="btn" onclick="custSell(${id})">بيع</button>`:""}${can("manage_appts")?`<button class="btn g" onclick="custBook(${id})">حجز</button>`:""}${isAdm(me)?`<button class="btn s g" onclick="adjP(${id})">تعديل النقاط</button><button class="btn s g" style="color:var(--red)" onclick="delC(${id})">حذف</button>`:""}</div>
-${can("view_customers")?`<div class="box" style="margin-top:10px"><div class="m">كود دخول العميل (للتطبيق من جهاز جديد)</div><div class="code-big" id="ccode" dir="ltr">••••••</div><div class="chips"><button class="btn s g" onclick="custCode(${id},false)">إظهار الكود</button><button class="btn s g" onclick="custCode(${id},true)">كود جديد</button></div></div>`:""}
+${can("view_customers")?`<div class="box" style="margin-top:10px"><div class="m">كود دخول العميل من جهاز جديد (صالح 15 دقيقة)</div><div class="code-big" id="ccode" dir="ltr">••••••</div><div class="chips"><button class="btn s g" onclick="custCode(${id})">إصدار كود دخول</button></div></div>`:""}
 ${staff.length?`<h2>اتخدم عند</h2><div class="m">${staff.map(esc).join(" · ")}</div>`:""}
 ${dfBar("cu","openCust("+id+")")}<h2>${dfOn("cu")?"الفواتير":"آخر الفواتير"}</h2>`+((data||[]).length?data.map(i=>`<div class="row" role="button" style="cursor:pointer;width:100%;text-align:right;gap:8px" onclick="dsInvOne(${i.id})"><div><b>#${i.no}</b> · ${fv(i.created_at)}<div class="m">${i.invoice_items.map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join(" + ")}</div></div><div style="display:flex;gap:6px;align-items:center"><b>${fm(i.total)}</b>${waBtn(x.phone,0,waInvText(i,x.name))}</div></div>`).join(""):`<p class="m">مفيش فواتير.</p>`)+`<h2>الحجوزات</h2>`+(A.length?A.map(a=>`<div class="row"><div><b>${fv(a.day)}</b><div class="m">${(a.appointment_services||[]).map(z=>esc(z.services?.name||"")).filter(Boolean).join(" + ")||"—"}${a.profiles?.full_name?" · "+esc(a.profiles.full_name):""}</div></div><span class="tag">${esc(ST[a.status]||a.status)}</span></div>`).join(""):`<p class="m">مفيش حجوزات.</p>`))}
 
@@ -41,11 +42,11 @@ function dsLoyC(id){const n=(C.dsN||{})[id]||((C.CU||[]).find(y=>y.id==id)||{}).
   dsQ("نقاط "+n,sb.from("loyalty_ledger").select("points,reason,note,created_at").eq("customer_id",id).order("created_at",{ascending:false}).limit(200),L=>L.map(x=>dsRow(`<b>${esc(LYR[x.reason]||x.reason)}</b>`,dsT(x.created_at)+(x.note?" · "+esc(x.note):""),`<b style="color:${x.points>0?"var(--ok)":"var(--red)"}">${x.points>0?"+":""}${x.points}</b>`)).join(""))}
 
 // كود دخول العميل: الكاشير/المالك يشوفه أو يطلّع واحد جديد (الجديد بيخرّج العميل من أجهزته القديمة)
-async function custCode(id,renew){const x=C.CU.find(y=>y.id==id);if(!x)return;
-if(renew&&!confirm("تطلّع كود جديد للعميل ده؟ هيتخرّج من كل أجهزته وهيدخل بالكود الجديد."))return;
-const{data,error}=await sb.rpc(renew?"customer_code_reset":"customer_code_get",{p_phone:x.phone});
-if(error||!data)return toast(error?error.message:"العميل ده لسه ما سجّلش في التطبيق");
+async function custCode(id){const x=C.CU.find(y=>y.id==id);if(!x)return;
+const{data,error}=await sb.rpc("staff_issue_login_code",{p_phone:x.phone});
+if(error||!data)return toast(error?error.message:"تعذّر إصدار الكود");
 const e=$("ccode");if(e)e.textContent=data;
-if(renew)toast("تم — الكود الجديد: "+data);
 const w=$("ccw");if(w)w.remove();
-e.insertAdjacentHTML("afterend",`<span id="ccw">${waBtn(x.phone,0,"كودك للدخول على تطبيق "+C.cfg.salon_name+": "+data)}</span>`)}
+e.insertAdjacentHTML("afterend",`<span id="ccw">${waBtn(x.phone,0,"كود دخولك على تطبيق "+C.cfg.salon_name+": "+data+" (صالح 15 دقيقة)")}</span>`)}
+
+async function claimOk(id){if(!confirm("تأكد إن اللي بيطلب الربط هو صاحب الرقم فعلًا. تربط؟"))return;const{error}=await sb.rpc("approve_claim",{p_id:id});error?toast(error.message):(toast("تم ربط الحساب ✓"),V.cust())}

@@ -27,7 +27,7 @@ async function bookNow(){const b=C.b,d=bkDays()[b.day];const{error}=await sb.rpc
 if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message);C.b=null;toast("تم الحجز ✓ ده رقم دورك");go("queue")}
 
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
-if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;const qs=q[0];try{const{data:v2,error:e2}=await sb.rpc("queue_status_v2",{p_id:act.id});if(!e2&&v2){qs.ahead=v2.ahead;qs.est_min=v2.est_wait_min;qs.current_no=v2.current_no;qs.ticket_no=v2.ticket_no;qs.near_turn=v2.near_turn}}catch(e){}startNotif();drawQ(qs);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
+if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;const qs=q[0];try{const{data:v2,error:e2}=await sb.rpc("queue_status_v2",{p_id:act.id});if(!e2&&v2){qs.ahead=v2.ahead;qs.est_min=v2.est_wait_min;qs.current_no=v2.current_no;qs.ticket_no=v2.ticket_no;qs.ticket_code=v2.ticket_code;qs.near_turn=v2.near_turn}}catch(e){}try{const{data:tq}=await sb.from("ticket_transfers").select("id").eq("appointment_id",act.id).eq("status","pending").maybeSingle();qs.trq=tq?tq.id:null}catch(e){}startNotif();drawQ(qs);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
 if(fin)return rateView2(fin.id);
 const ns=L[0]&&L[0].status=="no_show"&&L[0].day==new Date().toLocaleDateString("en-CA");
 put(`<h1>دوري</h1><div class="box" style="text-align:center">${ns?`<p class="m" style="color:var(--red)">اتلغى دورك لأنك ما حضرتش في الميعاد.</p>`:""}<p class="m">مفيش دور نشط دلوقتي.</p><button class="btn" onclick="go('book')">احجز دورك</button></div>`)};
@@ -55,16 +55,25 @@ async function redeem(id){if(!confirm("تستبدل النقاط دي؟"))return
 V.menu=async()=>{const{data}=await sb.from("services").select("*").eq("active",true).order("category").order("price");const g={};(data||[]).forEach(x=>(g[x.category||"خدمات"]=g[x.category||"خدمات"]||[]).push(x));
 put(`<h1>منيو الخدمات</h1>`+Object.entries(g).map(([k,a])=>`<h2>${esc(k)}</h2>`+a.map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${esc(x.description||"")} ${x.duration_min} دقيقة</div></div><div style="text-align:left"><b style="color:var(--brass)">${fm(x.price)}</b><br><button class="btn s g" onclick="C.b=C.b||{s:[],barber:undefined,day:0,period:null};C.b.s=[${x.id}];go('book')">احجز</button></div></div>`).join("")).join(""))};
 
-function drawQ(s){C.qid=s.id;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
+function drawQ(s){C.qid=s.id;C.qcur=s;const st=s.status,steps=[["مستني دورك",1],["اتنادى عليك",s.called||st!="upcoming"],["وصلت الصالون",st=="checked_in"||st=="in_service"],["بدأت الخدمة",st=="in_service"],["خلصت — ادفع عند الكاشير",s.finished]];
 let cur=-1;steps.forEach((x,i)=>{if(x[1])cur=i});
 put(`<div class="hello">دورك مع ${esc(s.barber_name)}</div><h1>دوري</h1>
-<div class="pass"><div class="pass-top"><div class="m">رقم دورك</div><div class="pass-no">${s.ticket_no==null?"—":num(s.ticket_no)}</div><div class="m">${PLB[s.period]} · ${s.day}</div></div><div class="perf"></div>
+<div class="pass"><div class="pass-top"><div class="m">رقم دورك</div><div class="pass-no" dir="ltr">${s.ticket_code||(s.ticket_no==null?"—":num(s.ticket_no))}</div><div class="m">${PLB[s.period]} · ${s.day}</div></div><div class="perf"></div>
 <div class="pass-bot"><div><div class="m">بيحلق دلوقتي</div><b class="big2">${s.current_no?"#"+num(s.current_no):"—"}</b></div><div><div class="m">قدامك</div><b class="big2">${s.ahead==null?"—":num(s.ahead)}</b></div><div><div class="m">الوقت المتوقع</div><b class="big2">${s.est_min==null?"—":num(s.est_min)+"<small> دقيقة</small>"}</b></div></div></div>
 <div class="row" style="margin-top:14px"><span>${esc(s.services)}</span><b style="color:var(--gold2);font-family:var(--display);font-size:20px">${fm(s.total)}</b></div>
 ${s.near_turn&&!s.called&&st=="upcoming"?`<div class="nearbox" role="status"><div><b>اقترب دورك</b><div class="m">جهّز نفسك وتعالى الصالون</div></div></div>`:""}
 ${s.called&&st=="upcoming"?`<div class="callbox"><b>اتنادى عليك</b><div class="m" style="margin:2px 0 10px">قولنا إنت فين</div><div class="chips" style="margin:0"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:linear-gradient(180deg,#52C08C,#2E8B5E);color:#fff" onclick="eta('arrived')">وصلت</button></div></div>`:""}
 <ul class="tl">${steps.map((x,i)=>`<li class="${x[1]?(i==cur?"now":"done"):""}">${x[0]}</li>`).join("")}</ul>
-${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}`)}
+${!s.called&&st=="upcoming"?`<button class="btn g" style="width:100%" onclick="cancelT()">إلغاء الحجز</button>`:""}
+${st=="upcoming"||st=="checked_in"?(s.trq?`<div class="box" style="margin-top:8px"><div class="m">طلب النقل لحلاق تاني مستني موافقة</div><button class="btn s g" onclick="trCancel(${s.trq})">إلغاء الطلب</button></div>`:`<button class="btn g" style="width:100%;margin-top:8px" onclick="trForm()">أطلب حلاق تاني</button><div id="trf"></div>`):""}`)}
+
+// طلب نقل لحلاق تاني (بيحتاج موافقة الحلاق أو المدير؛ التذكرة بتفضل مكانها لحد الموافقة)
+async function trForm(){const s=C.qcur,e=$("trf");if(!s||!e)return;if(e.innerHTML)return e.innerHTML="";const{data}=await sb.rpc("available_barbers",{p_day:s.day,p_period:s.period});const L=(data||[]).filter(b=>b.full_name!=s.barber_name);e.innerHTML=L.length?`<div class="box" style="margin-top:8px"><div class="m">اختار الحلاق اللي عايز تنتقل له</div><div class="chips">${L.map(b=>`<button class="chip" onclick="trSend('${b.id}')">${esc(b.full_name)} · قدامه ${num(b.waiting)}</button>`).join("")}</div></div>`:`<p class="m">مفيش حلاق تاني متاح دلوقتي.</p>`}
+
+async function trSend(b){const{error}=await sb.rpc("request_transfer",{p_id:C.qid,p_to:b,p_reason:null});error?toast(error.message):(toast("اتبعت الطلب، مستني الموافقة"),V.queue())}
+
+async function trCancel(id){const{error}=await sb.rpc("cancel_transfer_request",{p_req:id});error?toast(error.message):V.queue()}
+
 
 V.loy=async()=>{const{data:{user}}=await sb.auth.getUser();const{data:c}=await sb.from("customers").select("id,name,phone,points,lifetime_points,visits").eq("user_id",user.id).single();
 const[{data:tr},{data:rw},{data:vo},{data:lg}]=await Promise.all([sb.rpc("loyalty_tier",{p_life:c.lifetime_points}),sb.from("loyalty_rewards").select("*").eq("active",true).order("cost"),sb.from("loyalty_redemptions").select("code,loyalty_rewards(name)").eq("customer_id",c.id).eq("status","active"),sb.from("loyalty_ledger").select("*").eq("customer_id",c.id).order("created_at",{ascending:false}).limit(15)]);
@@ -80,9 +89,8 @@ async function startNotif(){if(C.nch||APP_MODE!="customer")return;try{const{data
 const loy0=V.loy;
 
 V.loy=async()=>{await loy0();if(tab!="loy")return;const{data:{user}}=await sb.auth.getUser(),{data:c}=await sb.from("customers").select("name,phone,visits").eq("user_id",user.id).maybeSingle();if(!c||tab!="loy")return;
-$("app").insertAdjacentHTML("beforeend",`<h2>بياناتي</h2><div class="box"><b>${esc(c.name)}</b><div class="m" dir="ltr" style="text-align:right">${esc(c.phone||"")}</div><div class="m">${c.visits||0} زيارة</div></div><div class="box" style="margin-top:10px"><div class="m">كودك السري للدخول من جهاز تاني</div><div class="code-big" id="mycode" dir="ltr">••••••</div><button class="btn s g" onclick="showMyCode()">إظهار الكود</button></div><div class="chips" style="margin-top:10px"><button class="btn g" onclick="go('menu')">منيو الخدمات</button><button class="btn s g" onclick="go('out')">تسجيل خروج</button></div>`)};
+$("app").insertAdjacentHTML("beforeend",`<h2>بياناتي</h2><div class="box"><b>${esc(c.name)}</b><div class="m" dir="ltr" style="text-align:right">${esc(c.phone||"")}</div><div class="m">${c.visits||0} زيارة</div></div><div class="chips" style="margin-top:10px"><button class="btn g" onclick="go('menu')">منيو الخدمات</button><button class="btn s g" onclick="go('out')">تسجيل خروج</button></div>`)};
 
 function okFlash(t,m){const d=document.createElement("div");d.className="okf";d.setAttribute("role","status");d.innerHTML=`<div class="okc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><b>${esc(t)}</b><div class="m">${esc(m||"")}</div>`;document.body.appendChild(d);setTimeout(()=>d.classList.add("out"),1100);setTimeout(()=>d.remove(),1400)}
 
 // كود العميل السري: بيظهر بضغطة زرار بس (مش مكشوف على الشاشة)
-async function showMyCode(){const{data,error}=await sb.rpc("my_customer_code");if(error||!data)return toast("الكود مش متاح دلوقتي — كلّم الصالون");const e=$("mycode");if(e)e.textContent=data}

@@ -2,21 +2,9 @@
 
 // ---------- المالية (للمالك) ----------
 
-V.fin=async()=>{C.fs=C.fs||"exp";const FS=[["exp","المصروفات"],["pur","الموردين والمشتريات"],["pay","الرواتب"],["mon","أرباح شهرية"],["cat","تصنيفات المصروفات"]];
-  put(`<h1>الإدارة المالية</h1><div class="chips">${FS.map(x=>`<button class="chip ${C.fs==x[0]?"sel":""}" onclick="C.fs='${x[0]}';V.fin()">${x[1]}</button>`).join("")}</div><div id="fb">${SK}</div>`);
-  try{await({exp:finExp,pur:finPur,pay:finPay,mon:finMon,cat:finCat})[C.fs]()}catch(e){const b=$("fb");if(b)b.innerHTML=`<p class="m">حصلت مشكلة في تحميل القسم: ${esc(e.message||e)}</p><button class="btn g" onclick="V.fin()">إعادة المحاولة</button>`}};
-
-// ---------- المصروفات (تسجيل وإدارة) — جوه الإدارة المالية؛ التقارير بتعرض ملخصها بس ----------
-
-async function finExp(){const box=$("fb");C.xk=C.xk||"month";const[a,b]=rangeR(C.xk),RK=[["today","اليوم"],["yesterday","أمس"],["week","7 أيام"],["month","الشهر"],["lastmonth","الشهر اللي فات"]];
-  const[{data:xc},{data:ex,error}]=await Promise.all([sb.from("expense_categories").select("name").eq("active",true).order("id"),sb.from("expenses").select("*").gte("spent_on",ymd(a)).lt("spent_on",ymd(b)).order("spent_on",{ascending:false}).order("id",{ascending:false})]);
-  if(error)return errBox(box,error);
-  const cats=(xc||[]).map(x=>x.name),CL=cats.length?cats:["إيجار","كهرباء ومياه","صيانة","تسويق","أخرى"],X=ex||[],by={};X.forEach(x=>by[x.category]=(by[x.category]||0)+(+x.amount||0));
-  const e=new Date(b);e.setDate(e.getDate()-1);
-  box.innerHTML=`<h2>إضافة مصروف</h2><div class="box"><select id="xc">${CL.map(c=>`<option>${esc(c)}</option>`).join("")}</select><select id="xp">${paySrc("drawer")}</select><input id="xa" type="number" inputmode="decimal" placeholder="المبلغ"><input id="xn" placeholder="ملاحظة (اختياري)"><input id="xd" type="date" value="${ymd(new Date())}">${isAdm(me)?`<button class="btn" onclick="addExp()">حفظ المصروف</button>`:`<p class="m">التسجيل للمالك والمدير بس.</p>`}</div>
-<div class="chips">${RK.map(x=>`<button class="chip ${C.xk==x[0]?"sel":""}" onclick="C.xk='${x[0]}';V.fin()">${x[1]}</button>`).join("")}</div><div class="m" style="margin-bottom:6px">${ymd(a)} ← ${ymd(e)} · ${X.length} بند · <b>${fm(X.reduce((t,x)=>t+(+x.amount||0),0))}</b></div>
-<h2>حسب البند</h2>${Object.keys(by).length?tbl(["البند","الإجمالي"],Object.keys(by).map(k=>[esc(k),fm(by[k])])):`<p class="m">مفيش مصروفات في الفترة دي.</p>`}
-<h2>المصروفات</h2>${X.length?X.map(x=>`<div class="row"><div><b>${esc(x.category)}</b> · ${fm(x.amount)}<div class="m">${x.spent_on} ${esc(x.note||"")}${x.purchase_id?" · من فاتورة شراء":""}${x.paid_from=="other"?" · من برا الدرج":""}</div></div>${me.role=="owner"&&!x.purchase_id?`<button class="btn s g" onclick="delExp(${x.id})">حذف</button>`:""}</div>`).join(""):`<p class="m">مفيش مصروفات.</p>`}`}
+V.fin=async()=>{C.fs=C.fs||"pur";const FS=[["pur","الموردين والمشتريات"],["pay","الرواتب"],["mon","أرباح شهرية"],["cat","تصنيفات المصروفات"]];
+  put(`<h1>المالية</h1><div class="chips">${FS.map(x=>`<button class="chip ${C.fs==x[0]?"sel":""}" onclick="C.fs='${x[0]}';V.fin()">${x[1]}</button>`).join("")}</div><div id="fb">${SK}</div>`);
+  try{await({pur:finPur,pay:finPay,mon:finMon,cat:finCat})[C.fs]()}catch(e){const b=$("fb");if(b)b.innerHTML=`<p class="m">حصلت مشكلة في تحميل القسم: ${esc(e.message||e)}</p><button class="btn g" onclick="V.fin()">إعادة المحاولة</button>`}};
 
 async function finPur(){const box=$("fb");const[{data:sp,error},{data:pu},{data:allp},{data:py},{data:pr}]=await Promise.all([sb.from("suppliers").select("*").order("name"),dfQ(sb.from("purchases").select("*,suppliers(name),purchase_items(name,qty)"),"bought_on","pur").order("bought_on",{ascending:false}).order("id",{ascending:false}).limit(dfOn("pur")?500:40),sb.from("purchases").select("supplier_id,total,paid"),sb.from("supplier_payments").select("id,supplier_id,amount,paid_on,note,suppliers(name)").order("paid_on",{ascending:false}).order("id",{ascending:false}),sb.from("products").select("id,name,cost").eq("active",true).order("name")]);
   if(error)return errBox(box,error);
