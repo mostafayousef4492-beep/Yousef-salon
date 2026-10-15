@@ -9,7 +9,7 @@ put(`<button class="btn g s" style="margin-top:12px" onclick="V.team()">‹ رج
 <h2>إجازة محددة</h2><div class="box"><label class="m">من</label><input type="date" id="lf"><label class="m">إلى</label><input type="date" id="lt"><input id="lr" placeholder="السبب (اختياري)"><button class="btn" onclick="addLeave()">إضافة الإجازة</button></div>`+(lv||[]).map(l=>`<div class="row"><div>${l.from_date} ← ${l.to_date}<div class="m">${esc(l.reason||"")}</div></div><button class="btn s g" onclick="delLeave(${l.id})">حذف</button></div>`).join(""))}
 
 async function saveShift(){const rows=[0,1,2,3,4,5,6].map(i=>({staff_id:C.sid,weekday:i,is_off:$("o"+i).checked,start_time:$("a"+i).value||"10:00",end_time:$("b"+i).value||"20:00"}));
-if(rows.some(r=>!r.is_off&&r.start_time===r.end_time))return toast("وقت البداية والنهاية مينفعش يكونوا نفس الوقت");// النهاية الأصغر من البداية = شيفت بعد نص الليل (مثلاً 14:00 ← 02:00)
+if(rows.some(r=>!r.is_off&&r.start_time===r.end_time))return toast("وقت البداية والنهاية مينفعش يبقوا نفس الوقت");
 const{error}=await sb.from("staff_shifts").upsert(rows);error?toast(error.message):toast("تم حفظ الشيفت")}
 
 async function addLeave(){const f=$("lf").value,t=$("lt").value||f;if(!f)return toast("اختار تاريخ البداية");if(t<f)return toast("تاريخ النهاية قبل البداية");
@@ -101,5 +101,3 @@ const{data,error:e2}=await sb.rpc("admin_att_save",args);
 if(e2)return toast(/duplicate key|unique/i.test(e2.message||"")?st.full_name+" عنده تسجيل في اليوم ده قبل كده":e2.message);
 toast(st.full_name+" — "+lbl+(isT?"":" ("+d+")")+" ✓"+(data?.late_min>0&&kind=="in"?" · متأخر "+data.late_min+" د":""));V.att()
 }finally{C.acBusy=0}}
-
-async function setStaffPin(id){const v=prompt("اكتب PIN الحضور للموظف (4 إلى 6 أرقام) — هيستخدمه على تابلت الصالون مع كوده");if(v===null)return;const pin=String(v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim();if(!/^\d{4,6}$/.test(pin))return toast("الـ PIN لازم يكون من 4 إلى 6 أرقام");const{data,error}=await sb.rpc("admin_set_staff_pin",{p_staff:id,p_pin:pin});error?toast(error.message):toast(data||"اتحفظ ✓")}
