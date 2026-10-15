@@ -6,7 +6,7 @@
 
 const LYR={redeem:"استبدال",visit:"زيارة",purchase:"فاتورة",invoice:"فاتورة",review:"تقييم",welcome:"هدية تسجيل",admin:"تعديل إداري",adjust:"تعديل إداري",visit_bonus:"مكافأة زيارات"};
 
-const dsT=d=>d?new Date(d).toLocaleString("ar-EG",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+const dsT=d=>d?new Date(d).toLocaleString("ar-EG",{hourCycle:"h23",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
 
 const dsPh=()=>!!me&&(isAdm(me)||can("view_customer_phone"));
 

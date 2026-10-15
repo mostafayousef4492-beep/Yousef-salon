@@ -6,7 +6,6 @@ README.md
 changes.diff
 *.mjs
 patch_*.sql
-src
 appts.js
 attendance.js
 auth.js
