@@ -1,0 +1,39 @@
+\set ON_ERROR_STOP 1
+\set QUIET 1
+create schema if not exists t;
+create or replace function t.as_(u text) returns void language plpgsql as $$ begin perform set_config('request.jwt.claim.sub',u,true); execute 'set local role authenticated'; end $$;
+create or replace function t.ok(n text, c boolean) returns void language plpgsql as $$ begin if c is not true then raise exception 'FAIL: %', n; end if; raise notice 'PASS: %', n; end $$;
+create or replace function t.fl(n text, q text) returns void language plpgsql as $$ begin begin execute q; exception when others then raise notice 'PASS (rejected): %', n; return; end; raise exception 'FAIL (should reject): %', n; end $$;
+grant usage on schema t to public;
+begin;
+insert into auth.users(id) values ('00000000-0000-0000-0000-0000000000e1'),('00000000-0000-0000-0000-0000000000e2') on conflict do nothing;
+insert into customers(user_id,name,phone) values ('00000000-0000-0000-0000-0000000000e1','المُحيل','01070000001'),('00000000-0000-0000-0000-0000000000e2','الصاحب','01070000002');
+select t.as_('00000000-0000-0000-0000-0000000000e1');
+create temp table ref as select (my_referral()->>'code') code;
+grant all on ref to public;
+select t.ok('كود 6 حروف', (select length(code)=6 from ref));
+select t.ok('نفس الكود تاني', (select my_referral()->>'code')=(select code from ref));
+reset role;
+select t.as_('00000000-0000-0000-0000-0000000000e2');
+select t.fl('مينفعش يدعي نفسه', $$select apply_referral('01070000002')$$);
+select t.fl('كود غلط', $$select apply_referral('ZZZZZZ')$$);
+select t.ok('تطبيق بالكود', apply_referral((select code from ref))='المُحيل');
+select t.fl('مرتين', $$select apply_referral('01070000001')$$);
+reset role;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',true);
+insert into invoices(customer_id,subtotal,discount,total,payment_method) values ((select id from customers where phone='01070000002'),0,0,0,'cash');
+update invoices set subtotal=100,total=100 where customer_id=(select id from customers where phone='01070000002');
+select t.ok('الصاحب خد 50', (select points from customers where phone='01070000002')=50);
+select t.ok('المُحيل خد 50', (select points from customers where phone='01070000001')=50);
+update invoices set total=120 where customer_id=(select id from customers where phone='01070000002');
+select t.ok('مفيش تكرار', (select points from customers where phone='01070000001')=50);
+insert into invoices(customer_id,subtotal,discount,total,payment_method) values ((select id from customers where phone='01070000002'),0,0,0,'cash');
+update invoices set total=80 where id=(select max(id) from invoices);
+select t.ok('فاتورة تانية مفيهاش مكافأة', (select points from customers where phone='01070000001')=50);
+insert into customers(name,phone) values ('جديد كاشير','01070000003');
+select t.as_('00000000-0000-0000-0000-0000000000a2');
+select t.ok('الكاشير يسجل المُحيل', staff_set_referrer((select id from customers where phone='01070000003'),'01070000001')='المُحيل');
+select t.fl('مكافأة اتصرفت', $$select staff_set_referrer((select id from customers where phone='01070000002'),'01070000001')$$);
+reset role;
+rollback;
+\echo REFERRAL TESTS DONE
