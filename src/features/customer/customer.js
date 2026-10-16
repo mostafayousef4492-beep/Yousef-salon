@@ -48,7 +48,7 @@ async function sendR2(){const R=C.R2;const{error}=await sb.rpc("rate_ticket",{p_
 V.mine=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],dn=L.filter(x=>x.status=="done"),paid=dn.reduce((a,x)=>a+(+x.paid||0),0);
 put(`<h1>حجوزاتي</h1><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><div class="box" style="text-align:center"><div class="m">زياراتك</div><b>${dn.length}</b></div><div class="box" style="text-align:center"><div class="m">آخر زيارة</div><b style="font-size:13px">${dn[0]?.day||"—"}</b></div><div class="box" style="text-align:center"><div class="m">إجمالي دفعك</div><b style="font-size:14px">${fm(paid)}</b></div></div><h2>السجل</h2>`+(L.length?L.map(x=>`<div class="row"><div><b>${x.day||""}</b> · ${PLB[x.period]||""} · دور ${x.ticket_no||"-"}<div class="m">${esc(x.services)} مع ${esc(x.barber_name||"-")}</div></div><div style="text-align:left"><span class="tag">${ST[x.status]}</span>${x.paid!=null?`<div><b>${fm(x.paid)}</b></div>`:""}${x.points?`<div class="m">+${x.points} نقطة</div>`:""}</div></div>`).join(""):`<p class="m">لسه معندكش حجوزات.</p>`))};
 
-const RSN={purchase:"شراء",welcome:"هدية التسجيل",review:"تقييم",referral:"دعوة صديق",visit:"مكافأة زيارات",redeem:"استبدال مكافأة",adjust:"تعديل من الإدارة"};
+const RSN={purchase:"شراء",welcome:"هدية التسجيل",review:"تقييم",referral:"دعوة صديق",birthday:"هدية عيد ميلاد",visit:"مكافأة زيارات",redeem:"استبدال مكافأة",adjust:"تعديل من الإدارة"};
 
 async function redeem(id){if(!confirm("تستبدل النقاط دي؟"))return;const{data,error}=await sb.rpc("redeem_reward",{p_reward:id});error?toast(error.message):(toast("كود الكوبون: "+data),V.loy())}
 
@@ -88,8 +88,8 @@ async function startNotif(){if(C.nch||APP_MODE!="customer")return;try{const{data
 
 const loy0=V.loy;
 
-V.loy=async()=>{await loy0();if(tab!="loy")return;const{data:{user}}=await sb.auth.getUser(),{data:c}=await sb.from("customers").select("name,phone,visits").eq("user_id",user.id).maybeSingle();if(!c||tab!="loy")return;
-$("app").insertAdjacentHTML("beforeend",`<h2>بياناتي</h2><div class="box"><b>${esc(c.name)}</b><div class="m" dir="ltr" style="text-align:right">${esc(c.phone||"")}</div><div class="m">${c.visits||0} زيارة</div></div><div class="chips" style="margin-top:10px"><button class="btn g" onclick="go('menu')">منيو الخدمات</button><button class="btn s g" onclick="go('out')">تسجيل خروج</button></div>`)};
+V.loy=async()=>{await loy0();if(tab!="loy")return;const{data:{user}}=await sb.auth.getUser(),{data:c}=await sb.from("customers").select("name,phone,visits").eq("user_id",user.id).maybeSingle();if(!c||tab!="loy")return;const pf=await myProfile(true);if(tab!="loy")return;
+$("app").insertAdjacentHTML("afterbegin",myPhotoBox(pf));$("app").insertAdjacentHTML("beforeend",`<h2>بياناتي</h2><div class="box"><b>${esc(c.name)}</b><div class="m" dir="ltr" style="text-align:right">${esc(c.phone||"")}</div><div class="m">${c.visits||0} زيارة</div></div><div class="chips" style="margin-top:10px"><button class="btn g" onclick="go('menu')">منيو الخدمات</button><button class="btn s g" onclick="go('out')">تسجيل خروج</button></div>`)};
 
 function okFlash(t,m){const d=document.createElement("div");d.className="okf";d.setAttribute("role","status");d.innerHTML=`<div class="okc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><b>${esc(t)}</b><div class="m">${esc(m||"")}</div>`;document.body.appendChild(d);setTimeout(()=>d.classList.add("out"),1100);setTimeout(()=>d.remove(),1400)}
 
