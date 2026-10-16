@@ -12,19 +12,20 @@
 html,body{height:100%;margin:0;background:#0B0D12;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif}
 body{display:flex;flex-direction:column}
 nav{display:flex;gap:8px;padding:8px;background:#161a22}
-nav button{flex:1;font:700 22px "IBM Plex Sans Arabic",system-ui;padding:14px;border:0;border-radius:12px;background:#0f1218;color:#9aa0ab;cursor:pointer}
+nav button{flex:1;font:700 20px "IBM Plex Sans Arabic",system-ui;padding:14px;border:0;border-radius:12px;background:#0f1218;color:#9aa0ab;cursor:pointer}
 nav button.on{background:#c9a24a;color:#1b1710}
 iframe{flex:1;width:100%;border:0;display:none}
 iframe.on{display:block}
 </style>
 </head>
 <body>
-<nav><button id="b1" class="on" onclick="sw(1)">تسجيل الزبائن</button><button id="b2" onclick="sw(2)">شاشة الدور</button></nav>
+<nav><button id="b1" class="on" onclick="sw(1)">تسجيل الزبائن</button><button id="b2" onclick="sw(2)">شاشة الدور</button><button id="b3" onclick="sw(3)">باركود الحيطة</button></nav>
 <iframe id="f1" class="on" src="/kiosk"></iframe>
 <iframe id="f2" src="/board"></iframe>
+<iframe id="f3" src="/qr"></iframe>
 <script>
-function sw(n){for(const i of[1,2]){document.getElementById("f"+i).classList.toggle("on",i==n);document.getElementById("b"+i).classList.toggle("on",i==n)}}
-if(location.hash=="#board")sw(2);
+function sw(n){for(const i of[1,2,3]){document.getElementById("f"+i).classList.toggle("on",i==n);document.getElementById("b"+i).classList.toggle("on",i==n)}}
+if(location.hash=="#board")sw(2);if(location.hash=="#qr")sw(3);
 </script>
 </body>
 </html>
