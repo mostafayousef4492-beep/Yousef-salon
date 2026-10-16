@@ -63,7 +63,9 @@ function drawS(){
   const tot=K.SV.filter(x=>K.S.includes(x.id)).reduce((a,x)=>a+Number(x.price||0),0);
   const g=$("go");if(g)g.textContent=K.S.length?"سجّلني · "+nf(tot):"سجّلني"}
 
+function tell(m){try{if(window.parent!==window)window.parent.postMessage(m,location.origin)}catch(e){}}
 function form(){
+  tell({type:"salon_ticket_clear"});
   clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.S=[];K.busy=false;
   $("app").innerHTML=`<p class="m" style="text-align:center;margin:0">اكتب اسمك ورقمك واختار الحلاق، وخد باركود دورك</p>
 <h2>الخدمات <span class="m">(لازم تختار واحدة على الأقل)</span></h2><div class="chips" id="sv"></div>
@@ -95,6 +97,7 @@ function done(t,ph,n){
   const url=location.origin+"/book?t="+encodeURIComponent(t.id)+"&p="+encodeURIComponent(ph);
   $("app").innerHTML=`<div class="box ticket"><div class="m">أهلًا ${esc(n.split(" ")[0])} — رقم دورك</div><div class="no">${t.no==null?"—":esc(t.no)}</div>${t.barber?`<div class="m">مع ${esc(t.barber)}</div>`:""}<div id="qr"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div></div><button class="btn" onclick="form()">تسجيل زبون جديد</button>`;
   new QRCode($("qr"),{text:url,width:280,height:280,correctLevel:QRCode.CorrectLevel.M});
+  tell({type:"salon_ticket",url:url,no:t.no,name:n.split(" ")[0],barber:t.barber||""});
   K.timer=setTimeout(form,45000)}
 init();
 </script>
