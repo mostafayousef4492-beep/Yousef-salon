@@ -29,7 +29,7 @@ const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){retu
 const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
 const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)};
 const period=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
-const C={name:"",phone:"",barber:null,L:[],busy:false,dp:null};
+const C={name:"",phone:"",barber:null,L:[],s:[],sv:[],busy:false,dp:null};
 const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();C.dp=e;inst()});
@@ -44,13 +44,21 @@ async function init(){
   if(L){const{data:t}=await sb.rpc("public_ticket",{p_id:L.id,p_phone:L.p});const s=t&&t[0];
     if(s&&["upcoming","checked_in","in_service"].includes(s.status))return location.replace("/book");store.del("salon_book_last")}
   if(cfg.booking_open===false||cfg.booking_open==="false")return $("app").innerHTML=`<h1>ادخل الطابور</h1><div class="box"><p class="m">الحجز متوقف حاليًا، كلّم الكاشير.</p></div>`;
+  const{data:sv,error:se}=await sb.from("services").select("*").eq("active",true).order("id");
+  if(se)return $("app").innerHTML=`<h1>ادخل الطابور</h1><div class="box"><p class="m">مقدرناش نحمّل الخدمات، جرّب تاني بعد شوية.</p></div>`;
+  C.sv=sv||[];
   const i=store.get("salon_book_info");if(i){C.name=i.n||"";C.phone=i.p||""}
   $("app").innerHTML=`<h1>ادخل الطابور</h1><p class="m" style="margin:0 0 4px">اكتب اسمك ورقمك وخد دورك فورًا — من غير تسجيل.</p>
+<h2>الخدمات <span class="m">(مطلوب — اختار اللي هتعمله)</span></h2><div class="chips" id="sl"></div>
 <h2>الحلاقين دلوقتي</h2><div id="bl"><p class="m">جاري التحميل...</p></div>
 <h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" value="${esc(C.name)}" autocomplete="name" oninput="C.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" value="${esc(C.phone)}" autocomplete="tel" oninput="C.phone=this.value"><button class="btn" id="go" style="width:100%" onclick="join()" disabled>ادخل الطابور</button></div>
 <div class="foot" id="inst"></div>`;
-  inst();loadB();setInterval(loadB,10000)}
+  drawS();updGo();inst();loadB();setInterval(loadB,10000)}
 
+function drawS(){$("sl").innerHTML=C.sv.length?C.sv.map(x=>`<button class="chip ${C.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join(""):`<p class="m">مفيش خدمات متاحة دلوقتي، كلّم الكاشير.</p>`}
+function tgS(id){C.s=C.s.includes(id)?C.s.filter(x=>x!=id):[...C.s,id];drawS();updGo()}
+function updGo(){const b=$("go");if(!b)return;const sv=C.sv.filter(x=>C.s.includes(x.id)),tot=sv.reduce((a,x)=>a+(+x.price||0),0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0);
+  b.disabled=C.busy||!C.L.length||!C.s.length;b.textContent=C.s.length?`ادخل الطابور · ${tot} ج${dur?" · ~"+dur+" دقيقة":""}`:"اختار خدمة الأول"}
 async function loadB(){
   const d=new Date().toLocaleDateString("en-CA");
   const{data,error}=await sb.rpc("available_barbers",{p_day:d,p_period:period()});
@@ -59,14 +67,15 @@ async function loadB(){
   if(C.barber&&!C.L.some(x=>x.id==C.barber))C.barber=null;
   const nf=n=>Number(n||0).toLocaleString("ar-EG");
   $("bl").innerHTML=C.L.length?`<button class="row ${C.barber?"":"sel"}" style="cursor:pointer;width:100%" onclick="C.barber=null;loadB()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+C.L.map(x=>`<button class="row ${C.barber==x.id?"sel":""}" style="cursor:pointer;width:100%" onclick="C.barber='${x.id}';loadB()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting?nf(x.waiting)+" قدامك · ~"+nf(x.est_min)+" د":"متاح دلوقتي"}</span></button>`).join(""):`<div class="box"><p class="m">مفيش حلاق متاح دلوقتي، كلّم الكاشير.</p></div>`;
-  $("go").disabled=!C.L.length||C.busy}
+  updGo()}
 
 async function join(){if(C.busy)return;const n=(C.name||"").trim(),ph=dig(C.phone);
   if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  if(!C.s.length)return toast("اختار خدمة واحدة على الأقل");
   C.busy=true;$("go").disabled=true;
-  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:C.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:[]});
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:C.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:C.s});
   C.busy=false;const t=!r.error&&r.data&&r.data.ticket;
-  if(!t){$("go").disabled=false;return toast(!r.error?"الحجز لم يتأكد، جرّب تاني":(!r.error.code&&!r.error.hint?"النت واقف — جرّب تاني (مش هيتكرر)":(r.error.message||"الحجز لم يتأكد")))}
+  if(!t){updGo();return toast(!r.error?"الحجز لم يتأكد، جرّب تاني":(!r.error.code&&!r.error.hint?"النت واقف — جرّب تاني (مش هيتكرر)":(r.error.message||"الحجز لم يتأكد")))}
   store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:t.id,p:ph});location.href="/book"}
 init();
 </script>
