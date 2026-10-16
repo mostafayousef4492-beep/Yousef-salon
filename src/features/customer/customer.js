@@ -12,7 +12,7 @@ V.book=async()=>{if(!C.cfg.booking_open)return put(`<h1>احجز دورك</h1><p
 const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];C.b=C.b||{s:[],barber:undefined,day:0,period:null};drawBk()};
 
 function drawBk(){const b=C.b,days=bkDays();
-put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>احجز دورك</h1><h2>الخدمات</h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>احجز دورك</h1><h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;drawBk()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;drawBk()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div><div id="bl"></div>`);if(b.period)loadBarbers()}
 
@@ -23,7 +23,7 @@ const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 
 const sv=C.sv.filter(x=>b.s.includes(x.id)),tot=sv.reduce((a,x)=>a+x.price,0),dur=sv.reduce((a,x)=>a+x.duration_min,0);
 $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join("")+`<button class="btn" style="width:100%;margin-top:8px" ${b.s.length&&b.barber!==undefined?"":"disabled"} onclick="bookNow()">تأكيد وخد رقم دورك · ${fm(tot)} · ~${dur} دقيقة</button>`:`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`)}
 
-async function bookNow(){const b=C.b,d=bkDays()[b.day];const{error}=await sb.rpc("book_ticket",{p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
+async function bookNow(){const b=C.b,d=bkDays()[b.day];if(!b.s.length)return toast("اختار خدمة واحدة على الأقل");const{error}=await sb.rpc("book_ticket",{p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
 if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message);C.b=null;toast("تم الحجز ✓ ده رقم دورك");go("queue")}
 
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
