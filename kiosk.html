@@ -20,6 +20,9 @@ input{font:600 26px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:
 input[type=tel]{direction:ltr;text-align:left}
 .row{font:600 22px "IBM Plex Sans Arabic",system-ui;display:flex;justify-content:space-between;align-items:center;padding:18px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);cursor:pointer;width:100%}
 .row.sel{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font:600 22px "IBM Plex Sans Arabic",system-ui;padding:14px 18px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);cursor:pointer}
+.chip.sel{border-color:var(--gold);background:#2a2415;box-shadow:0 0 0 2px var(--gold) inset}
 .btn{font:700 28px "IBM Plex Sans Arabic",system-ui;padding:20px;border:0;border-radius:16px;background:var(--gold);color:#1b1710;cursor:pointer}
 .btn:disabled{opacity:.45}
 .ticket{text-align:center}
@@ -44,19 +47,29 @@ const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(
 const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)};
 const period=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
 const nf=n=>Number(n||0).toLocaleString("ar-EG");
-const K={name:"",phone:"",barber:null,L:[],busy:false,timer:null,poll:null};
+const K={name:"",phone:"",barber:null,L:[],SV:[],S:[],busy:false,timer:null,poll:null};
 
 async function init(){
   const{data}=await sb.from("app_settings").select("*");const cfg={};(data||[]).forEach(r=>cfg[r.key]=r.value);
   if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
+  const sv=await sb.from("services").select("*").eq("active",true).order("id");
+  K.SV=sv.data||[];
   form()}
 
+function tg(id){K.S=K.S.includes(id)?K.S.filter(x=>x!=id):[...K.S,id];drawS()}
+function drawS(){
+  const el=$("sv");if(!el)return;
+  el.innerHTML=K.SV.length?K.SV.map(x=>`<button class="chip ${K.S.includes(x.id)?"sel":""}" onclick="tg(${x.id})">${esc(x.name)} · ${nf(x.price)}</button>`).join(""):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
+  const tot=K.SV.filter(x=>K.S.includes(x.id)).reduce((a,x)=>a+Number(x.price||0),0);
+  const g=$("go");if(g)g.textContent=K.S.length?"سجّلني · "+nf(tot):"سجّلني"}
+
 function form(){
-  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.busy=false;
+  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.S=[];K.busy=false;
   $("app").innerHTML=`<p class="m" style="text-align:center;margin:0">اكتب اسمك ورقمك واختار الحلاق، وخد باركود دورك</p>
+<h2>الخدمات <span class="m">(لازم تختار واحدة على الأقل)</span></h2><div class="chips" id="sv"></div>
 <h2>الحلاق</h2><div id="bl"><p class="m">جاري التحميل...</p></div>
 <h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" autocomplete="off" oninput="K.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" autocomplete="off" oninput="K.phone=this.value"><button class="btn" id="go" onclick="join()" disabled>سجّلني</button></div>`;
-  loadB();K.poll=setInterval(loadB,10000)}
+  drawS();loadB();K.poll=setInterval(loadB,10000)}
 
 async function loadB(){
   const d=new Date().toLocaleDateString("en-CA");
@@ -70,9 +83,9 @@ async function loadB(){
 
 async function join(){
   if(K.busy)return;const n=(K.name||"").trim(),ph=dig(K.phone);
-  if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  if(!K.S.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
   K.busy=true;$("go").disabled=true;
-  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:[]});
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:K.S});
   K.busy=false;const t=!r.error&&r.data&&r.data.ticket;
   if(!t){$("go").disabled=false;return toast(!r.error?"التسجيل لم يتأكد، جرّب تاني":(r.error.message||"التسجيل لم يتأكد"))}
   done(t,ph,n)}
