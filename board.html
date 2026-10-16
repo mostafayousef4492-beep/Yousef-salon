@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>شاشة الدور</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0D12;--card:#161a22;--fg:#f4f1ea;--gold:#c9a24a;--mut:#9aa0ab;--ok:#2ea66b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;padding:24px}
+h1{font:700 48px/1.1 Amiri,serif;margin:0 0 18px;text-align:center;color:var(--gold)}
+#g{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.c{background:var(--card);border-radius:20px;padding:22px}
+.bn{font-size:30px;font-weight:700;margin-bottom:12px}
+.now{background:#0f1218;border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid #2a2f3a}
+.now.on{border-color:var(--ok)}
+.l{color:var(--mut);font-size:18px}
+.v{font-size:34px;font-weight:700}
+.nx{display:flex;justify-content:space-between;font-size:24px;padding:6px 0;border-top:1px solid #2a2f3a}
+.nx .called{color:var(--gold)}
+.e{text-align:center;color:var(--mut);font-size:28px;margin-top:40px}
+</style>
+</head>
+<body>
+<h1 id="bn">الدور الحالي</h1>
+<div id="g"><div class="e">جاري التحميل...</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script>
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=n=>Number(n||0).toLocaleString("ar-EG");
+(async()=>{const{data}=await sb.from("app_settings").select("*");const r=(data||[]).find(x=>x.key=="salon_name");if(r&&r.value){$("bn").textContent=r.value;document.title="شاشة الدور - "+r.value}})();
+async function load(){
+  const{data,error}=await sb.rpc("public_board");
+  if(error)return;
+  const L=data||[];
+  $("g").innerHTML=L.length?L.map(b=>`<div class="c"><div class="bn">${esc(b.barber)}</div>
+<div class="now ${b.current?"on":""}"><div class="l">على الكرسي دلوقتي</div><div class="v">${b.current?esc(b.current.name)+" · "+nf(b.current.no):"—"}</div></div>
+<div class="l" style="margin-bottom:4px">الدور الجاي ${b.waiting?"("+nf(b.waiting)+" مستني)":""}</div>
+${(b.next||[]).length?b.next.map(x=>`<div class="nx"><span class="${x.called?"called":""}">${esc(x.name)}${x.called?" 🔔":""}</span><span>${nf(x.no)}</span></div>`).join(""):`<div class="l">مفيش حد مستني</div>`}</div>`).join(""):`<div class="e">مفيش حلاقين النهارده</div>`}
+load();setInterval(load,5000);
+</script>
+</body>
+</html>

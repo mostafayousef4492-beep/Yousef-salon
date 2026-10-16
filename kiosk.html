@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>تسجيل الزبائن</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0D12;--card:#161a22;--fg:#f4f1ea;--gold:#c9a24a;--mut:#9aa0ab;--ok:#2ea66b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:28px 20px;gap:18px}
+h1{font:700 44px/1.1 Amiri,serif;margin:0;text-align:center;color:var(--gold)}
+h2{font-size:22px;margin:6px 0 0}
+.m{color:var(--mut);font-size:18px}
+#app{width:min(720px,100%);display:flex;flex-direction:column;gap:14px}
+.box{background:var(--card);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
+input{font:600 26px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg)}
+input[type=tel]{direction:ltr;text-align:left}
+.row{font:600 22px "IBM Plex Sans Arabic",system-ui;display:flex;justify-content:space-between;align-items:center;padding:18px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);cursor:pointer;width:100%}
+.row.sel{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+.btn{font:700 28px "IBM Plex Sans Arabic",system-ui;padding:20px;border:0;border-radius:16px;background:var(--gold);color:#1b1710;cursor:pointer}
+.btn:disabled{opacity:.45}
+.ticket{text-align:center}
+.no{font-size:96px;font-weight:800;color:var(--gold);line-height:1}
+#qr{background:#fff;padding:16px;border-radius:16px;line-height:0;align-self:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#c0392b;color:#fff;padding:14px 22px;border-radius:12px;font-size:20px}
+</style>
+</head>
+<body>
+<h1 id="bn">صالون أبو يوسف</h1>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/config.js"></script>
+<script>
+// تابلت الصالون: التسجيل بنفس دالة الحجز العامة (public_book_v2) من غير ما نحفظ أي حاجة على التابلت،
+// وبعدها باركود لتذكرة الزبون بس: لما يمسحه من موبايله يفتح حجزه علطول.
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
+const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)};
+const period=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
+const nf=n=>Number(n||0).toLocaleString("ar-EG");
+const K={name:"",phone:"",barber:null,L:[],busy:false,timer:null,poll:null};
+
+async function init(){
+  const{data}=await sb.from("app_settings").select("*");const cfg={};(data||[]).forEach(r=>cfg[r.key]=r.value);
+  if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
+  form()}
+
+function form(){
+  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.busy=false;
+  $("app").innerHTML=`<p class="m" style="text-align:center;margin:0">اكتب اسمك ورقمك واختار الحلاق، وخد باركود دورك</p>
+<h2>الحلاق</h2><div id="bl"><p class="m">جاري التحميل...</p></div>
+<h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" autocomplete="off" oninput="K.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" autocomplete="off" oninput="K.phone=this.value"><button class="btn" id="go" onclick="join()" disabled>سجّلني</button></div>`;
+  loadB();K.poll=setInterval(loadB,10000)}
+
+async function loadB(){
+  const d=new Date().toLocaleDateString("en-CA");
+  const{data,error}=await sb.rpc("available_barbers",{p_day:d,p_period:period()});
+  const el=$("bl");if(!el)return;
+  if(error){el.innerHTML=`<p class="m">مقدرناش نحمّل الحلاقين، جرّب تاني.</p>`;return}
+  K.L=(data||[]).slice().sort((a,b)=>(a.waiting||0)-(b.waiting||0));
+  if(K.barber&&!K.L.some(x=>x.id==K.barber))K.barber=null;
+  el.innerHTML=K.L.length?`<button class="row ${K.barber?"":"sel"}" onclick="K.barber=null;loadB()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+K.L.map(x=>`<button class="row ${K.barber==x.id?"sel":""}" style="margin-top:10px" onclick="K.barber='${x.id}';loadB()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting?nf(x.waiting)+" قدامك · ~"+nf(x.est_min)+" د":"متاح دلوقتي"}</span></button>`).join(""):`<div class="box"><p class="m">مفيش حلاق متاح دلوقتي، كلّم الكاشير.</p></div>`;
+  $("go").disabled=!K.L.length||K.busy}
+
+async function join(){
+  if(K.busy)return;const n=(K.name||"").trim(),ph=dig(K.phone);
+  if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  K.busy=true;$("go").disabled=true;
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:[]});
+  K.busy=false;const t=!r.error&&r.data&&r.data.ticket;
+  if(!t){$("go").disabled=false;return toast(!r.error?"التسجيل لم يتأكد، جرّب تاني":(r.error.message||"التسجيل لم يتأكد"))}
+  done(t,ph,n)}
+
+function done(t,ph,n){
+  clearInterval(K.poll);
+  const url=location.origin+"/book?t="+encodeURIComponent(t.id)+"&p="+encodeURIComponent(ph);
+  $("app").innerHTML=`<div class="box ticket"><div class="m">أهلًا ${esc(n.split(" ")[0])} — رقم دورك</div><div class="no">${t.no==null?"—":esc(t.no)}</div>${t.barber?`<div class="m">مع ${esc(t.barber)}</div>`:""}<div id="qr"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div></div><button class="btn" onclick="form()">تسجيل زبون جديد</button>`;
+  new QRCode($("qr"),{text:url,width:280,height:280,correctLevel:QRCode.CorrectLevel.M});
+  K.timer=setTimeout(form,45000)}
+init();
+</script>
+</body>
+</html>
