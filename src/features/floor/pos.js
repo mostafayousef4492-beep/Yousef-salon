@@ -98,7 +98,7 @@ if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتاخد، جر
 C.chOpenAfter=n;go("pos")}
 
 // تغيير حالة تذكرة: بدء الخدمة للكاشير بس (start_service)، والإلغاء بيمرّ على حارس الحالات في قاعدة البيانات
-async function setS(id,s){const r=s=="in_service"?await sb.rpc("start_service",{p_id:id}):await sb.from("appointments").update({status:s}).eq("id",id);if(r.error)return toast(netErr(r.error)?"التحديث لم يتأكد — النت واقف":r.error.message);go(tab=="home"?"home":"appts")}
+async function setS(id,s){const r=s=="in_service"?await sb.rpc("start_service",{p_id:id}):await sb.from("appointments").update({status:s}).eq("id",id);if(r.error)return toast(netErr(r.error)?"التحديث لم يتأكد — النت واقف":/شغّالة بالفعل/.test(r.error.message||"")?"الحلاق لسه معاه عميل على الكرسي — اضغط «انتهت» أو «دفع» للعميل اللي معاه الأول، وبعدها ابدأ اللي بعده":r.error.message);go(tab=="home"?"home":"appts")}
 
 function cxToggle(){const b=$("cx");if(!b)return;if(C.cxOpen){C.cxOpen=0;b.innerHTML="";return}C.cxOpen=1;b.innerHTML=`<p class="m">بنحمّل...</p>`;cxLoad()}
 

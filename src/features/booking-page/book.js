@@ -28,7 +28,7 @@ async function start(){
 
 function draw(){const b=C.b,days=bkDays();
   put(`<h1>احجز دورك</h1><p class="m" style="margin:0 0 4px">من غير تسجيل ولا تحميل تطبيق — اختار وخد رقم دورك.</p>
-<h2>الخدمات <span class="m">(اختياري)</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red,#d9534f)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
 <div id="bl"></div>
@@ -37,8 +37,8 @@ function draw(){const b=C.b,days=bkDays();
   if(b.period)loadBarbers();upd()}
 function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];draw()}
 function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=sv.reduce((a,x)=>a+x.price,0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
-  btn.disabled=!(b.period&&b.barber!==undefined)||!!C.busy;
-  btn.textContent=b.s.length?`تأكيد وخد رقم دورك · ${fm(tot)}${dur?" · ~"+dur+" دقيقة":""}`:"تأكيد وخد رقم دورك"}
+  btn.disabled=!(b.s.length&&b.period&&b.barber!==undefined)||!!C.busy;
+  btn.textContent=!b.s.length?"اختار الخدمة الأول":b.s.length?`تأكيد وخد رقم دورك · ${fm(tot)}${dur?" · ~"+dur+" دقيقة":""}`:"تأكيد وخد رقم دورك"}
 async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
   const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
   const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset;":"";
@@ -47,7 +47,7 @@ async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
 
 const isNetErr=e=>!!e&&!e.code&&!e.hint&&!e.details;
 async function bookNow(){if(C.busy)return;const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
-  if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  if(!b.s.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
   const btn=$("cbtn");C.busy=true;btn.disabled=true;
   const args={p_name:n,p_phone:ph,p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s};
   let r=await sb.rpc("public_book_v2",args),t=null,existing=false;
