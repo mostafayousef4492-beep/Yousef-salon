@@ -1,6 +1,11 @@
 -- patch_referrals.sql — برنامج "ادعي صاحبك"
 -- الصاحب بيدخل كود/رقم اللي رشّحه، ولما يدفع أول فاتورة الاتنين ياخدوا نقاط.
--- النقاط بتتظبط من الإعدادات: referral_points (الافتراضي 50 لكل طرف).
+-- كله بتتحكم فيه من الإعدادات ← الولاء:
+--   referral_enabled (تشغيل/إيقاف، الافتراضي شغال)
+--   referral_points (نقاط الصاحب الجديد، الافتراضي 50)
+--   referral_referrer_points (نقاط اللي رشّحه؛ لو فاضي = نفس نقاط الصاحب)
+--   referral_min_total (أقل إجمالي فاتورة أولى عشان المكافأة تتصرف، الافتراضي 0)
+--   referral_max_per_customer (أقصى عدد دعوات بتتكافأ للعميل الواحد، 0 = بلا حد)
 -- شغّل patch_overnight_and_nameonly.sql الأول. آمن للتشغيل أكتر من مرة.
 
 alter table public.customers
@@ -8,6 +13,16 @@ alter table public.customers
   add column if not exists referred_by bigint references public.customers(id) on delete set null,
   add column if not exists referral_rewarded_at timestamptz;
 create unique index if not exists customers_referral_code_uq on public.customers(referral_code) where referral_code is not null;
+
+create or replace function public.p_ref_cfg(k text, d numeric)
+returns numeric language sql stable security definer set search_path to 'public' as $$
+  select coalesce((select nullif(value #>> '{}','')::numeric from app_settings where key = k and jsonb_typeof(value) = 'number'), d) $$;
+revoke all on function public.p_ref_cfg(text,numeric) from public, anon, authenticated;
+
+create or replace function public.p_ref_on()
+returns boolean language sql stable security definer set search_path to 'public' as $$
+  select coalesce((select (value #>> '{}') <> 'false' from app_settings where key = 'referral_enabled'), true) $$;
+revoke all on function public.p_ref_on() from public, anon, authenticated;
 
 create or replace function public.p_ref_find(p_key text, p_self bigint default null)
 returns bigint language plpgsql stable security definer set search_path to 'public' as $$
@@ -40,12 +55,13 @@ revoke all on function public.p_ref_code(bigint) from public, anon, authenticate
 -- بيانات العميل لصفحة "ادعي صاحبك"
 create or replace function public.my_referral()
 returns jsonb language plpgsql security definer set search_path to 'public' as $$
-declare c customers; v_pts int := (setting('referral_points','50'::jsonb))::text::int;
+declare c customers; v_pts int := p_ref_cfg('referral_points',50)::int;
 begin
+  if not p_ref_on() then return jsonb_build_object('enabled', false); end if;
   select * into c from customers where user_id = auth.uid();
   if c.id is null then raise exception 'مفيش حساب عميل'; end if;
   return jsonb_build_object(
-    'code', p_ref_code(c.id), 'points', v_pts,
+    'enabled', true, 'code', p_ref_code(c.id), 'points', v_pts, 'referrer_points', p_ref_cfg('referral_referrer_points', v_pts)::int,
     'invited', (select count(*) from customers x where x.referred_by = c.id),
     'rewarded', (select count(*) from customers x where x.referred_by = c.id and x.referral_rewarded_at is not null),
     'earned', coalesce((select sum(points) from loyalty_ledger l where l.customer_id = c.id and l.reason = 'referral'),0),
@@ -58,6 +74,7 @@ create or replace function public.apply_referral(p_key text)
 returns text language plpgsql security definer set search_path to 'public' as $$
 declare c customers; v_r bigint; v_n text;
 begin
+  if not p_ref_on() then raise exception 'برنامج الدعوات متوقف دلوقتي'; end if;
   select * into c from customers where user_id = auth.uid() for update;
   if c.id is null then raise exception 'مفيش حساب عميل'; end if;
   if c.referred_by is not null then raise exception 'انت مسجّل إنك جاي عن طريق حد قبل كده'; end if;
@@ -76,6 +93,7 @@ returns text language plpgsql security definer set search_path to 'public' as $$
 declare c customers; v_r bigint; v_n text;
 begin
   if not (is_mgr() or has_perm('use_pos')) then raise exception 'غير مصرح'; end if;
+  if not p_ref_on() then raise exception 'برنامج الدعوات متوقف دلوقتي'; end if;
   select * into c from customers where id = p_customer for update;
   if c.id is null then raise exception 'العميل مش موجود'; end if;
   if c.referral_rewarded_at is not null then raise exception 'مكافأة الدعوة اتصرفت قبل كده'; end if;
@@ -90,17 +108,20 @@ end $$;
 -- مكافأة الاتنين عند أول فاتورة مدفوعة للعميل المدعو
 create or replace function public.trg_referral_award()
 returns trigger language plpgsql security definer set search_path to 'public' as $$
-declare c customers; v_pts int := (setting('referral_points','50'::jsonb))::text::int;
+declare c customers; v_pts int := p_ref_cfg('referral_points',50)::int; v_rp int := p_ref_cfg('referral_referrer_points', p_ref_cfg('referral_points',50))::int;
+        v_min numeric := p_ref_cfg('referral_min_total',0); v_max int := p_ref_cfg('referral_max_per_customer',0)::int;
 begin
   begin
-    if new.customer_id is null or coalesce(new.total,0) <= 0 or coalesce(old.total,0) > 0 or v_pts <= 0 then return new; end if;
-    if not p11_cfg_bool('ff_loyalty', true) then return new; end if;
+    if new.customer_id is null or coalesce(new.total,0) <= 0 or coalesce(old.total,0) > 0 then return new; end if;
+    if not p_ref_on() or not p11_cfg_bool('ff_loyalty', true) then return new; end if;
+    if new.total < v_min then return new; end if;
     select * into c from customers where id = new.customer_id for update;
     if c.referred_by is null or c.referral_rewarded_at is not null then return new; end if;
     if not exists (select 1 from customers where id = c.referred_by) then return new; end if;
+    if v_max > 0 and (select count(*) from customers x where x.referred_by = c.referred_by and x.referral_rewarded_at is not null) >= v_max then return new; end if;
     update customers set referral_rewarded_at = now() where id = c.id;
-    perform add_points(c.id, v_pts, 'referral', new.id, 'هدية دعوة');
-    perform add_points(c.referred_by, v_pts, 'referral', new.id, 'مكافأة دعوة ' || c.name);
+    if v_pts > 0 then perform add_points(c.id, v_pts, 'referral', new.id, 'هدية دعوة'); end if;
+    if v_rp > 0 then perform add_points(c.referred_by, v_rp, 'referral', new.id, 'مكافأة دعوة ' || c.name); end if;
   exception when others then
     raise warning 'referral award: %', sqlerrm;
   end;

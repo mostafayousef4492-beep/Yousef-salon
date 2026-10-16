@@ -37,3 +37,24 @@ select t.fl('مكافأة اتصرفت', $$select staff_set_referrer((select id 
 reset role;
 rollback;
 \echo REFERRAL TESTS DONE
+-- إعدادات
+begin;
+insert into customers(name,phone) values ('م1','01080000001'),('ص1','01080000002'),('ص2','01080000003');
+update customers set referred_by=(select id from customers where phone='01080000001') where phone in ('01080000002','01080000003');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',true);
+insert into app_settings(key,value) values ('referral_points','20'),('referral_referrer_points','70'),('referral_min_total','50'),('referral_max_per_customer','1') on conflict(key) do update set value=excluded.value;
+insert into invoices(customer_id,subtotal,discount,total,payment_method) values ((select id from customers where phone='01080000002'),0,0,0,'cash');
+update invoices set total=30 where id=(select max(id) from invoices);
+select t.ok('تحت الحد الأدنى: مفيش مكافأة', (select points from customers where phone='01080000001')=0);
+insert into invoices(customer_id,subtotal,discount,total,payment_method) values ((select id from customers where phone='01080000002'),0,0,0,'cash');
+update invoices set total=60 where id=(select max(id) from invoices);
+select t.ok('نقاط الصاحب 20', (select points from customers where phone='01080000002')=20);
+select t.ok('نقاط المُحيل 70', (select points from customers where phone='01080000001')=70);
+insert into invoices(customer_id,subtotal,discount,total,payment_method) values ((select id from customers where phone='01080000003'),0,0,0,'cash');
+update invoices set total=60 where id=(select max(id) from invoices);
+select t.ok('حد أقصى 1: التاني مفيش', (select points from customers where phone='01080000001')=70);
+update app_settings set value='false' where key='referral_enabled' ;
+insert into app_settings(key,value) values ('referral_enabled','false') on conflict(key) do update set value='false';
+select t.fl('الإيقاف يمنع التسجيل', $$select staff_set_referrer((select id from customers where phone='01080000003'),'01080000001')$$);
+rollback;
+\echo SETTINGS TESTS DONE
