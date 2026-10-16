@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>باركود الصالون</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#0B0D12;color:#f4f1ea;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;padding:24px;display:flex;flex-direction:column;align-items:center;gap:20px}
+h1{font:700 44px/1.1 Amiri,serif;margin:0;color:#c9a24a;text-align:center}
+#g{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;width:100%}
+.c{background:#161a22;border-radius:22px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:300px}
+.t{font-size:30px;font-weight:700}
+.m{color:#9aa0ab;font-size:20px;text-align:center}
+.q{background:#fff;padding:16px;border-radius:16px;line-height:0}
+.u{direction:ltr;color:#9aa0ab;font-size:16px}
+</style>
+</head>
+<body>
+<h1 id="sn">امسح وتابع دورك</h1>
+<div id="g">
+  <div class="c"><div class="t">صفحة الحجز</div><div class="m">احجز دورك من موبايلك</div><div class="q" id="q1"></div><div class="u" id="u1"></div></div>
+  <div class="c"><div class="t">تطبيق العملاء</div><div class="m">حسابي وحجوزاتي وفواتيري</div><div class="q" id="q2"></div><div class="u" id="u2"></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const items=[["q1","u1","/book"],["q2","u2","/"]];
+const size=Math.min(300,Math.max(200,innerWidth-120));
+for(const [q,u,p] of items){const url=location.origin+p;document.getElementById(u).textContent=url;new QRCode(document.getElementById(q),{text:url,width:size,height:size,correctLevel:QRCode.CorrectLevel.M})}
+</script>
+</body>
+</html>

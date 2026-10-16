@@ -16,30 +16,15 @@ nav button{flex:1;font:700 20px "IBM Plex Sans Arabic",system-ui;padding:14px;bo
 nav button.on{background:#c9a24a;color:#1b1710}
 iframe{flex:1;width:100%;border:0;display:none}
 iframe.on{display:block}
-#c3{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#f4f1ea;text-align:center;padding:16px}
-#c3.on{display:flex}
-#c3 .no{font-size:84px;font-weight:800;color:#c9a24a;line-height:1}
-#c3 .m{color:#9aa0ab;font-size:22px}
-#q3{background:#fff;padding:16px;border-radius:16px;line-height:0}
 </style>
 </head>
 <body>
 <nav><button id="b1" class="on" onclick="sw(1)">تسجيل الزبائن</button><button id="b2" onclick="sw(2)">شاشة الدور</button><button id="b3" onclick="sw(3)">باركود الحيطة</button></nav>
 <iframe id="f1" class="on" src="/kiosk"></iframe>
 <iframe id="f2" src="/board"></iframe>
-<iframe id="f3" src="/qr"></iframe>
-<div id="c3"><div class="m" id="t3"></div><div class="no" id="n3"></div><div class="m" id="x3"></div><div id="q3"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<iframe id="f3" src="/wall"></iframe>
 <script>
-let cur=1,tk=false;
-function sw(n){cur=n;for(const i of[1,2,3]){const f=document.getElementById("f"+i);f.classList.toggle("on",i==n&&!(i==3&&tk));document.getElementById("b"+i).classList.toggle("on",i==n)}
-  document.getElementById("c3").classList.toggle("on",n==3&&tk)}
-window.addEventListener("message",e=>{
-  if(e.origin!==location.origin||!e.data)return;const d=e.data;
-  if(d.type=="salon_ticket"){tk=true;document.getElementById("t3").textContent="أهلًا "+d.name+" — رقم دورك";document.getElementById("n3").textContent=d.no==null?"—":d.no;document.getElementById("x3").textContent=d.barber?"مع "+d.barber:"";
-    const q=document.getElementById("q3");q.innerHTML="";new QRCode(q,{text:d.url,width:300,height:300,correctLevel:QRCode.CorrectLevel.M});
-    document.getElementById("b3").textContent="باركود الزبون";sw(cur)}
-  else if(d.type=="salon_ticket_clear"){tk=false;document.getElementById("b3").textContent="باركود الحيطة";sw(cur)}});
+function sw(n){for(const i of[1,2,3]){document.getElementById("f"+i).classList.toggle("on",i==n);document.getElementById("b"+i).classList.toggle("on",i==n)}}
 if(location.hash=="#board")sw(2);if(location.hash=="#qr")sw(3);
 </script>
 </body>
