@@ -199,3 +199,11 @@ p.m.empty{border-color:var(--line);background:transparent}
 
 /* كود العميل السري */
 .code-big{font-family:var(--display);font-size:40px;font-weight:700;letter-spacing:8px;text-align:center;color:var(--gold2);margin:8px 0;font-variant-numeric:tabular-nums}
+
+/* أقسام قابلة للطي (شاشتي) */
+.fold{margin-top:10px;border:1px solid rgba(128,128,128,.25);border-radius:14px;background:rgba(128,128,128,.06)}
+.fold>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:"‹";font-size:20px;transition:transform .2s}
+.fold[open]>summary::after{transform:rotate(-90deg)}
+.fold-b{padding:0 14px 14px}
