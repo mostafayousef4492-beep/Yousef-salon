@@ -207,3 +207,17 @@ p.m.empty{border-color:var(--line);background:transparent}
 .fold>summary::after{content:"‹";font-size:20px;transition:transform .2s}
 .fold[open]>summary::after{transform:rotate(-90deg)}
 .fold-b{padding:0 14px 14px}
+
+/* الرئيسية البريميوم (تطبيق العميل) */
+.hm-head{display:flex;align-items:center;gap:14px;margin:6px 0 4px}
+.av{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:visible;background:linear-gradient(135deg,#C9A24B,#E8CB7C);color:#1a1405;flex:none;font-family:var(--display,inherit)}
+.av img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.av b{font-weight:800}
+.av-edit{cursor:pointer}
+.av-cam{position:absolute;bottom:-2px;inset-inline-end:-2px;width:22px;height:22px;border-radius:50%;background:#1a1405;color:#E8CB7C;font-style:normal;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg,#0B0D12)}
+.hm-live{display:flex;align-items:center;gap:14px;margin:12px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(201,162,75,.22),rgba(201,162,75,.08));border:1px solid rgba(201,162,75,.5);cursor:pointer}
+.hm-code{font-family:var(--display,inherit);font-size:34px;font-weight:800;letter-spacing:2px;color:var(--gold2,#E8CB7C);line-height:1.1}
+.hm-live-r{flex:1;display:flex;flex-direction:column;gap:2px}
+.hm-go{font-weight:700;color:var(--gold2,#E8CB7C);white-space:nowrap}
+.hm-rep,.hm-gift{margin-top:12px}
+.hm-gift{border-color:rgba(201,162,75,.6)}
