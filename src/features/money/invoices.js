@@ -25,15 +25,15 @@ async function dsInv(o){dsLoad(o.t);
 // ---- تفاصيل فاتورة واحدة: الزبون / مين اشتغل / اتعمل إيه / الحساب ----
 
 async function dsInvOne(id){dsLoad("تفاصيل الفاتورة");
-  const{data:i,error}=await sb.from("invoices").select("id,no,subtotal,discount,total,payment_method,created_at,customers(name,phone,visits),barber:barber_id(full_name),cashier:cashier_id(full_name),invoice_items(id,name,qty,unit_price,item_type,assistant_cut,assistant:assistant_id(full_name))").eq("id",id).maybeSingle();
+  const{data:i,error}=await sb.from("invoices").select("id,no,subtotal,discount,total,extra_paid,payment_method,created_at,customers(name,phone,visits),barber:barber_id(full_name),cashier:cashier_id(full_name),invoice_items(id,name,qty,unit_price,item_type,assistant_cut,assistant:assistant_id(full_name))").eq("id",id).maybeSingle();
   if(error||!i)return dsOpen("تفاصيل الفاتورة",dsEmpty(error?error.message:"الفاتورة مش موجودة."),{back:1});
   const it=i.invoice_items||[],asst=[...new Set(it.map(x=>x.assistant?.full_name).filter(Boolean))],cu=i.customers;
   dsOpen("فاتورة #"+i.no,`<div class="m" style="margin-bottom:8px">${new Date(i.created_at).toLocaleString("ar-EG",{hourCycle:"h23",weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
 <h2>الزبون</h2><div class="box">${cu?dsKv("الاسم",`<b>${esc(cu.name)}</b>`)+(dsPh()&&cu.phone?dsKv("الموبايل",`<span dir="ltr">${esc(cu.phone)}</span>`):"")+(cu.visits!=null?dsKv("عدد زياراته",cu.visits):""):`<span class="m">عميل عابر (من غير حساب)</span>${isAdm(me)?`<button class="btn s" style="margin-top:8px" onclick="invPick('${i.id}','${i.no}')">ربط عميل بالفاتورة (وحساب النقاط)</button>`:""}`}</div>
 <h2>مين اشتغل</h2><div class="box">${dsKv("الحلاق",`<b>${esc(i.barber?.full_name||"—")}</b>`)}${asst.length?dsKv("المساعد",asst.map(a=>esc(a)).join("، ")):""}${dsKv("الكاشير (اللي حاسب)",esc(i.cashier?.full_name||"—"))}</div>
 <h2>اتعمل إيه</h2><div class="box">${it.map(x=>`<div style="padding:5px 0;border-bottom:1px dashed var(--line)"><div style="display:flex;justify-content:space-between;gap:10px"><span><b>${esc(x.name)}</b> <span class="tag">${x.item_type=="product"?"منتج":"خدمة"}</span></span><b>${fm(x.unit_price*x.qty)}</b></div><div class="m">${x.qty>1?x.qty+" × "+fm(x.unit_price):"سعر "+fm(x.unit_price)}${x.assistant?` · المساعد: ${esc(x.assistant.full_name)}${+x.assistant_cut?` (اتخصم ${fm(x.assistant_cut)} للمساعد)`:""}`:""}</div></div>`).join("")||`<span class="m">مفيش بنود</span>`}</div>
-<h2>الحساب</h2><div class="box">${dsKv("المجموع",fm(i.subtotal))}${+i.discount>0?dsKv("الخصم","- "+fm(i.discount)):""}${dsKv("الإجمالي",fm(i.total),1)}${dsKv("طريقة الدفع",PAYL[i.payment_method]||esc(i.payment_method))}</div>
-${me.role=="owner"?`<button class="btn s" style="margin-top:8px" onclick="chDate('invoices',${i.id},'${ymd(new Date(i.created_at))}')">تعديل تاريخ الفاتورة</button> <button class="btn s g" style="color:var(--red);margin-top:8px" onclick="svcClose();delInv('${i.id}')">حذف الفاتورة</button>`:""}`,{back:1})}
+<h2>الحساب</h2><div class="box">${dsKv("المجموع",fm(i.subtotal))}${+i.discount>0?dsKv("الخصم","- "+fm(i.discount)):""}${dsKv("الإجمالي (المطلوب)",fm(i.total),1)}${+i.extra_paid>0?dsKv("المدفوع الفعلي",fm(+i.total+ +i.extra_paid))+dsKv("زيادة عن الحساب",fm(i.extra_paid)):""}${dsKv("طريقة الدفع",PAYL[i.payment_method]||esc(i.payment_method))}</div>
+${me.role=="owner"?`<button class="btn s" style="margin-top:8px" onclick="invPaid(${i.id},${i.total},${+i.total+ +i.extra_paid})">تعديل المدفوع الفعلي</button> <button class="btn s" style="margin-top:8px" onclick="chDate('invoices',${i.id},'${ymd(new Date(i.created_at))}')">تعديل تاريخ الفاتورة</button> <button class="btn s g" style="color:var(--red);margin-top:8px" onclick="svcClose();delInv('${i.id}')">حذف الفاتورة</button>`:""}`,{back:1})}
 
 
 // ---- ربط عميل بفاتورة قديمة ← بيتحسبله نقاط الفاتورة وزيارتها ----
@@ -58,3 +58,8 @@ async function chDateSave(force){const x=C.cdx,v=$("cd_v")?.value;if(!x||!v)retu
   const{data,error}=await sb.rpc("admin_set_date",{p_table:x.t,p_id:x.id,p_day:v,p_force:!!force});if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف patch_edit_dates.sql في Supabase الأول":error.message);
   if(data&&data.needs_force){if(!confirm("اليوم ده (أو اليوم القديم) مقفول في الخزنة.\nلو غيّرت التاريخ أرقام القفل هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return;return chDateSave(true)}
   toast("اتعدّل التاريخ ✓");svcClose();if(x.t=="invoices"){dsInvOne(x.id);if(C.rs)repLoad&&C.rr&&C.rs=="daily"&&rpdLoad()}else if(x.t=="expenses")repLoad();else C.reload&&C.reload()}
+
+
+// ---- تعديل المبلغ المدفوع الفعلي (لو العميل دفع أكتر من الحساب) ----
+async function invPaid(id,total,cur){const v=prompt("المطلوب "+fm(total)+"\nاكتب المبلغ المدفوع الفعلي (لازم يساوي أو يزيد عن المطلوب):",cur);if(v===null)return;const n=+v;if(!(n>=total))return toast("المبلغ لازم يكون "+fm(total)+" أو أكتر");
+  const{error}=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n});if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف patch_paid_amount.sql في Supabase الأول":error.message);toast("اتسجل المبلغ ✓");dsInvOne(id)}
