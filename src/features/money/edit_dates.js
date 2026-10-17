@@ -21,5 +21,5 @@ async function edDo(kind,id,cur,force,val,ts){
   if(data?.needs_force){if(!confirm("اليوم "+data.day+" مقفول في الخزنة.\nتعديل التاريخ هيغيّر أرقام اليوم عن اللي اتجرد.\nتكمّل؟"))return;return edDo(kind,id,cur,true,val,ts)}
   toast("اتعدّل التاريخ ✓");
   try{svcClose&&svcClose()}catch(e){}
-  try{if(kind=="invoice")V.inv();else if(typeof repLoad=="function")repLoad()}catch(e){}
+  try{if(kind=="invoice")V.inv();else if(kind=="staff_tx"&&C.reload)C.reload();else if(typeof repLoad=="function")repLoad()}catch(e){}
 }

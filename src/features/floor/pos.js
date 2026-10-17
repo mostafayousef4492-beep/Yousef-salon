@@ -13,7 +13,7 @@ ${P.as.length&&P.s.length?`<h3 class="sec">المساعد (اختياري)</h3>$
 <section class="box pos-bill"><h3 class="sec">الفاتورة</h3><div class="pos-lines">${lines||`<p class="m">اختار خدمة أو منتج عشان يتضاف هنا.</p>`}</div>
 <div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x&&!P.dfx?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${fixOpts().map(x=>`<button class="chip ${P.dfx==x?"sel":""}" onclick="pickFix(${x})">خصم ${x} ج${fxPct(x,sub)>discLim()?" 🔒":""}</button>`).join("")}</div>
 <div class="chips">${payBtns}</div>
-<div class="tot"><span class="m">المجموع</span><span>${fm(sub)}</span></div>${d>0?`<div class="tot"><span class="m">الخصم</span><span>- ${fm(d)}</span></div>`:""}<div class="tot f"><span>المطلوب</span><span class="pos-total">${fm(sub-d)}</span></div><button class="btn" style="width:100%;margin-top:10px" ${sub?"":"disabled"} onclick="checkout()">دفع وإغلاق الفاتورة</button><button class="btn g" style="width:100%;margin-top:8px" onclick="chCancel()">إلغاء الفاتورة وتفضية الكرسي</button></section>
+<div class="tot"><span class="m">المجموع</span><span>${fm(sub)}</span></div>${d>0?`<div class="tot"><span class="m">الخصم</span><span>- ${fm(d)}</span></div>`:""}<div class="tot f"><span>المطلوب</span><span class="pos-total">${fm(sub-d)}</span></div>${(P.req=sub-d,"")}<div class="chips" style="align-items:center;margin-top:6px"><input id="pd_v" type="number" inputmode="decimal" min="0" placeholder="المدفوع الفعلي (لو دفع أكتر)" value="${P.paid||""}" oninput="posPaid(this.value)" style="flex:1;margin:0"><span class="m" id="pd_x">${P.paid>P.req?"زيادة "+fm(P.paid-P.req):""}</span></div><button class="btn" style="width:100%;margin-top:10px" ${sub?"":"disabled"} onclick="checkout()">دفع وإغلاق الفاتورة</button><button class="btn g" style="width:100%;margin-top:8px" onclick="chCancel()">إلغاء الفاتورة وتفضية الكرسي</button></section>
 </div>`)}
 
 function P_s(id){const P=C.P;if(P.s.includes(id))delete P.sa[id];P.s=P.s.includes(id)?P.s.filter(x=>x!=id):[...P.s,id];drawPos()}
@@ -79,15 +79,18 @@ const{error}=await sb.rpc("add_customer",{p_name:n,p_phone:ph});if(error)return 
 const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq("phone",ph).order("id").limit(1);
 if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أجيبه، دوّر عليه تاني");okFlash("تمت إضافة العميل",n);chCust(data[0])}
 
-async function checkout(){const P=C.P;if(P.paying)return;if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
+function posPaid(v){const P=C.P;if(!P)return;P.paid=v===""?0:+v;const x=$("pd_x");if(x)x.textContent=P.paid>P.req?"زيادة "+fm(P.paid-P.req):(P.paid&&P.paid<P.req?"أقل من المطلوب ("+fm(P.req)+")":"")}
+
+async function checkout(){const P=C.P;if(P.paying)return;if(P.paid&&P.paid<P.req-0.004)return toast("المدفوع أقل من المطلوب ("+fm(P.req)+")");if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
 const ch=P.chair;await chSaveNow();P.paying=1;
 const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"}).eq("chair",ch).eq("status","open").select("chair");
 if(le||!lk||!lk.length){P.paying=0;return toast("الفاتورة دي بتتدفع من جهاز تاني أو اتقفلت")}
 const items=[...P.s.map(id=>({type:"service",id,qty:1,assistant:(P.sa||{})[id]||null})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
 const{data,error}=await sb.rpc("pos_checkout",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.disc||0,p_discount_fixed:P.dfx||0,p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null});
 if(error){P.paying=0;await sb.from("open_invoices").update({status:"open"}).eq("chair",ch);return toast(error.message)}
+let pm="";if(P.paid&&P.paid>P.req+0.004){const r2=await sb.rpc("invoice_set_paid",{p_invoice:data,p_paid:P.paid});pm=r2.error?" (تنبيه: المبلغ الفعلي ماتسجلش: "+r2.error.message+")":" · مدفوع "+fm(P.paid)}
 const wc=P.cust,wcid=P.cid;let de=(await sb.from("open_invoices").delete().eq("chair",ch)).error;if(de)await sb.from("open_invoices").delete().eq("chair",ch);
-C.P=null;await waPrep(data,wc,wcid);okFlash("تم الدفع","فاتورة رقم "+(data&&typeof data=="object"?JSON.stringify(data):data)+" · كرسي "+ch+" اتفضّى");go("pos")}
+C.P=null;await waPrep(data,wc,wcid);okFlash("تم الدفع","فاتورة رقم "+(data&&typeof data=="object"?JSON.stringify(data):data)+" · كرسي "+ch+" اتفضّى"+pm);go("pos")}
 
 async function payAppt(id){const a=(C.A||[]).find(x=>x.id==id);if(!a)return;const{data:L}=await sb.from("open_invoices").select("chair,appointment_id");
 const ex=(L||[]).find(r=>r.appointment_id==id);let n=ex?ex.chair:0;
