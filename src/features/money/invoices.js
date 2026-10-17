@@ -1,9 +1,10 @@
 /* features/money/invoices.js — الفواتير */
 
 V.inv=async function(){
-const{data,error}=await sb.from("invoices").select("id,no,total,payment_method,created_at,customers(name),barber:barber_id(full_name),invoice_items(name,qty,unit_price)").order("created_at",{ascending:false}).limit(100);
+let q0=sb.from("invoices").select("id,no,total,payment_method,created_at,customers(name),barber:barber_id(full_name),invoice_items(name,qty,unit_price)").order("created_at",{ascending:false}).limit(C.invUn?300:100);if(C.invUn)q0=q0.is("customer_id",null);
+const{data,error}=await q0;
 if(error)return put(`<h1>الفواتير</h1><p class="m">مفيش صلاحية لعرض الفواتير لحسابك.</p>`);
-put(`<h1>الفواتير</h1>`+(data.length?data.map(i=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="dsInvOne(${i.id})"><div><b>#${i.no}</b> · ${esc(i.customers?.name||"عميل عابر")}<div class="m">${new Date(i.created_at).toLocaleString("ar-EG")} · ${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join(" + ")}</div><div class="m">الحلاق: ${esc(i.barber?.full_name||"—")}</div></div><div style="text-align:left"><b>${fm(i.total)}</b><div class="m">${PAYL[i.payment_method]||i.payment_method}</div></div></button>`).join(""):`<p class="m">لسه مفيش فواتير.</p>`))};
+put(`<h1>الفواتير</h1><div class="chips"><button class="chip ${C.invUn?"":"sel"}" onclick="C.invUn=0;V.inv()">الكل</button><button class="chip ${C.invUn?"sel":""}" onclick="C.invUn=1;V.inv()">من غير عميل (لربط الاسم)</button></div>`+(data.length?data.map(i=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="dsInvOne(${i.id})"><div><b>#${i.no}</b> · ${esc(i.customers?.name||"عميل عابر")}<div class="m">${new Date(i.created_at).toLocaleString("ar-EG")} · ${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join(" + ")}</div><div class="m">الحلاق: ${esc(i.barber?.full_name||"—")}</div></div><div style="text-align:left"><b>${fm(i.total)}</b><div class="m">${PAYL[i.payment_method]||i.payment_method}</div></div></button>`).join(""):`<p class="m">لسه مفيش فواتير.</p>`))};
 
 async function delInv(id,force){if(!force&&!confirm("حذف الفاتورة دي؟\nالمخزون هيرجع، ونقاط العميل وزيارته هتتعكس، وأرقام المبيعات هتتعدّل."))return;const{data,error}=await sb.rpc("admin_void_invoice",{p_id:String(id),p_force:!!force});if(error)return toast(error.message);if(data?.needs_force){if(!confirm("الفاتورة دي من يوم "+data.day+" وهو مقفول في الخزنة.\nلو حذفتها أرقام اليوم هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return;return delInv(id,true)}toast("اتحذفت الفاتورة #"+(data?.no??"")+" ✓");V.inv()}
 
@@ -28,8 +29,24 @@ async function dsInvOne(id){dsLoad("تفاصيل الفاتورة");
   if(error||!i)return dsOpen("تفاصيل الفاتورة",dsEmpty(error?error.message:"الفاتورة مش موجودة."),{back:1});
   const it=i.invoice_items||[],asst=[...new Set(it.map(x=>x.assistant?.full_name).filter(Boolean))],cu=i.customers;
   dsOpen("فاتورة #"+i.no,`<div class="m" style="margin-bottom:8px">${new Date(i.created_at).toLocaleString("ar-EG",{hourCycle:"h23",weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
-<h2>الزبون</h2><div class="box">${cu?dsKv("الاسم",`<b>${esc(cu.name)}</b>`)+(dsPh()&&cu.phone?dsKv("الموبايل",`<span dir="ltr">${esc(cu.phone)}</span>`):"")+(cu.visits!=null?dsKv("عدد زياراته",cu.visits):""):`<span class="m">عميل عابر (من غير حساب)</span>`}</div>
+<h2>الزبون</h2><div class="box">${cu?dsKv("الاسم",`<b>${esc(cu.name)}</b>`)+(dsPh()&&cu.phone?dsKv("الموبايل",`<span dir="ltr">${esc(cu.phone)}</span>`):"")+(cu.visits!=null?dsKv("عدد زياراته",cu.visits):""):`<span class="m">عميل عابر (من غير حساب)</span>${isAdm(me)?`<button class="btn s" style="margin-top:8px" onclick="invPick('${i.id}','${i.no}')">ربط عميل بالفاتورة (وحساب النقاط)</button>`:""}`}</div>
 <h2>مين اشتغل</h2><div class="box">${dsKv("الحلاق",`<b>${esc(i.barber?.full_name||"—")}</b>`)}${asst.length?dsKv("المساعد",asst.map(a=>esc(a)).join("، ")):""}${dsKv("الكاشير (اللي حاسب)",esc(i.cashier?.full_name||"—"))}</div>
 <h2>اتعمل إيه</h2><div class="box">${it.map(x=>`<div style="padding:5px 0;border-bottom:1px dashed var(--line)"><div style="display:flex;justify-content:space-between;gap:10px"><span><b>${esc(x.name)}</b> <span class="tag">${x.item_type=="product"?"منتج":"خدمة"}</span></span><b>${fm(x.unit_price*x.qty)}</b></div><div class="m">${x.qty>1?x.qty+" × "+fm(x.unit_price):"سعر "+fm(x.unit_price)}${x.assistant?` · المساعد: ${esc(x.assistant.full_name)}${+x.assistant_cut?` (اتخصم ${fm(x.assistant_cut)} للمساعد)`:""}`:""}</div></div>`).join("")||`<span class="m">مفيش بنود</span>`}</div>
 <h2>الحساب</h2><div class="box">${dsKv("المجموع",fm(i.subtotal))}${+i.discount>0?dsKv("الخصم","- "+fm(i.discount)):""}${dsKv("الإجمالي",fm(i.total),1)}${dsKv("طريقة الدفع",PAYL[i.payment_method]||esc(i.payment_method))}</div>
 ${me.role=="owner"?`<button class="btn s g" style="color:var(--red);margin-top:8px" onclick="svcClose();delInv('${i.id}')">حذف الفاتورة</button>`:""}`,{back:1})}
+
+
+// ---- ربط عميل بفاتورة قديمة ← بيتحسبله نقاط الفاتورة وزيارتها ----
+async function invPick(id,no){
+  dsOpen("ربط عميل بفاتورة #"+no,`<div class="m" style="margin-bottom:8px">دوّر بالاسم أو الموبايل، أو أضف اسم جديد. النقاط هتتحسب بتاريخ الفاتورة.</div><input id="ip_q" placeholder="اسم أو موبايل" oninput="invFind('${id}','${no}')"><div id="ip_l"></div><h2>أو عميل جديد (اسم بس)</h2><div class="box"><input id="ip_n" placeholder="اسم العميل"><button class="btn" onclick="invNew('${id}','${no}')">إضافة وربط</button></div>`,{back:1});
+  invFind(id,no)}
+async function invFind(id,no){const t=($("ip_q")?.value||"").trim().replace(/[%,()]/g,"");
+  let q=sb.from("customers").select("id,name,phone,visits,points").order("name").limit(30);if(t)q=q.or("name.ilike.%"+t+"%,phone.ilike.%"+t+"%");
+  const{data,error}=await q;const el=$("ip_l");if(!el)return;
+  el.innerHTML=error?`<p class="m">${esc(error.message)}</p>`:(data||[]).map(c=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="invAttach('${id}',${c.id},'${esc(c.name).replace(/'/g,"")}')"><div><b>${esc(c.name)}</b><div class="m">${c.phone?`<span dir="ltr">${esc(c.phone)}</span>`:"من غير رقم"} · ${c.visits||0} زيارة</div></div><div class="m">${c.points||0} نقطة</div></button>`).join("")||`<p class="m">مفيش نتايج.</p>`}
+async function invNew(id,no){const n=($("ip_n").value||"").trim();if(!n)return toast("اكتب الاسم");
+  const{data:cid,error}=await sb.rpc("add_customer",{p_name:n,p_phone:null});if(error)return toast(error.message);invAttach(id,cid,n)}
+async function invAttach(id,cid,nm){
+  if(!confirm("تربط الفاتورة بـ "+nm+"؟\nهيتحسبله نقاطها وزيارتها. مينفعش تتعكس بعدين."))return;
+  const{data,error}=await sb.rpc("invoice_attach_customer",{p_invoice:id,p_customer:cid});if(error)return toast(error.message);
+  toast("اتربطت ✓ +"+(data?.points||0)+" نقطة"+(data?.bonus?" و +"+data.bonus+" مكافأة زيارات":""));dsInvOne(id)}
