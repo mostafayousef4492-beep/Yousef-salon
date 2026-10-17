@@ -59,7 +59,7 @@ V.att=async()=>{C.am=C.am||ymd(new Date()).slice(0,7);const[,b]=monthR(C.am),e=n
   if(error)return put(`<h1>الحضور والانصراف</h1><p class="m">${esc(error.message)}</p>`);
   C.ar=data;const R=data.rows||[],cnt=k=>R.filter(r=>attSt(r)==k).length,sm=f=>R.reduce((a,r)=>a+(+r[f]||0),0);
   const bd=r=>{const s=attSt(r);return `<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="openStaff('${r.id}','${esc(r.name)}')"><div><b>${esc(r.name)}</b><div class="m">${RL[r.role]||r.role}${r.today_in?" · حضر "+dsHm(r.today_in):""}${r.today_out&&!r.today_open?" · انصرف "+dsHm(r.today_out):""}${+r.today_late>0?" · تأخير "+r.today_late+" د":""}</div></div><span class="tag" style="${s=="in"?"background:var(--ok);color:#fff":s=="none"?"background:var(--red);color:#fff":""}">${{in:"حاضر",out:"انصرف",off:"راحة",none:"لسه"}[s]}</span></button>`};
-  put(`<h1>الحضور والانصراف</h1>${isAdm(me)?attCodeBox():""}<h2>النهارده</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${kc("حاضرين دلوقتي",cnt("in"),"var(--ok)","attList('in')")}${kc("انصرفوا",cnt("out"),"","attList('out')")}${kc("لسه ما حضروش",cnt("none"),cnt("none")?"var(--red)":"","attList('none')")}${kc("راحة / إجازة",cnt("off"),"","attList('off')")}</div>${R.map(bd).join("")}
+  put(`<h1>الحضور والانصراف</h1>${me.role=="owner"?`<button class="btn s g" onclick="lateRules()">⚙️ خصم التأخير</button>`:""}${isAdm(me)?attCodeBox():""}<h2>النهارده</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${kc("حاضرين دلوقتي",cnt("in"),"var(--ok)","attList('in')")}${kc("انصرفوا",cnt("out"),"","attList('out')")}${kc("لسه ما حضروش",cnt("none"),cnt("none")?"var(--red)":"","attList('none')")}${kc("راحة / إجازة",cnt("off"),"","attList('off')")}</div>${R.map(bd).join("")}
 <h2>تقرير الشهر</h2><div class="chips" style="align-items:center"><input type="month" value="${C.am}" style="width:auto;margin:0" onchange="C.am=this.value||'${C.am}';V.att()"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">${kc("أيام غياب",sm("absent_days"),sm("absent_days")?"var(--red)":"","attKpi('absent_days','أيام الغياب','يوم')")}${kc("دقايق تأخير",sm("late_min"),"","attKpi('late_min','دقايق التأخير','دقيقة')")}${kc("ساعات شغل",sm("hours").toFixed(1),"","attKpi('hours','ساعات الشغل','ساعة')")}${kc("نسي الانصراف",sm("missing_out"),sm("missing_out")?"var(--red)":"","attKpi('missing_out','نسيوا الانصراف','مرة')")}</div>
 ${tbl(["الموظف","حضور","غياب","تأخير","ساعات"],R.map(r=>[`<a href="#" style="color:var(--gold2)" onclick="openStaff('${r.id}','${esc(r.name)}');return false">${esc(r.name)}</a><div class="m">${RL[r.role]||r.role}</div>`,r.present_days,+r.absent_days?`<b style="color:var(--red)">${r.absent_days}</b>`:r.absent_days,+r.late_min?r.late_min+" د":"—",(+r.hours).toFixed(1)]))}
@@ -101,3 +101,30 @@ const{data,error:e2}=await sb.rpc("admin_att_save",args);
 if(e2)return toast(/duplicate key|unique/i.test(e2.message||"")?st.full_name+" عنده تسجيل في اليوم ده قبل كده":e2.message);
 toast(st.full_name+" — "+lbl+(isT?"":" ("+d+")")+" ✓"+(data?.late_min>0&&kind=="in"?" · متأخر "+data.late_min+" د":""));V.att()
 }finally{C.acBusy=0}}
+
+/* features/team/late_rules.js — شاشة التحكم في طريقة خصم التأخير لكل موظف (للمالك) */
+const LATE_M={flat:"خصم الدقيقة",att:"أجر يوم بالحضور",adj:"تعديل بالساعات",none:"بدون خصم تأخير"};
+async function lateRules(){
+  const{data,error}=await sb.rpc("late_rules_list");
+  if(error)return toast(error.code=="PGRST202"?"شغّل patch_late_deduction.sql في Supabase الأول":error.message);
+  const g=data;
+  dsOpen("خصم التأخير",`<div class="box" style="display:flex;flex-direction:column;gap:8px">
+<label class="m"><input type="checkbox" id="lr_on" ${g.enabled?"checked":""}> تشغيل "خصم الدقيقة"</label>
+<label class="m"><input type="checkbox" id="lr_w" ${g.wage_on?"checked":""}> نزّل اليومية أول ما الموظف يسجل حضور (ناقص خصم التأخير)</label>
+<label class="m">دقايق السماح</label><input id="lr_g" type="number" inputmode="numeric" value="${+g.grace}">
+<label class="m">الخصم لكل دقيقة (جنيه)</label><input id="lr_r" type="number" inputmode="decimal" value="${+g.rate}">
+<div class="m">بعد السماح يتخصم من أول دقيقة. مثال: ${+g.grace+1} دقيقة تأخير = ${fm((+g.grace+1)*(+g.rate))}</div>
+<button class="btn" onclick="lateGlobal()">حفظ</button></div>
+<h2>طريقة الخصم لكل موظف</h2><div class="m" style="margin-bottom:6px">المالك والمدير مستثنيين. اختيار طريقة بيوقف التانية (من غير ما يمسح إعداداتها).</div>
+${(g.staff||[]).map(s=>`<div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div><b>${esc(s.name)}</b> <span class="m">${RL[s.role]||s.role} · ${+s.wage>0?"يومية "+fm(s.wage):"مفيش يومية محددة"}</span></div>
+<select onchange="lateSet('${s.id}',this.value)">${Object.keys(LATE_M).map(k=>`<option value="${k}" ${s.method==k?"selected":""}>${LATE_M[k]}</option>`).join("")}</select></div>`).join("")||`<p class="m">مفيش موظفين.</p>`}`);
+}
+async function lateGlobal(){
+  const{error}=await sb.rpc("set_late_global",{p_enabled:$("lr_on").checked,p_grace:Math.round(+$("lr_g").value),p_rate:+$("lr_r").value,p_wage:$("lr_w").checked});
+  error?toast(error.message):(toast("تم الحفظ ✓"),lateRules());
+}
+async function lateSet(id,m){
+  const{error}=await sb.rpc("set_late_method",{p_staff:id,p_method:m});
+  error?toast(error.message):toast("تم ✓ — "+LATE_M[m]);
+  lateRules();
+}
