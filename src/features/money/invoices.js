@@ -33,7 +33,7 @@ async function dsInvOne(id){dsLoad("تفاصيل الفاتورة");
 <h2>مين اشتغل</h2><div class="box">${dsKv("الحلاق",`<b>${esc(i.barber?.full_name||"—")}</b>`)}${asst.length?dsKv("المساعد",asst.map(a=>esc(a)).join("، ")):""}${dsKv("الكاشير (اللي حاسب)",esc(i.cashier?.full_name||"—"))}</div>
 <h2>اتعمل إيه</h2><div class="box">${it.map(x=>`<div style="padding:5px 0;border-bottom:1px dashed var(--line)"><div style="display:flex;justify-content:space-between;gap:10px"><span><b>${esc(x.name)}</b> <span class="tag">${x.item_type=="product"?"منتج":"خدمة"}</span></span><b>${fm(x.unit_price*x.qty)}</b></div><div class="m">${x.qty>1?x.qty+" × "+fm(x.unit_price):"سعر "+fm(x.unit_price)}${x.assistant?` · المساعد: ${esc(x.assistant.full_name)}${+x.assistant_cut?` (اتخصم ${fm(x.assistant_cut)} للمساعد)`:""}`:""}</div></div>`).join("")||`<span class="m">مفيش بنود</span>`}</div>
 <h2>الحساب</h2><div class="box">${dsKv("المجموع",fm(i.subtotal))}${+i.discount>0?dsKv("الخصم","- "+fm(i.discount)):""}${dsKv("الإجمالي",fm(i.total),1)}${dsKv("طريقة الدفع",PAYL[i.payment_method]||esc(i.payment_method))}</div>
-${me.role=="owner"?`<button class="btn s g" style="color:var(--red);margin-top:8px" onclick="svcClose();delInv('${i.id}')">حذف الفاتورة</button>`:""}`,{back:1})}
+${me.role=="owner"?`<button class="btn s" style="margin-top:8px" onclick="chDate('invoices',${i.id},'${ymd(new Date(i.created_at))}')">تعديل تاريخ الفاتورة</button> <button class="btn s g" style="color:var(--red);margin-top:8px" onclick="svcClose();delInv('${i.id}')">حذف الفاتورة</button>`:""}`,{back:1})}
 
 
 // ---- ربط عميل بفاتورة قديمة ← بيتحسبله نقاط الفاتورة وزيارتها ----
@@ -50,3 +50,11 @@ async function invAttach(id,cid,nm){
   if(!confirm("تربط الفاتورة بـ "+nm+"؟\nهيتحسبله نقاطها وزيارتها. مينفعش تتعكس بعدين."))return;
   const{data,error}=await sb.rpc("invoice_attach_customer",{p_invoice:id,p_customer:cid});if(error)return toast(error.message);
   toast("اتربطت ✓ +"+(data?.points||0)+" نقطة"+(data?.bonus?" و +"+data.bonus+" مكافأة زيارات":""));dsInvOne(id)}
+
+
+// ---- تعديل تاريخ فاتورة / مصروف / حركة موظف من غير حذف (المالك) ----
+function chDate(t,id,cur){C.cdx={t,id};dsOpen("تعديل التاريخ",`<div class="m" style="margin-bottom:8px">التاريخ الحالي: <b>${cur}</b>. الوقت جوه اليوم بيفضل زي ما هو.</div><input type="date" id="cd_v" value="${cur}" max="${ymd(new Date())}"><button class="btn" style="width:100%;margin-top:8px" onclick="chDateSave()">حفظ التاريخ</button>`,{back:1})}
+async function chDateSave(force){const x=C.cdx,v=$("cd_v")?.value;if(!x||!v)return toast("اختار التاريخ");
+  const{data,error}=await sb.rpc("admin_set_date",{p_table:x.t,p_id:x.id,p_day:v,p_force:!!force});if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف patch_edit_dates.sql في Supabase الأول":error.message);
+  if(data&&data.needs_force){if(!confirm("اليوم ده (أو اليوم القديم) مقفول في الخزنة.\nلو غيّرت التاريخ أرقام القفل هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return;return chDateSave(true)}
+  toast("اتعدّل التاريخ ✓");svcClose();if(x.t=="invoices"){dsInvOne(x.id);if(C.rs)repLoad&&C.rr&&C.rs=="daily"&&rpdLoad()}else if(x.t=="expenses")repLoad();else C.reload&&C.reload()}
