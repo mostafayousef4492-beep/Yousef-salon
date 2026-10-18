@@ -19,6 +19,7 @@ const chairs=(brs||[]).map(b=>{const cur=ins.find(a=>a.barber_id==b.id),q=A.filt
 const nxt=up.slice(0,4).map(a=>`<div class="row"><div><b>${TC(a)} · ${nm2(a)}</b><div class="m">${a.called_at?"مستدعى":"قادم"}${svc(a)?" · "+svc(a):""}</div></div><div style="display:flex;gap:6px">${!a.called_at&&can("manage_appts")?`<button class="btn s g" onclick="homeCall(${a.id})">استدعاء</button>`:""}${can("use_pos")?`<button class="btn s" onclick="payAppt(${a.id})">دفع</button>`:""}</div></div>`).join("");
 const acts=[can("use_pos")?`<button class="btn" onclick="go('pos')">بيع جديد</button>`:"",can("manage_appts")?`<button class="btn g" onclick="qa('appts','admForm','adm')">حجز إداري</button>`:"",can("view_customers")?`<button class="btn g" onclick="qa('cust','addCustForm','ac')">عميل جديد</button>`:"",can("manage_appts")?`<button class="btn g" onclick="go('appts')">إدارة الدور</button>`:""].join("");
 put(`<div class="cc-hello dash-head"><div><div class="m">${new Date().toLocaleDateString("ar-EG",{weekday:"long",day:"numeric",month:"long"})}</div><h1>${h<12?"صباح الخير":"مساء الخير"}${nm?"، "+esc(nm):""}</h1><span class="tag ${open?"st-done":"st-no_show"}">${off?"إجازة النهارده":open?"الصالون مفتوح":"الصالون مقفول"}</span></div>${isAdm(me)||can("view_customers")?`<div class="dash-search"><input id="gs" placeholder="ابحث: عميل، موبايل، فاتورة، خدمة، موظف" oninput="gsDeb()"></div>`:""}</div>${isAdm(me)||can("view_customers")?`<div id="gsr"></div>`:""}
+${isAdm(me)?`<div class="cc-act" style="margin-bottom:12px"><button class="btn" onclick="cfOpen('in')">＋ إيداع</button><button class="btn g" onclick="cfOpen('out')">－ سحب</button></div>`:""}
 <div class="cc-grid"><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsAppts(['upcoming','checked_in'],'في الدور')"><div class="cc-l">في الدور</div><div class="cc-n">${num(wait)}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsAppts(['in_service'],'على الكراسي')"><div class="cc-l">على الكراسي</div><div class="cc-n">${num(ins.length)}</div></div><div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsAppts(['done'],'خلصوا النهارده')"><div class="cc-l">خلصوا النهارده</div><div class="cc-n">${num(dn)}</div></div>${rev!=null?`<div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsToday()"><div class="cc-l">إيراد اليوم</div><div class="cc-n">${fm(rev)}</div><div class="m">${num(iv.length)} فاتورة</div></div>`:`<div class="box cc-stat" role="button" style="cursor:pointer" onclick="dsAppts(null,'حجوزات اليوم')"><div class="cc-l">حجوزات اليوم</div><div class="cc-n">${num(A.length)}</div></div>`}${rev!=null&&exp!=null?`<div class="box cc-stat"><div class="cc-l">مصروفات اليوم</div><div class="cc-n">${fm(exp)}</div></div><div class="box cc-stat"><div class="cc-l">صافي اليوم (إيراد − مصروفات)</div><div class="cc-n" style="color:${rev-exp<0?"var(--red)":"inherit"}">${fm(rev-exp)}</div><div class="m">الإيراد حسب الفواتير المسجلة</div></div>`:""}</div>
 <div class="dash-cols"><div class="dash-main">${chairs?`<h2>الحلاقين والكراسي</h2><div class="cc-chairs">${chairs}</div>${free.length?`<p class="m">${free.length} في الدور من غير حلاق محدد</p>`:""}`:""}
 ${nxt?`<h2>الدور الجاي</h2>${nxt}`:A.length?"":`<p class="m">مفيش حجوزات النهارده لسه.</p>`}</div>
@@ -35,3 +36,33 @@ function dsAppts(ks,t){const A=(C.A||[]).filter(a=>!ks||ks.includes(a.status));
 
 
 async function urgDecide(id,ok){if(!ok&&!confirm("ترفض الطلب المستعجل؟ هيفضل في دوره العادي."))return;const{error}=await sb.rpc("decide_urgent",{p_id:id,p_ok:ok});if(error)return toast(error.message);toast(ok?"اتوافق ⚡ بقى أول الدور":"اترفض الطلب المستعجل");V.home()}
+
+
+// ---- الرئيسية: إيداع / سحب ----
+// إيداع = ضخ من صاحب المحل (cash_moves/deposit) أو فاتورة (الكاشير). سحب = مصروف أو سحب موظف أو أي حاجة طالعة من الدرج.
+const cfBtn=(t,sub,on)=>`<button class="row" style="cursor:pointer;width:100%" onclick="${on}"><div><b>${t}</b><div class="m">${sub}</div></div><span class="tag">‹</span></button>`;
+
+async function cfOpen(k){
+  let cash="";try{const{data}=await sb.rpc("day_summary",{p_day:ymd(new Date())});if(data&&data.expected_cash!=null)cash=`<div class="m" style="margin-bottom:8px">الكاش المتوقع في الدرج دلوقتي: <b>${fm(data.expected_cash)}</b></div>`}catch(e){}
+  C.cf={k};
+  dsOpen(k=="in"?"إيداع":"سحب",cash+(k=="in"
+    ?cfBtn("ضخ من صاحب المحل","فلوس بتدخل الدرج من المالك","cfForm('inject')")+cfBtn("تسجيل فاتورة","بيع جديد من الكاشير","svcClose();go('pos')")
+    :cfBtn("مصروف","إيجار، كهرباء، صيانة... (من الدرج أو من برا)","cfForm('exp')")+cfBtn("سحب موظف","سلفة تتخصم من الموظف","cfForm('adv')")+cfBtn("سحب من الدرج","أي حاجة طالعة من الدرج: مالك، إيداع بنك، غيره","cfForm('out')")))}
+
+async function cfForm(t){
+  const T={inject:"ضخ من صاحب المحل",exp:"مصروف",adv:"سحب موظف",out:"سحب من الدرج"}[t];let top="";
+  if(t=="exp"){if(!C.xcats){const{data}=await sb.from("expense_categories").select("name").eq("active",true).order("id");C.xcats=(data||[]).map(x=>x.name)}
+    top=`<select id="cf_c">${(C.xcats.length?C.xcats:["إيجار","كهرباء ومياه","صيانة","تسويق","أخرى"]).map(c=>`<option>${esc(c)}</option>`).join("")}</select><select id="cf_p">${paySrc("drawer")}</select>`}
+  if(t=="adv"){const{data}=await sb.from("profiles").select("id,full_name").neq("role","customer").order("full_name");
+    top=`<select id="cf_s"><option value="">اختار الموظف</option>${(data||[]).map(x=>`<option value="${x.id}">${esc(x.full_name)}</option>`).join("")}</select>`}
+  dsOpen(T,`<div class="box">${top}<input id="cf_a" type="number" inputmode="decimal" placeholder="المبلغ"><input id="cf_n" placeholder="ملاحظة (اختياري)">${t=="exp"?`<input id="cf_d" type="date" value="${ymd(new Date())}" max="${ymd(new Date())}">`:""}<button class="btn" id="cf_go" style="width:100%" onclick="cfSave('${t}')">حفظ</button></div>`,{back:0})}
+
+async function cfSave(t){
+  const a=parseFloat($("cf_a").value),n=($("cf_n").value||"").trim();if(!(a>0))return toast("اكتب المبلغ");
+  const day=ymd(new Date());let r;
+  if(t=="inject")r=await sb.from("cash_moves").insert({day,kind:"deposit",amount:a,note:"ضخ من صاحب المحل"+(n?" — "+n:"")});
+  else if(t=="out")r=await sb.from("cash_moves").insert({day,kind:"withdraw",amount:a,note:n||null});
+  else if(t=="exp")r=await sb.from("expenses").insert({category:$("cf_c").value,amount:a,note:n,spent_on:$("cf_d").value||day,paid_from:$("cf_p").value});
+  else{const sid=$("cf_s").value;if(!sid)return toast("اختار الموظف");r=await sb.from("staff_transactions").insert({staff_id:sid,kind:"advance",amount:a,note:n})}
+  if(r.error)return toast(r.error.message);
+  toast("تم ✓");svcClose();V.home()}
