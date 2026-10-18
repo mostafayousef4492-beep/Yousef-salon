@@ -9,19 +9,20 @@ const PLB={morning:"الصبح",afternoon:"العصر",evening:"المساء",ni
 const bkDays=()=>[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
 
 V.book=async()=>{if(!C.cfg.booking_open)return put(`<h1>احجز دورك</h1><p class="m">الحجز متوقف حاليًا.</p>`);
-const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];C.b=C.b||{s:[],barber:undefined,day:0,period:null};drawBk()};
+const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];await BN.load(sb);C.b=C.b||{s:[],bd:null,barber:undefined,day:0,period:null};drawBk()};
 
 function drawBk(){const b=C.b,days=bkDays();
 if(b.urgent)return drawUrg();
-put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>احجز دورك</h1>${C.cfg.urgent_enabled!==false?`<button class="row" style="cursor:pointer;width:100%;text-align:right;border-color:var(--red)" onclick="C.b.urgent=1;C.b.barber=undefined;drawBk()"><div><b>⚡ محتاج تدخل دلوقتي؟ (دخول مستعجل)</b><div class="m">بتدخل بعد اللي على الكرسي مباشرة بعد موافقة الصالون · الخدمة بـ ×${+C.cfg.urgent_multiplier||2}</div></div></button>`:""}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>احجز دورك</h1>${C.cfg.urgent_enabled!==false?`<button class="row" style="cursor:pointer;width:100%;text-align:right;border-color:var(--red)" onclick="C.b.urgent=1;C.b.barber=undefined;drawBk()"><div><b>⚡ محتاج تدخل دلوقتي؟ (دخول مستعجل)</b><div class="m">بتدخل بعد اللي على الكرسي مباشرة بعد موافقة الصالون · الخدمة بـ ×${+C.cfg.urgent_multiplier||2}</div></div></button>`:""}${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${BN.star(b,x.id)}${esc(x.name)} · ${x.price}</button>`).join("")}</div>${BN.summary(b,C.sv,fm)}
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;drawBk()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;drawBk()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div><div id="bl"></div>`);if(b.period)loadBarbers()}
 
-function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];drawBk()}
+function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];BN.sync(b);drawBk()}
+function tgB(id){BN.pick(C.b,id);drawBk()}
 
 async function loadBarbers(){const b=C.b,d=bkDays()[b.day];const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
 const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset;":"";
-const sv=C.sv.filter(x=>b.s.includes(x.id)),tot=sv.reduce((a,x)=>a+x.price,0),dur=sv.reduce((a,x)=>a+x.duration_min,0);
+const sv=C.sv.filter(x=>b.s.includes(x.id)),tot=BN.calc(b,C.sv).total,dur=sv.reduce((a,x)=>a+x.duration_min,0);
 $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join("")+`<button class="btn" style="width:100%;margin-top:8px" ${b.s.length&&b.barber!==undefined?"":"disabled"} onclick="bookNow()">تأكيد وخد رقم دورك · ${fm(tot)} · ~${dur} دقيقة</button>`:`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`)}
 
 const curPer=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
@@ -34,8 +35,8 @@ async function urgNow(){const b=C.b;if(!b.s.length)return toast("اختار خد
 if(!confirm("تطلب دخول مستعجل؟\nالحساب هيبقى "+fm(tot)+" (الخدمات ×"+m+"). الطلب بيستنى موافقة الصالون."))return;
 const{error}=await sb.rpc("request_urgent",{p_barber:b.barber||null,p_services:b.s});if(error)return toast(/Could not find the function/i.test(error.message||"")?"الخدمة دي لسه ما اتفعلتش":error.message);C.b=null;toast("اتبعت طلبك المستعجل ⚡ استنى موافقة الصالون");go("queue")}
 
-async function bookNow(){const b=C.b,d=bkDays()[b.day];if(!b.s.length)return toast("اختار خدمة واحدة على الأقل");const{error}=await sb.rpc("book_ticket",{p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
-if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message);C.b=null;toast("تم الحجز ✓ ده رقم دورك");go("queue")}
+async function bookNow(){const b=C.b,d=bkDays()[b.day];if(!b.s.length)return toast("اختار خدمة واحدة على الأقل");const{data:tid,error}=await sb.rpc("book_ticket",{p_barber:b.barber||null,p_day:d.iso,p_period:b.period,p_services:b.s});
+if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تاني":error.message);if(b.bd&&!(await BN.attach(sb,b,tid)))toast("اتحجز دورك، بس الباقة ماتسجّلتش — قول للكاشير");C.b=null;toast("تم الحجز ✓ ده رقم دورك");go("queue")}
 
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
 if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;const qs=q[0];try{const{data:v2,error:e2}=await sb.rpc("queue_status_v2",{p_id:act.id});if(!e2&&v2){qs.ahead=v2.ahead;qs.est_min=v2.est_wait_min;qs.current_no=v2.current_no;qs.ticket_no=v2.ticket_no;qs.ticket_code=v2.ticket_code;qs.near_turn=v2.near_turn}}catch(e){}try{const{data:tq}=await sb.from("ticket_transfers").select("id").eq("appointment_id",act.id).eq("status","pending").maybeSingle();qs.trq=tq?tq.id:null}catch(e){}try{const{data:ug}=await sb.rpc("my_urgent");qs.urg=ug}catch(e){}startNotif();drawQ(qs);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
