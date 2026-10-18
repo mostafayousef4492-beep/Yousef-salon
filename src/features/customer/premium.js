@@ -12,6 +12,8 @@ async function rmAvatar(){if(!confirm("تشيل صورتك؟"))return;const{erro
 
 async function myProfile(force){if(C.myp&&!force)return C.myp;const{data}=await sb.rpc("my_profile");C.myp=data||{};return C.myp}
 
+function editBday(){const e=$("bd_e");if(!e)return;e.innerHTML=`<div class="chips" style="margin-top:8px"><input id="bd_in" type="date" value="${esc((C.myp&&C.myp.birthday)||"")}" max="${ymd(new Date())}" style="flex:1;margin:0"><button class="btn s" onclick="saveBday()">حفظ</button></div>`}
+
 async function saveBday(){const v=$("bd_in")?.value;if(!v)return toast("اختار تاريخ ميلادك");const{error}=await sb.rpc("set_my_profile",{p_birthday:v});error?toast(error.message):(C.myp=null,toast("اتسجّل ✓"),V.hm())}
 async function claimBday(){const{data,error}=await sb.rpc("claim_birthday_gift");if(error)return toast(error.message);C.myp=null;okFlash("كل سنة وانت طيب 🎂","اتضافلك "+data+" نقطة هدية");V.hm()}
 
@@ -31,7 +33,7 @@ const first=String(c.name||"").trim().split(/\s+/)[0]||"";
 const pct=t.next_at?Math.min(100,c.lifetime_points/t.next_at*100):100;
 C.lastVisit=lv&&lv.id?lv:null;
 const rep=C.lastVisit?`<div class="box hm-rep"><div class="m">زي آخر مرة؟</div><b>${esc(C.lastVisit.services||"—")}</b><div class="m">${C.lastVisit.barber_name?"مع "+esc(C.lastVisit.barber_name):""}</div><button class="btn" style="width:100%;margin-top:10px" onclick="repeatVisit()">كرّر آخر زيارة</button></div>`:"";
-const bday=!p.birthday_enabled?"":p.can_claim_birthday?`<div class="box hm-gift"><b>🎂 كل سنة وانت طيب!</b><div class="m">هديتك ${num(p.birthday_points)} نقطة</div><button class="btn" style="width:100%;margin-top:8px" onclick="claimBday()">استلم هديتك</button></div>`:!p.birthday?`<div class="box"><b>🎂 ضيف تاريخ ميلادك</b><div class="m">وخد هدية نقاط في يوم ميلادك</div><div class="chips" style="margin-top:8px"><input id="bd_in" type="date" max="${ymd(new Date())}" style="flex:1;margin:0"><button class="btn s" onclick="saveBday()">حفظ</button></div></div>`:"";
+const bday=!p.birthday_enabled?"":p.can_claim_birthday?`<div class="box hm-gift"><b>🎂 كل سنة وانت طيب!</b><div class="m">هديتك ${num(p.birthday_points)} نقطة</div><button class="btn" style="width:100%;margin-top:8px" onclick="claimBday()">استلم هديتك</button></div>`:!p.birthday?`<div class="box"><b>🎂 ضيف تاريخ ميلادك</b><div class="m">وخد هدية نقاط في يوم ميلادك</div><div class="chips" style="margin-top:8px"><input id="bd_in" type="date" max="${ymd(new Date())}" style="flex:1;margin:0"><button class="btn s" onclick="saveBday()">حفظ</button></div></div>`:`<div class="box"><div class="m">🎂 ميلادك: <b>${new Date(p.birthday+"T00:00").toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"})}</b></div><div id="bd_e"><button class="btn s g" style="margin-top:6px" onclick="editBday()">كتبته غلط؟ عدّله</button></div></div>`;
 put(`<div class="hm-head">${avatarHtml(p,58,true)}<div><div class="m">أهلًا بيك</div><h1 style="margin:0">${esc(first)}</h1></div></div>${live}
 <div class="vip" role="button" tabindex="0" onclick="go('loy')"><div class="vip-top"><span class="vip-brand">${esc(g.salon_name)}</span><span class="vip-tier">${esc(t.name)}${t.mult>1?" · ×"+t.mult:""}</span></div><div class="vip-pts">${num(c.points)}<small>نقطة</small></div><div class="vip-bar"><i style="width:${pct}%"></i></div><div class="vip-foot"><span>${t.next_at?"باقي "+num(t.next_at-c.lifetime_points)+" نقطة للمستوى الجاي":"وصلت لأعلى مستوى"}</span><span>${num(c.visits||0)} زيارة</span></div></div>
 ${bday}${rep}
