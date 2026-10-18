@@ -37,6 +37,7 @@ input[type=tel]{direction:ltr;text-align:left}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/config.js"></script>
+<script src="/src/ui/bundles-ui.js"></script>
 <script>
 // تابلت الصالون: التسجيل بنفس دالة الحجز العامة (public_book_v2) من غير ما نحفظ أي حاجة على التابلت،
 // وبعدها باركود لتذكرة الزبون بس: لما يمسحه من موبايله يفتح حجزه علطول.
@@ -47,26 +48,29 @@ const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(
 const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)};
 const period=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
 const nf=n=>Number(n||0).toLocaleString("ar-EG");
-const K={name:"",phone:"",barber:null,L:[],SV:[],S:[],busy:false,timer:null,poll:null};
+const K={name:"",phone:"",barber:null,L:[],SV:[],s:[],bd:null,busy:false,timer:null,poll:null};
 
 async function init(){
   const{data}=await sb.from("app_settings").select("*");const cfg={};(data||[]).forEach(r=>cfg[r.key]=r.value);
   if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
   const sv=await sb.from("services").select("*").eq("active",true).order("id");
-  K.SV=sv.data||[];
+  K.SV=sv.data||[];await BN.load(sb);
   showForm()}
 
-function tg(id){K.S=K.S.includes(id)?K.S.filter(x=>x!=id):[...K.S,id];drawS()}
+function tg(id){K.s=K.s.includes(id)?K.s.filter(x=>x!=id):[...K.s,id];BN.sync(K);drawS()}
+function tgB(id){BN.pick(K,id);drawS()}
+const fk=n=>nf(n)+" ج";
 function drawS(){
   const el=$("sv");if(!el)return;
-  el.innerHTML=K.SV.length?K.SV.map(x=>`<button class="chip ${K.S.includes(x.id)?"sel":""}" onclick="tg(${x.id})">${esc(x.name)} · ${nf(x.price)}</button>`).join(""):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
-  const tot=K.SV.filter(x=>K.S.includes(x.id)).reduce((a,x)=>a+Number(x.price||0),0);
-  const g=$("go");if(g)g.textContent=K.S.length?"سجّلني · "+nf(tot):"سجّلني"}
+  el.innerHTML=K.SV.length?K.SV.map(x=>`<button class="chip ${K.s.includes(x.id)?"sel":""}" onclick="tg(${x.id})">${BN.star(K,x.id)}${esc(x.name)} · ${nf(x.price)}</button>`).join(""):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
+  const bh=$("bnh");if(bh)bh.innerHTML=BN.html(K,"tgB",fk);const bs=$("bns");if(bs)bs.innerHTML=BN.summary(K,K.SV,fk);
+  const tot=BN.calc(K,K.SV).total;
+  const g=$("go");if(g)g.textContent=K.s.length?"سجّلني · "+nf(tot):"سجّلني"}
 
 function showForm(){
-  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.S=[];K.busy=false;
+  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.s=[];K.bd=null;K.busy=false;
   $("app").innerHTML=`<p class="m" style="text-align:center;margin:0">اكتب اسمك ورقمك واختار الحلاق، وخد باركود دورك</p>
-<h2>الخدمات <span class="m">(لازم تختار واحدة على الأقل)</span></h2><div class="chips" id="sv"></div>
+<div id="bnh"></div><h2>الخدمات <span class="m">(لازم تختار واحدة على الأقل)</span></h2><div class="chips" id="sv"></div><div id="bns"></div>
 <h2>الحلاق</h2><div id="bl"><p class="m">جاري التحميل...</p></div>
 <h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" autocomplete="off" oninput="K.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" autocomplete="off" oninput="K.phone=this.value"><button class="btn" id="go" onclick="join()" disabled>سجّلني</button></div>`;
   drawS();loadB();K.poll=setInterval(loadB,10000)}
@@ -83,11 +87,12 @@ async function loadB(){
 
 async function join(){
   if(K.busy)return;const n=(K.name||"").trim(),ph=dig(K.phone);
-  if(!K.S.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  if(!K.s.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
   K.busy=true;$("go").disabled=true;
-  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:K.S});
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:K.s});
   K.busy=false;const t=!r.error&&r.data&&r.data.ticket;
   if(!t){$("go").disabled=false;return toast(!r.error?"التسجيل لم يتأكد، جرّب تاني":(r.error.message||"التسجيل لم يتأكد"))}
+  if(K.bd&&!(await BN.attach(sb,K,t.id,ph)))toast("اتسجّل دورك، بس الباقة ماتسجّلتش — قول للكاشير");
   done(t,ph,n)}
 
 function done(t,ph,n){
