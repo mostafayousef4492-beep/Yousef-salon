@@ -37,3 +37,22 @@ BN.summary=function(b,SV,fm){const c=BN.calc(b,SV);if(!c.bd)return"";
 // بعد ما التذكرة تتحجز: نربط الباقة بيها (السيرفر بيتأكد إن الخدمات مطابقة). phone للزائر من غير حساب.
 BN.attach=async function(client,b,ticketId,phone){if(!b.bd||!ticketId)return true;
   try{const{error}=await client.rpc("set_ticket_bundle",{p_id:ticketId,p_bundle:b.bd,p_phone:phone||null});return!error}catch(e){return false}};
+
+/* ===== خيارات الخدمة (SG): خدمة ليها اختيارات كل واحد بسعره (مثلًا قص الشعر: كلاسيك / تدريج)
+   كل اختيار خدمة حقيقية في جدول services ليها group_name (اسم المجموعة) و option_label (اسم الاختيار)؛
+   باقي النظام (الحجز، الكاشير، الفواتير، التقارير) بيشوف الاختيار كخدمة عادية. العميل بيختار اختيار واحد بس من المجموعة. */
+const SG={};
+// اختيار/إلغاء خدمة: لو من مجموعة، بيشيل أي اختيار تاني من نفس المجموعة
+SG.tog=function(sel,id,SV){if(sel.includes(id))return sel.filter(x=>x!=id);
+  const s=SV.find(x=>x.id==id),g=s&&s.group_name;
+  return[...(g?sel.filter(x=>{const o=SV.find(y=>y.id==x);return!(o&&o.group_name==g)}):sel),id]};
+// item(x,isSel,short): بيرجّع زرار الخدمة؛ short=true للاختيارات جوه المجموعة (اسم الاختيار بس)
+SG.render=function(SV,sel,item){const seen={},out=[];let loose=[];
+  const flush=()=>{if(loose.length){out.push(`<div class="chips">${loose.join("")}</div>`);loose=[]}};
+  SV.forEach(x=>{const g=x.group_name;
+    if(!g){loose.push(item(x,sel.includes(x.id),false));return}
+    if(seen[g])return;seen[g]=1;flush();
+    const opts=SV.filter(y=>y.group_name==g),pick=opts.some(y=>sel.includes(y.id));
+    out.push(`<div style="border:1px solid ${pick?"var(--gold,#c9a24a)":"var(--line,#2a2f3a)"};border-radius:14px;padding:10px;margin:8px 0;width:100%;box-sizing:border-box"><div style="margin-bottom:8px"><b>${esc(g)}</b> <span class="m">(اختار واحد)</span></div><div class="chips">${opts.map(y=>item(y,sel.includes(y.id),true)).join("")}</div></div>`)});
+  flush();return out.join("")};
+SG.label=x=>x.option_label||x.name;

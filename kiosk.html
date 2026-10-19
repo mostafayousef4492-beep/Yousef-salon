@@ -57,12 +57,12 @@ async function init(){
   K.SV=sv.data||[];await BN.load(sb);
   showForm()}
 
-function tg(id){K.s=K.s.includes(id)?K.s.filter(x=>x!=id):[...K.s,id];BN.sync(K);drawS()}
+function tg(id){K.s=SG.tog(K.s,id,K.SV);BN.sync(K);drawS()}
 function tgB(id){BN.pick(K,id);drawS()}
 const fk=n=>nf(n)+" ج";
 function drawS(){
   const el=$("sv");if(!el)return;
-  el.innerHTML=K.SV.length?K.SV.map(x=>`<button class="chip ${K.s.includes(x.id)?"sel":""}" onclick="tg(${x.id})">${BN.star(K,x.id)}${esc(x.name)} · ${nf(x.price)}</button>`).join(""):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
+  el.innerHTML=K.SV.length?SG.render(K.SV,K.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tg(${x.id})">${BN.star(K,x.id)}${esc(sh?SG.label(x):x.name)} · ${nf(x.price)}</button>`):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
   const bh=$("bnh");if(bh)bh.innerHTML=BN.html(K,"tgB",fk);const bs=$("bns");if(bs)bs.innerHTML=BN.summary(K,K.SV,fk);
   const tot=BN.calc(K,K.SV).total;
   const g=$("go");if(g)g.textContent=K.s.length?"سجّلني · "+nf(tot):"سجّلني"}

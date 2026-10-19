@@ -21,6 +21,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
 <script src="/src/ui/theme-lite.js"></script>
+<script src="/src/ui/bundles-ui.js"></script>
 <script>
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 const $=i=>document.getElementById(i);
@@ -55,8 +56,8 @@ async function init(){
 <div class="foot" id="inst"></div>`;
   drawS();updGo();inst();loadB();setInterval(loadB,10000)}
 
-function drawS(){$("sl").innerHTML=C.sv.length?C.sv.map(x=>`<button class="chip ${C.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${esc(x.name)} · ${x.price}</button>`).join(""):`<p class="m">مفيش خدمات متاحة دلوقتي، كلّم الكاشير.</p>`}
-function tgS(id){C.s=C.s.includes(id)?C.s.filter(x=>x!=id):[...C.s,id];drawS();updGo()}
+function drawS(){$("sl").innerHTML=C.sv.length?SG.render(C.sv,C.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgS(${x.id})">${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`):`<p class="m">مفيش خدمات متاحة دلوقتي، كلّم الكاشير.</p>`}
+function tgS(id){C.s=SG.tog(C.s,id,C.sv);drawS();updGo()}
 function updGo(){const b=$("go");if(!b)return;const sv=C.sv.filter(x=>C.s.includes(x.id)),tot=sv.reduce((a,x)=>a+(+x.price||0),0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0);
   b.disabled=C.busy||!C.L.length||!C.s.length;b.textContent=C.s.length?`ادخل الطابور · ${tot} ج${dur?" · ~"+dur+" دقيقة":""}`:"اختار خدمة الأول"}
 async function loadB(){
