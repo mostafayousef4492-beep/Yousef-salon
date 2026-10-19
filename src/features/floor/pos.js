@@ -4,7 +4,7 @@
 
 function drawPos(){const P=C.P,svS=P.s.reduce((a,i)=>a+P.sv.find(x=>x.id==i).price,0),urF=P.ur?svS*(P.ur-1):0,sub=svS+urF+P.p.reduce((a,i)=>a+P.pr.find(x=>x.id==i.id).price*i.q,0),bdS=(()=>{const b=P.bn;if(!b||!(b.service_ids||[]).length||!b.service_ids.every(i=>P.s.includes(i)))return 0;return Math.max(b.service_ids.reduce((a,i)=>a+(P.sv.find(x=>x.id==i)||{price:0}).price,0)-b.price,0)})(),d=bdS>0?Math.min(sub,bdS):Math.min(sub,sub*P.disc/100+(+P.dfx||0)),cb=P.cust?`<div class="cust-pick"><div><b>${esc(P.cust.name)}</b><div class="m">${esc(P.cust.phone||"")} · ${P.cust.visits} زيارة · ${P.cust.points} نقطة</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:P.walk?`<div class="cust-pick"><div><b>عميل عابر</b><div class="m">من غير رقم موبايل</div></div><button class="btn s g" onclick="chCust(null)">تغيير</button></div>`:`<div class="cust-find"><input id="cp" type="tel" inputmode="numeric" autocomplete="off" placeholder="رقم موبايل العميل (01xxxxxxxxx)" oninput="chPh()"><div id="cpr"></div><button class="btn s g" onclick="chCust('walk')">عميل عابر (من غير رقم)</button><button class="btn s g" onclick="chNm()">عميل بالاسم بس (يتسجل ويتربط بعدين)</button><div id="cnm"></div></div>`;chSave();
 const lines=P.s.map(id=>{const v=P.sv.find(x=>x.id==id);return `<div class="pos-line"><span>${esc(v.name)}</span><b>${fm(v.price)}</b></div>`}).concat(P.p.map(c=>{const v=P.pr.find(x=>x.id==c.id);return `<div class="pos-line"><span>${esc(v.name)} ×${c.q}</span><b>${fm(v.price*c.q)}</b></div>`})).join("")+(urF>0?`<div class="pos-line"><span>⚡ رسوم مستعجل (×${P.ur})</span><b>${fm(urF)}</b></div>`:"");
-const payBtns=[["cash","كاش"],["card","كارت"],["wallet","محفظة"]].filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false)).map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("");
+const payBtns=[["cash","كاش"],["card","كارت"],["wallet","محفظة / إنستا باي"]].filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false)).map(x=>`<button class="chip ${P.pay==x[0]?"sel":""}" onclick="C.P.pay='${x[0]}';drawPos()">${x[1]}</button>`).join("");
 put(`<div class="ch-bar"><button class="btn s g" onclick="chBack()">‹ الكراسي</button></div><div class="pos-head"><h1>كرسي ${P.chair}</h1><span class="m">الفاتورة بتتحفظ تلقائي</span></div>
 <div class="pos-grid">
 <section class="box pos-cust"><h3 class="sec">العميل</h3>${cb}${P.vs?.length?`<select onchange="C.P.rid=this.value;chSave()"><option value="">بدون كوبون ولاء</option>${P.vs.map(v=>`<option value="${v.id}" ${P.rid==v.id?"selected":""}>${esc(v.loyalty_rewards.name)} (${v.code})</option>`).join("")}</select>`:""}<h3 class="sec">الحلاق</h3><select onchange="C.P.bid=this.value;chSave()"><option value="">اختار الحلاق</option>${P.br.map(c=>`<option value="${c.id}" ${P.bid==c.id?"selected":""}>${esc(c.full_name)}</option>`).join("")}</select>
@@ -12,7 +12,7 @@ ${P.as.length&&P.s.length?`<h3 class="sec">المساعد (اختياري)</h3>$
 <section class="box pos-items"><h3 class="sec">الخدمات</h3><div class="chips pos-tiles">${P.sv.map(x=>`<button class="chip ${P.s.includes(x.id)?"sel":""}" onclick="P_s(${x.id})"><b>${esc(x.name)}</b><span class="m">${fm(x.price)}</span></button>`).join("")}</div><h3 class="sec">المنتجات</h3><div class="chips pos-tiles">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div></section>
 <section class="box pos-bill"><h3 class="sec">الفاتورة</h3><div class="pos-lines">${lines||`<p class="m">اختار خدمة أو منتج عشان يتضاف هنا.</p>`}</div>
 <div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x&&!P.dfx?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${fixOpts().map(x=>`<button class="chip ${P.dfx==x?"sel":""}" onclick="pickFix(${x})">خصم ${x} ج${fxPct(x,sub)>discLim()?" 🔒":""}</button>`).join("")}</div>
-<div class="chips">${payBtns}</div>
+<div class="chips">${payBtns}</div>${posEp(P)}
 <div class="tot"><span class="m">المجموع</span><span>${fm(sub)}</span></div>${d>0?`<div class="tot"><span class="m">${bdS>0?"🎁 خصم باقة "+esc(P.bn.name):"الخصم"}</span><span>- ${fm(d)}</span></div>`:""}${posBn(P)}<div class="tot f"><span>المطلوب</span><span class="pos-total">${fm(sub-d)}</span></div>${(P.req=sub-d,"")}<div class="chips" style="align-items:center;margin-top:6px"><input id="pd_v" type="number" inputmode="decimal" min="0" placeholder="المدفوع الفعلي (لو دفع أكتر)" value="${P.paid||""}" oninput="posPaid(this.value)" style="flex:1;margin:0"><span class="m" id="pd_x">${P.paid>P.req?"زيادة "+fm(P.paid-P.req):""}</span></div><button class="btn" style="width:100%;margin-top:10px" ${sub?"":"disabled"} onclick="checkout()">دفع وإغلاق الفاتورة</button><button class="btn g" style="width:100%;margin-top:8px" onclick="chCancel()">إلغاء الفاتورة وتفضية الكرسي</button></section>
 </div>`)}
 
@@ -83,14 +83,15 @@ if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أج�
 
 function posPaid(v){const P=C.P;if(!P)return;P.paid=v===""?0:+v;const x=$("pd_x");if(x)x.textContent=P.paid>P.req?"زيادة "+fm(P.paid-P.req):(P.paid&&P.paid<P.req?"أقل من المطلوب ("+fm(P.req)+")":"")}
 
-async function checkout(){const P=C.P;if(P.paying)return;if(P.paid&&P.paid<P.req-0.004)return toast("المدفوع أقل من المطلوب ("+fm(P.req)+")");if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
+async function checkout(){const P=C.P;if(P.paying)return;if(P.pay=="wallet"){const e=await epCheck(P);if(e)return toast(e)}if(P.paid&&P.paid<P.req-0.004)return toast("المدفوع أقل من المطلوب ("+fm(P.req)+")");if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
 const ch=P.chair;await chSaveNow();P.paying=1;
 const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"}).eq("chair",ch).eq("status","open").select("chair");
 if(le||!lk||!lk.length){P.paying=0;return toast("الفاتورة دي بتتدفع من جهاز تاني أو اتقفلت")}
 posBnOn();const items=[...P.s.map(id=>({type:"service",id,qty:1,assistant:(P.sa||{})[id]||null})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
 const{data,error}=await sb.rpc("pos_checkout",{p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.bnOn?0:(P.disc||0),p_discount_fixed:P.bnOn?0:(P.dfx||0),p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null});
 if(error){P.paying=0;await sb.from("open_invoices").update({status:"open"}).eq("chair",ch);return toast(error.message)}
-let pm="";if(P.paid&&P.paid>P.req+0.004){const r2=await sb.rpc("invoice_set_paid",{p_invoice:data,p_paid:P.paid});pm=r2.error?" (تنبيه: المبلغ الفعلي ماتسجلش: "+r2.error.message+")":" · مدفوع "+fm(P.paid)}
+let pm="";if(P.pay=="wallet"&&P.ch){const r3=await sb.rpc("invoice_set_payment",{p_invoice:data,p_channel:P.ch,p_ref:P.ref||null});if(r3.error)pm+=" (تنبيه: قناة الدفع ماتسجلتش: "+r3.error.message+")"}
+if(P.paid&&P.paid>P.req+0.004){const r2=await sb.rpc("invoice_set_paid",{p_invoice:data,p_paid:P.paid});pm+=r2.error?" (تنبيه: المبلغ الفعلي ماتسجلش: "+r2.error.message+")":" · مدفوع "+fm(P.paid)}
 const wc=P.cust,wcid=P.cid;let de=(await sb.from("open_invoices").delete().eq("chair",ch)).error;if(de)await sb.from("open_invoices").delete().eq("chair",ch);
 C.P=null;await waPrep(data,wc,wcid);okFlash("تم الدفع","فاتورة رقم "+(data&&typeof data=="object"?JSON.stringify(data):data)+" · كرسي "+ch+" اتفضّى"+pm);go("pos")}
 
@@ -145,3 +146,21 @@ function posBn(P){if(!P.appt)return"";
   return(P.bn?`<div class="m" style="margin:6px 0">${P.bnOn?"🎁 باقة «"+esc(P.bn.name)+"» مطبّقة (مفيش خصم يدوي معاها)":"باقة «"+esc(P.bn.name)+"» على التذكرة بس خدماتها مش كلها في الفاتورة"} <button class="btn s g" onclick="posBnSet(null)">إلغاء الباقة</button></div>`:"")
    +cand.map(b=>`<button class="btn s g" style="margin:4px 0;width:100%" onclick="posBnSet(${b.id})">🎁 طبّق باقة ${esc(b.name)} · وفّر ${fm(b.saving)}</button>`).join("")}
 async function posBnSet(id){const P=C.P;if(!P||!P.appt)return;const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:id});if(error)return toast(error.message);await posBnLoad();drawPos()}
+
+
+// ---- الدفع الإلكتروني: فودافون كاش / إنستا باي (بتتسجّل كمحفظة + قناة + رقم العملية) ----
+const EPCH=[["vodafone_cash","فودافون كاش"],["instapay","إنستا باي"],["other_wallet","محفظة تانية"]];
+
+function posEp(P){if(P.pay!="wallet")return"";
+  const info=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:P.ch=="instapay"?C.cfg.instapay_address:"",need=P.ch=="vodafone_cash"||P.ch=="instapay";
+  return`<div class="box" style="margin:8px 0"><div class="chips">${EPCH.map(x=>`<button class="chip ${P.ch==x[0]?"sel":""}" onclick="C.P.ch='${x[0]}';C.P.ref='';drawPos()">${x[1]}</button>`).join("")}</div>${!P.ch?`<div class="m">اختار القناة اللي العميل هيدفع بيها</div>`:""}
+${need?`<div class="m" style="margin-top:6px">${info?`حوّل على: <b dir="ltr" style="font-size:1.2em">${esc(info)}</b> <button class="btn s g" onclick="epCopy()">نسخ</button>`:`ضيف ${P.ch=="vodafone_cash"?"رقم فودافون كاش":"عنوان إنستا باي"} من الإعدادات ← الكاشير`}<br>المطلوب: <b>${fm(P.req)}</b></div><input id="ep_r" placeholder="رقم العملية من رسالة التأكيد (مطلوب)" value="${esc(P.ref||"")}" oninput="C.P.ref=this.value" style="margin-top:6px"><div class="m">اتأكد إن الرسالة وصلت على موبايل المحل وإن المبلغ مطابق قبل ما تقفل الفاتورة.</div>`:""}</div>`}
+
+function epCopy(){const P=C.P,v=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:C.cfg.instapay_address;try{navigator.clipboard.writeText(String(v||"")).then(()=>toast("اتنسخ ✓"))}catch(e){prompt("انسخ:",v)}}
+
+// تحقق قبل الدفع: القناة مختارة، رقم العملية مكتوب ومش مستخدم قبل كده
+async function epCheck(P){if(!P.ch)return"اختار قناة الدفع (فودافون كاش / إنستا باي / محفظة تانية)";
+  if(P.ch=="other_wallet")return"";const r=(P.ref||"").trim();if(r.length<4)return"اكتب رقم العملية من رسالة التأكيد";
+  const{data,error}=await sb.rpc("epay_ref_used",{p_channel:P.ch,p_ref:r});
+  if(error)return/epay_ref_used|PGRST202|42883/.test(error.code+" "+error.message)?"شغّل patch_epay_channels.sql في Supabase الأول":error.message;
+  return data?"رقم العملية ده اتسجّل قبل كده على فاتورة تانية":""}

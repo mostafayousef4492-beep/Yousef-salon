@@ -6,7 +6,7 @@ function loadXlsx(){return new Promise((ok,no)=>{if(window.XLSX)return ok(window
 
 function xSheet(X,wb,name,rows){const ws=X.utils.aoa_to_sheet(rows);ws["!cols"]=(rows[0]||[]).map((_,i)=>({wch:Math.min(40,Math.max(10,...rows.map(r=>String(r[i]??"").length+2)))}));X.utils.book_append_sheet(wb,ws,name.slice(0,31))}
 
-const PAYL={cash:"كاش",card:"كارت",wallet:"محفظة"};
+const PAYL={cash:"كاش",card:"كارت",wallet:"محفظة / إنستا باي"};
 
 async function exportXlsx(){const d=C.rd,T=d.totals,[a,b]=C.rr,e=new Date(b);e.setDate(e.getDate()-1);let X;try{X=await loadXlsx()}catch(err){return toast(err.message)}
   toast("بنجهّز ملف Excel…");const da=ymd(a),db=ymd(b),A=a.toISOString(),B=b.toISOString();
