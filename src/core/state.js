@@ -2,7 +2,8 @@
 
 const APP_MODE=window.SALON_MODE||"customer";
 
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// جلسة منفصلة لكل تطبيق: الدخول في تطبيق العملاء أو الموظفين مايأثرش على الإدارة والعكس (العملاء بتفضل على المفتاح الافتراضي عشان جلساتهم الحالية)
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,APP_MODE=="customer"?undefined:{auth:{storageKey:"salon-auth-"+APP_MODE}});
 
 const $=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
