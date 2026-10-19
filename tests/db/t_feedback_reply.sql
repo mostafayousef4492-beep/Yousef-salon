@@ -1,0 +1,31 @@
+\set ON_ERROR_STOP 1
+\set QUIET 1
+begin;
+insert into auth.users(id) values ('00000000-0000-0000-0000-0000000000f8'),('00000000-0000-0000-0000-0000000000f9') on conflict do nothing;
+insert into customers(user_id,name,phone) values ('00000000-0000-0000-0000-0000000000f8','عميل أ','01090000088'),('00000000-0000-0000-0000-0000000000f9','عميل ب','01090000099');
+create temp table sec(s text); grant all on sec to public;
+select t.as_('00000000-0000-0000-0000-0000000000f8');
+insert into sec select send_feedback('مشكلة مع حلاق', true, null);
+select t.ok('المجهول رجّع رمز', (select length(s)=32 from sec));
+select t.ok('الباسم مفيهوش رمز', send_feedback('رأي باسمي', false, null) is null);
+select t.fl('رقم غلط', $$select send_feedback('رقم غلط هنا', true, '123')$$);
+insert into sec select send_feedback('عايز اتواصل', true, '01012345678');
+reset role;
+select t.ok('المجهول من غير هوية', (select count(*)=2 from customer_feedback where customer_id is null and secret_hash is not null));
+select t.ok('الرمز نفسه مش متخزن', not exists(select 1 from customer_feedback f, sec s where f.secret_hash=s.s));
+select t.ok('رقم التواصل اتسجل', (select contact_phone from customer_feedback where message='عايز اتواصل')='01012345678');
+select t.as_('00000000-0000-0000-0000-0000000000a1');
+update customer_feedback set reply='متقلقش هنحلها', replied_at=now() where message='مشكلة مع حلاق';
+update customer_feedback set reply='رد على الباسم', replied_at=now() where message='رأي باسمي';
+reset role;
+select t.as_('00000000-0000-0000-0000-0000000000f8');
+select t.ok('صاحب الرمز شاف الرد المجهول', (select count(*)=1 from my_feedback((select array_agg(s) from sec)) where reply='متقلقش هنحلها'));
+select t.ok('شاف الباسم كمان', (select count(*)=1 from my_feedback('{}') where reply='رد على الباسم'));
+select t.ok('من غير رمز مفيش مجهول', (select count(*)=1 from my_feedback('{}')));
+reset role;
+select t.as_('00000000-0000-0000-0000-0000000000f9');
+select t.ok('عميل تاني مشافش حاجة', (select count(*)=0 from my_feedback('{}')));
+select t.ok('رمز مغلوط ميجيبش', (select count(*)=0 from my_feedback(array['abc'])));
+reset role;
+rollback;
+select 'ALL FEEDBACK REPLY TESTS PASSED';
