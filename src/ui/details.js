@@ -20,7 +20,7 @@ function dsOpen(title,html,o){o=o||{};if(o.list)C.dsL={t:title,h:html};
   const old=$("sheet");if(old)old.remove();
   const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
   w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${esc(title)}</b><span>${o.back&&C.dsL?`<button class="btn g s" onclick="dsBack()">‹ رجوع</button> `:""}<button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></span></div>${html}</div>`;
-  document.body.appendChild(w)}
+  permApply(w);document.body.appendChild(w)}
 
 const dsLoad=t=>dsOpen(t,`<p class="m">بنحمّل...</p>`);
 

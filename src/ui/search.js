@@ -19,7 +19,7 @@ const GSP=()=>[...(typeof RSEC!="undefined"?RSEC:[]).map(([k,l])=>["تقرير: 
 const KL={advance:"سحب",deduction:"خصم",bonus:"مكافأة"};
 
 async function gsRun(){const el=$("gs"),o=$("gsr");if(!el||!o)return;const q=el.value.trim().replace(/[%,()*]/g,"");if(q.length<2){o.innerHTML="";return}
-const dg=q.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)),isN=/^\d+(\.\d+)?$/.test(dg),own=isAdm(me),E={data:[]},P=x=>x||Promise.resolve(E);
+const dg=q.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)),isN=/^\d+(\.\d+)?$/.test(dg),own=isAdm(me)&&can("search_money"),E={data:[]},P=x=>x||Promise.resolve(E);
 const live=()=>$("gs")&&$("gs").value.trim().replace(/[%,()*]/g,"")==q,nq=gsN(q);
 const[c,v,sv,st,ex,mv,su]=await Promise.all([sb.from("customers").select("id,name,phone").or(`name.ilike.%${q}%,phone.ilike.%${dg}%`).limit(5),
 isN&&/^\d+$/.test(dg)&&(own||can("view_invoices"))?sb.from("invoices").select("id,no,total,created_at,customers(name)").eq("no",+dg).limit(3):P(),
