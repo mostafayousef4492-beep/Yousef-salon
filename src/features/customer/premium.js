@@ -37,7 +37,13 @@ const bday=!p.birthday_enabled?"":p.can_claim_birthday?`<div class="box hm-gift"
 put(`<div class="hm-head">${avatarHtml(p,58,true)}<div><div class="m">أهلًا بيك</div><h1 style="margin:0">${esc(first)}</h1></div></div>${live}
 <div class="vip" role="button" tabindex="0" onclick="go('loy')"><div class="vip-top"><span class="vip-brand">${esc(g.salon_name)}</span><span class="vip-tier">${esc(t.name)}${t.mult>1?" · ×"+t.mult:""}</span></div><div class="vip-pts">${num(c.points)}<small>نقطة</small></div><div class="vip-bar"><i style="width:${pct}%"></i></div><div class="vip-foot"><span>${t.next_at?"باقي "+num(t.next_at-c.lifetime_points)+" نقطة للمستوى الجاي":"وصلت لأعلى مستوى"}</span><span>${num(c.visits||0)} زيارة</span></div></div>
 ${bday}${rep}
-<div class="chips" style="margin-top:12px"><button class="btn" style="flex:1" onclick="C.b=null;go('book')">احجز دورك</button><button class="btn g" style="flex:1" onclick="go('loy')">ادعي صاحبك 🎁</button></div>`)};
+<div class="chips" style="margin-top:12px"><button class="btn" style="flex:1" onclick="C.b=null;go('book')">احجز دورك</button><button class="btn g" style="flex:1" onclick="go('loy')">ادعي صاحبك 🎁</button></div>${fbMode()!="off"?`<button class="btn g" style="width:100%;margin-top:10px" onclick="fbOpen()">💬 رأيك يهمنا</button>`:""}`)};
 
 // صورتي في صفحة الحساب
 function myPhotoBox(p){return `<div class="box" style="display:flex;align-items:center;gap:14px">${avatarHtml(p,64,true)}<div style="flex:1"><b>${esc(p.name||"")}</b><div class="m">اضغط على الصورة لتغييرها</div></div>${p.avatar?`<button class="btn s g" onclick="rmAvatar()">شيل</button>`:""}</div>`}
+
+// ===== رأيك يهمنا =====
+// الوضع من الإعدادات: named = باسم العميل دايمًا · choice = العميل يختار · off = متوقف
+function fbMode(){return C.cfg.feedback_mode||"choice"}
+function fbOpen(){const m=fbMode();dsOpen("رأيك يهمنا",`<p class="m">${m=="named"?"رسالتك هتوصل للإدارة <b>باسمك</b>، فنعرف مين كتبها ونقدر نرد عليك.":"تقدر تبعتها باسمك، أو من غير اسم. لو اخترت «من غير اسم» محدش في الصالون هيعرف إنت مين."}</p><textarea id="fb_t" rows="5" maxlength="1000" placeholder="اكتب رأيك أو اقتراحك أو شكواك…"></textarea>${m=="choice"?`<label class="row" style="cursor:pointer"><span>ابعتها من غير اسم</span><input type="checkbox" id="fb_a" style="width:22px;height:22px;margin:0"></label>`:""}<button class="btn" style="width:100%;margin-top:10px" onclick="fbSend()">إرسال</button>`)}
+async function fbSend(){const t=($("fb_t").value||"").trim();if(t.length<3)return toast("اكتب رسالة أطول شوية");const a=!!($("fb_a")&&$("fb_a").checked);const{error}=await sb.rpc("send_feedback",{p_message:t,p_anonymous:a});if(error)return toast(error.message);svcClose();okFlash("وصلت رسالتك 🙏",a?"اتبعتت من غير اسم":"شكرًا إنك شاركتنا رأيك")}
