@@ -46,7 +46,7 @@ async function loadBarbers(){const b=C.b,d=bkDays()[b.day];
   const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
   const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset;":"";
   if(b.barber&&!L.some(x=>x.id==b.barber))b.barber=undefined;
-  $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers();upd()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers();upd()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join(""):`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`);upd()}
+  $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers();upd()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers();upd()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join(""):`<p class="m">مفيش حلاق متاح دلوقتي (الحلاقين بيظهروا لما يسجّلوا حضور)، جرّب فترة أو يوم تاني.</p>`);upd()}
 
 const isNetErr=e=>!!e&&!e.code&&!e.hint&&!e.details;
 async function bookNow(){if(C.busy)return;const b=C.b,d=bkDays()[b.day],n=(C.f.n||"").trim(),ph=dig(C.f.p);
