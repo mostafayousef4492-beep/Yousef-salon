@@ -69,7 +69,10 @@ async function admSave(){if(C.admBusy)return;const A=C.ad,n=$("ad_n").value.trim
   if(error)return toast(netErr(error)?"فشل — النت واقف، الحجز لم يتأكد. جرّب تاني (مش هيتكرر)":/walk_in_ticket_v2|PGRST202/.test(error.message||"")?"لازم تطبّق تحديث الداتابيز الأول (sql/booking_queue_upgrade.sql)":error.message);
   if(data&&data.existing){toast("العميل عنده حجز نشط بالفعل (دور #"+(data.no||data.ticket?.no||"-")+") — اتعرض بدل ما نكرره. أكّد وصوله من القايمة لو وصل.");return go("appts")}
   if(A.bd){const tid=data&&((data.ticket&&data.ticket.id)||data.id);if(!(await BN.attach(sb,A,tid)))toast("اتحجز، بس الباقة ماتسجّلتش — طبّقها من الكاشير")}
-  toast(A.walk?"اتسجّل في دور الحلاق ✓":"تم الحجز ✓");go("appts")}
+  toast(A.walk?"اتسجّل في دور الحلاق ✓":"تم الحجز ✓");
+  const bo=$("ad_b"),bn=bo&&bo.value?bo.options[bo.selectedIndex].text:"",card=waTicketCard(n,ph,data,bn),ae=$("adm");
+  if(card&&ae){ae.innerHTML=card;return}
+  go("appts")}
 
 async function noShow(id){return skipT(id)}
 

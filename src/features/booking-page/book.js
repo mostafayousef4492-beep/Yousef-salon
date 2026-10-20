@@ -18,6 +18,8 @@ async function init(){
   const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);
   document.title="احجز دورك - "+C.cfg.salon_name;$("bn").textContent=C.cfg.salon_name;
   const i=store.get("salon_book_info");if(i){C.f.n=i.n||"";C.f.p=i.p||""}
+  try{const q=new URLSearchParams(location.search),tid=q.get("t"),tp=(q.get("p")||"").replace(/\D/g,"");
+    if(tid&&/^\d+$/.test(tid)&&tp){store.set("salon_book_last",{id:+tid,p:tp});history.replaceState(null,"",location.pathname)}}catch(e){}
   if(store.get("salon_book_last"))return showTicket();
   start()}
 async function start(){

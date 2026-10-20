@@ -25,3 +25,14 @@ const{data:inv}=await sb.from("invoices").select("no,subtotal,discount,total,pay
 if(inv)C.lastWa={phone:ph,name:nm,no:inv.no,text:waInvText(inv,nm)}}catch(e){}}
 
 function waLastCard(){const w=C.lastWa;if(!w)return"";return `<div class="box" style="margin:10px 0"><div class="m" style="margin-bottom:8px">فاتورة #${w.no} اتدفعت${w.name?" — "+esc(w.name):""}</div><div class="chips" style="align-items:center">${waBtn(w.phone,1,w.text)}<button class="btn s g" onclick="C.lastWa=null;V.pos()">إخفاء</button></div></div>`}
+
+/* ===== تذكرة الحجز + رابط متابعة الدور (واتساب) ===== */
+function waTicketMsg(name,no,code,barber,id,ph){
+  const url=location.origin+"/book?t="+encodeURIComponent(id)+"&p="+encodeURIComponent(ph);
+  return `أهلاً ${name||""} 👋\nتم حجز دورك في ${waSalon()} ✅\n🎟 رقم دورك: ${code||no||"—"}${barber?"\n✂️ مع: "+barber:""}\n\nتابع دورك لحظة بلحظة من الرابط ده:\n${url}`;
+}
+function waTicketCard(n,ph,data,barber){
+  const t=(data&&data.ticket)||data||{};if(!t.id)return"";
+  const txt=waTicketMsg(n,t.no,t.code||t.ticket_code,barber,t.id,ph);
+  return `<div class="box" style="margin:10px 0;text-align:center"><b>تم الحجز ✓ رقم الدور ${esc(String(t.code||t.no||"—"))}</b><div class="m" style="margin:6px 0 10px">ابعت للعميل التذكرة ولينك متابعة الدور على واتساب</div>${waBtn(ph,true,txt)}<div style="margin-top:10px"><button class="btn g s" onclick="go('appts')">تم</button></div></div>`;
+}
