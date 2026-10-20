@@ -115,9 +115,16 @@ async function lateRules(){
 <label class="m">الخصم لكل دقيقة (جنيه)</label><input id="lr_r" type="number" inputmode="decimal" value="${+g.rate}">
 <div class="m">بعد السماح يتخصم من أول دقيقة. مثال: ${+g.grace+1} دقيقة تأخير = ${fm((+g.grace+1)*(+g.rate))}</div>
 <button class="btn" onclick="lateGlobal()">حفظ</button></div>
+<div class="box" style="display:flex;flex-direction:column;gap:8px"><b>الراتب الثابت بالحضور</b><div class="m">أي موظف (غير المدير والمالك) براتب ثابت: الراتب بيتحسب يومية بتنزل أول ما يسجل حضور بدل ما ينزل كل يوم من التقويم. اليومية = الراتب ÷ 30 (أو اليومية المسجلة). اللي فات قبل النهارده بيفضل زي ما هو.</div><button class="btn" onclick="attPayAll()">حوّل كل أصحاب الراتب الثابت للحضور</button></div>
 <h2>طريقة الخصم لكل موظف</h2><div class="m" style="margin-bottom:6px">المالك والمدير مستثنيين. اختيار طريقة بيوقف التانية (من غير ما يمسح إعداداتها).</div>
 ${(g.staff||[]).map(s=>`<div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div><b>${esc(s.name)}</b> <span class="m">${RL[s.role]||s.role} · ${+s.wage>0?"يومية "+fm(s.wage):"مفيش يومية محددة"}</span></div>
 <select onchange="lateSet('${s.id}',this.value)">${Object.keys(LATE_M).map(k=>`<option value="${k}" ${s.method==k?"selected":""}>${LATE_M[k]}</option>`).join("")}</select></div>`).join("")||`<p class="m">مفيش موظفين.</p>`}`);
+}
+async function attPayAll(){
+  if(!confirm("تحويل كل الموظفين أصحاب الراتب الثابت لنظام الحضور؟ الراتب هيبطل ينزل بالتقويم من النهارده وينزل بتسجيل الحضور."))return;
+  const{data,error}=await sb.rpc("att_pay_all");
+  if(error)return toast(error.code=="PGRST202"?"شغّل patch_attendance_pay.sql في Supabase الأول":error.message);
+  toast((data||[]).length?"اتحوّل "+data.length+" موظف: "+data.map(x=>x.name+" ("+fm(x.daily_wage)+")").join("، "):"مفيش حد محتاج تحويل");lateRules();
 }
 async function lateGlobal(){
   const{error}=await sb.rpc("set_late_global",{p_enabled:$("lr_on").checked,p_grace:Math.round(+$("lr_g").value),p_rate:+$("lr_r").value,p_wage:$("lr_w").checked});
