@@ -158,7 +158,7 @@ function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
 function fullWork(){const f=C.fr,L=(f.staff||[]).filter(x=>+x.sales>0),tot=L.reduce((a,x)=>a+(+x.sales),0),rest=(+f.revenue)-tot;
-  dsOpen("شغل المحل · "+fm(f.revenue),`<div class="m" style="margin-bottom:6px">كل صنايعي اشتغل بكام (اضغط عليه تشوف حسابه كله)</div>`+(L.length?L.map(x=>fRow(esc(x.name)+` <span class="m">· ${num(x.cuts)} فاتورة</span>`,fm(x.sales),`fullStaff('${x.id}','w')`)).join(""):`<p class="m">مفيش مبيعات متسجلة على حلاقين في الفترة دي.</p>`)+(rest>0.5?fRow("مبيعات من غير حلاق (منتجات أو غيره)",fm(rest)):""),{list:1})}
+  dsOpen("شغل المحل · "+fm(f.revenue),`<div class="m" style="margin-bottom:6px">كل صنايعي اشتغل بكام (اضغط عليه تشوف حسابه كله)</div>`+(L.length?L.map(x=>fRow(esc(x.name)+` <span class="m">· ${num(x.cuts)} فاتورة</span>`,fm(x.sales),`fullStaff('${x.id}','w')`)).join(""):`<p class="m">مفيش مبيعات متسجلة على حلاقين في الفترة دي.</p>`)+(rest>0.5?fRow("مبيعات من غير حلاق (منتجات أو غيره)",fm(rest),"fullNoBarber()"):""),{list:1})}
 function fullExp(){const f=C.fr,B=[];
   if(+f.commissions)B.push(["عمولات الصنايعية",f.commissions,"fullBand('commission')"]);
   if(+f.salaries)B.push(["رواتب (حلاقين، مدير، مساعدين، كاشير)",f.salaries,"fullBand('salary')"]);
@@ -182,3 +182,7 @@ async function fullStaff(id,from){const f=C.fr,x=(f.staff||[]).find(y=>y.id==id)
   dsOpen(x.name+" · "+(RL[x.role]||""),`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${x.role=="assistant"?"":kc("اشتغل بكام",fm(x.sales),"")}${kc("ليه كام (مستحقاته)",fm(x.cost),"")}${kc("سحب كام",fm(x.advance),"")}${kc("اتصرف له",fm(x.paid),"")}${kc(bal>=0?"باقيله":"عليه",fm(Math.abs(bal)),bal>0?"var(--red)":"var(--ok)")}</div>
 <div class="m" style="margin:8px 0">مستحقاته = عمولة ${fm(x.commission)} + راتب ${fm(x.salary)} + مكافآت ${fm(x.bonus)} − خصومات ${fm(x.deduction)}. «باقيله» رصيد حسابه من أول يوم لحد دلوقتي.</div>
 <h2>حركات الفترة</h2>`+(E.length?E.map(r=>fRow(`${esc(r.label)}<div class="m">${FKIND[r.kind]||""} · ${new Date(r.at).toLocaleDateString("ar-EG")}</div>`,(+r.credit>0?"+ "+fm(r.credit):"− "+fm(r.debit)),null,+r.credit>0?"var(--ok)":"var(--red)")).join(""):`<p class="m">مفيش حركات.</p>`),{back:1})}
+async function fullNoBarber(){const[a,b]=C.rr;
+  const{data,error}=await sb.from("invoices").select("id,no,total,created_at,payment_method,invoice_items(name,qty)").is("barber_id",null).gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at",{ascending:false}).limit(300);
+  if(error)return toast(error.message);const L=data||[],tot=L.reduce((x,i)=>x+(+i.total),0);
+  dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
