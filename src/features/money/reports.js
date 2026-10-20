@@ -147,13 +147,17 @@ async function rpdLoad(){const box=$("rpd");if(!box||!C.rr)return;const[a,b]=C.r
 
 // ===== التقرير الشامل: شغل المحل · المصاريف (بنود) · صافي الربح · الدرج، وكل بند بيفتح تفاصيله =====
 const FKIND={salary:"راتب",commission:"عمولة",wage:"أجر يوم",adj:"تسوية",deposit:"إيداع / مكافأة",withdraw:"سحب",deduction:"خصم",payout:"صرف راتب",settle:"تسوية حساب"};
-async function fullLoad(){const[a,b]=C.rr,t=ymd(new Date());
-  const[{data:f,error},{data:dr}]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),sb.rpc("drawer_range",{p_from:t,p_to:t})]);
+// الدرج دلوقتي = رصيد آخر قفل + كل اللي دخل وطلع بعده لحد النهارده (مش النهارده بس)
+async function fullDrawer(){const{data:cl}=await sb.from("cash_closings").select("day").order("day",{ascending:false}).limit(1),last=cl&&cl[0]?cl[0].day:null,to=ymd(new Date());let from;
+  if(last){const d=new Date(last+"T00:00");d.setDate(d.getDate()+1);from=ymd(d)}else{const d=new Date();d.setDate(d.getDate()-365);from=ymd(d)}
+  if(from>to)from=to;const{data}=await sb.rpc("drawer_range",{p_from:from,p_to:to});return data?{f:data,from,to,last}:null}
+async function fullLoad(){const[a,b]=C.rr;
+  const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
   const e=$("rpf");if(!e)return;if(error)return e.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"التقرير الشامل لسه ما اتفعّلش (شغّل patch_full_report.sql في Supabase).":esc(error.message)}</p>`;
   C.fr=f;C.fdr=dr;fullDraw()}
 const fullCost=()=>(+C.fr.cogs||0)+(+C.fr.expenses||0)+(+C.fr.staff_cost||0);
-function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.expected_cash!=null?+C.fdr.expected_cash:null;
-  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("الدرج دلوقتي (المتوقع)",dr==null?"—":fm(dr),"")}</div>
+function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.f.expected_cash!=null?+C.fdr.f.expected_cash:null;
+  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("الدرج دلوقتي (المتوقع)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
 <div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
@@ -182,7 +186,30 @@ async function fullStaff(id,from){const f=C.fr,x=(f.staff||[]).find(y=>y.id==id)
   dsOpen(x.name+" · "+(RL[x.role]||""),`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${x.role=="assistant"?"":kc("اشتغل بكام",fm(x.sales),"")}${kc("ليه كام (مستحقاته)",fm(x.cost),"")}${kc("سحب كام",fm(x.advance),"")}${kc("اتصرف له",fm(x.paid),"")}${kc(bal>=0?"باقيله":"عليه",fm(Math.abs(bal)),bal>0?"var(--red)":"var(--ok)")}</div>
 <div class="m" style="margin:8px 0">مستحقاته = عمولة ${fm(x.commission)} + راتب ${fm(x.salary)} + مكافآت ${fm(x.bonus)} − خصومات ${fm(x.deduction)}. «باقيله» رصيد حسابه من أول يوم لحد دلوقتي.</div>
 <h2>حركات الفترة</h2>`+(E.length?E.map(r=>fRow(`${esc(r.label)}<div class="m">${FKIND[r.kind]||""} · ${new Date(r.at).toLocaleDateString("ar-EG")}</div>`,(+r.credit>0?"+ "+fm(r.credit):"− "+fm(r.debit)),null,+r.credit>0?"var(--ok)":"var(--red)")).join(""):`<p class="m">مفيش حركات.</p>`),{back:1})}
+<<<<<<< HEAD
 async function fullNoBarber(){const[a,b]=C.rr;
   const{data,error}=await sb.from("invoices").select("id,no,total,created_at,payment_method,invoice_items(name,qty)").is("barber_id",null).gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at",{ascending:false}).limit(300);
   if(error)return toast(error.message);const L=data||[],tot=L.reduce((x,i)=>x+(+i.total),0);
   dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
+=======
+
+// تفاصيل الدرج: اللي دخل (مبيعات كاش + إيداع) واللي طلع (مصروفات + سحوبات + رواتب + مشتريات)، وكل بند بيفتح حركاته
+function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const f=D.f,n=k=>+f[k]||0;
+  const IN=[["مبيعات كاش",n("cash_sales"),"fullDrw('sales')"],["إيداع في الدرج",n("moves_in"),"fullDrw('in')"]],
+  OUT=[["مصروفات من الدرج",n("exp_cash"),"fullDrw('exp')"],["سحب موظفين (سلف)",n("adv_cash"),"fullDrw('adv')"],["سحب من الدرج",n("moves_out"),"fullDrw('out')"],["رواتب اتصرفت من الدرج",n("sal_cash"),"fullDrw('sal')"],["مشتريات مخزون",n("pur_cash"),null],["دفعات موردين",n("sup_cash"),null]],
+  tin=IN.reduce((a,x)=>a+x[1],0),tout=OUT.reduce((a,x)=>a+x[1],0),line=x=>x[1]?fRow(x[0],fm(x[1]),x[2]):"";
+  dsOpen("الدرج دلوقتي · "+fm(f.expected_cash),`<div class="m" style="margin-bottom:6px">من ${D.last?"آخر قفل ("+D.last+")":"أول الفترة"} لحد النهارده. اضغط على أي بند تشوف حركاته.</div>
+${fRow("رصيد آخر قفل (اللي اتعدّ فعلًا)",fm(f.opening))}
+<h2>دخل الدرج · ${fm(tin)}</h2>${IN.map(line).join("")||`<p class="m">مفيش.</p>`}
+<h2>طلع من الدرج · ${fm(tout)}</h2>${OUT.map(line).join("")||`<p class="m">مفيش.</p>`}
+<div class="tot" style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800"><span>الموجود المتوقع في الدرج</span><span>${fm(f.expected_cash)}</span></div>
+<div class="m" style="margin-top:6px">${fm(f.opening)} + ${fm(tin)} − ${fm(tout)}. المتوقع حسابيًا، والفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>`,{list:1})}
+async function fullDrw(k){const D=C.fdr,f0=D.from,t0=D.to,ts=new Date(f0+"T00:00").toISOString(),te=(d=>(d.setDate(d.getDate()+1),d.toISOString()))(new Date(t0+"T00:00")),nm=id=>((C.fr.staff||[]).find(x=>x.id==id)||{}).name||"موظف",day=d=>new Date(d).toLocaleDateString("ar-EG");let q,T,R;
+  if(k=="sales"){q=sb.from("invoices").select("no,total,created_at").eq("payment_method","cash").gte("created_at",ts).lt("created_at",te).order("created_at",{ascending:false}).limit(300);T="مبيعات كاش";R=r=>fRow(`فاتورة #${r.no}<div class="m">${day(r.created_at)}</div>`,fm(r.total))}
+  else if(k=="in"||k=="out"){q=sb.from("cash_moves").select("day,amount,note").eq("kind",k=="in"?"deposit":"withdraw").gte("day",f0).lte("day",t0).order("day",{ascending:false}).limit(300);T=k=="in"?"إيداع في الدرج":"سحب من الدرج";R=r=>fRow(`${esc(r.note||T)}<div class="m">${r.day}</div>`,fm(r.amount))}
+  else if(k=="exp"){q=sb.from("expenses").select("spent_on,category,note,amount").eq("paid_from","drawer").is("purchase_id",null).gte("spent_on",f0).lte("spent_on",t0).order("spent_on",{ascending:false}).limit(300);T="مصروفات من الدرج";R=r=>fRow(`${esc(r.category)}${r.note?" — "+esc(r.note):""}<div class="m">${r.spent_on}</div>`,fm(r.amount))}
+  else if(k=="adv"){q=sb.from("staff_transactions").select("staff_id,amount,note,created_at").eq("kind","advance").gte("created_at",ts).lt("created_at",te).order("created_at",{ascending:false}).limit(300);T="سحب موظفين";R=r=>fRow(`${esc(nm(r.staff_id))}${r.note?" — "+esc(r.note):""}<div class="m">${day(r.created_at)}</div>`,fm(r.amount))}
+  else{q=sb.from("salary_payments").select("staff_id,amount,note,paid_on").eq("paid_from","drawer").gte("paid_on",f0).lte("paid_on",t0).order("paid_on",{ascending:false}).limit(300);T="رواتب من الدرج";R=r=>fRow(`${esc(nm(r.staff_id))}${r.note?" — "+esc(r.note):""}<div class="m">${r.paid_on}</div>`,fm(r.amount))}
+  const{data,error}=await q;if(error)return toast(error.message);const L=data||[];
+  dsOpen(T+" · "+fm(L.reduce((a,r)=>a+(+r.amount||+r.total||0),0)),L.map(R).join("")||`<p class="m">مفيش حركات.</p>`,{back:1})}
+>>>>>>> origin/main
