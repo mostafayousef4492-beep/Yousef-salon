@@ -52,7 +52,7 @@ const K={name:"",phone:"",barber:null,L:[],SV:[],s:[],bd:null,busy:false,timer:n
 
 async function init(){
   const{data}=await sb.from("app_settings").select("*");const cfg={};(data||[]).forEach(r=>cfg[r.key]=r.value);
-  if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
+  K.cfg=cfg;if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
   const sv=await sb.from("services").select("*").eq("active",true).order("id");
   K.SV=sv.data||[];await BN.load(sb);
   showForm()}
@@ -98,8 +98,11 @@ async function join(){
 function done(t,ph,n){
   clearInterval(K.poll);
   const url=location.origin+"/book?t="+encodeURIComponent(t.id)+"&p="+encodeURIComponent(ph);
-  $("app").innerHTML=`<div class="box ticket"><div class="m">أهلًا ${esc(n.split(" ")[0])} — رقم دورك</div><div class="no">${t.no==null?"—":esc(t.no)}</div>${t.barber?`<div class="m">مع ${esc(t.barber)}</div>`:""}<div id="qr"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div></div><button class="btn" onclick="showForm()">تسجيل زبون جديد</button>`;
+  $("app").innerHTML=`<div class="box ticket"><div class="m">أهلًا ${esc(n.split(" ")[0])} — رقم دورك</div><div class="no">${t.no==null?"—":esc(t.no)}</div>${t.barber?`<div class="m">مع ${esc(t.barber)}</div>`:""}<div id="qr"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div><div id="wab" style="margin-top:10px"></div></div><button class="btn" onclick="showForm()">تسجيل زبون جديد</button>`;
   new QRCode($("qr"),{text:url,width:280,height:280,correctLevel:QRCode.CorrectLevel.M});
+  {let d=String(ph).replace(/\D/g,"");if(/^01\d{9}$/.test(d))d="20"+d.slice(1);const sn=(K.cfg&&K.cfg.salon_name)||"الصالون";
+   const msg=`أهلاً ${n.split(" ")[0]} 👋\nتم حجز دورك في ${sn} ✅\n🎟 رقم دورك: ${t.code||t.no||"—"}${t.barber?"\n✂️ مع: "+t.barber:""}\n\nتابع دورك لحظة بلحظة من الرابط ده:\n${url}`;
+   $("wab").innerHTML=`<a href="https://wa.me/${d}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="display:inline-block;background:#25D366;color:#fff;border-radius:999px;text-decoration:none;font-weight:700;padding:12px 22px">ابعتلي التذكرة على واتساب</a>`}
   K.timer=setTimeout(showForm,45000)}
 init();
 </script>
