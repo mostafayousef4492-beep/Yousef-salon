@@ -19,7 +19,7 @@ const svcCats=()=>[...new Set(C.svc.l.map(x=>x.category||"قصات"))];
 
 function drawSvc(){const S=C.svc,on=S.l.filter(x=>x.active).length;
 put(`<h1>الخدمات</h1><div class="m">${num(on)} شغّالة${S.l.length-on?" · "+num(S.l.length-on)+" موقوفة":""}</div>
-<button class="btn" style="width:100%;margin:14px 0 12px" onclick="svcOpen()">+ خدمة جديدة</button><div id="bnd"></div>
+<div class="chips" style="margin:14px 0 12px"><button class="btn" style="flex:1" onclick="svcOpen()">+ خدمة جديدة</button><button class="btn g" style="flex:1" onclick="grpOpen()">+ خدمة بخيارات</button></div><div id="bnd"></div>
 ${S.l.length>6?`<input id="svq" type="search" placeholder="دوّر على خدمة..." aria-label="بحث" oninput="C.svc.q=this.value;svcList()">`:""}
 <div class="chips" id="svch"></div><div id="svl"></div>`);svcChips();svcList();bndLoad()}
 
@@ -29,7 +29,7 @@ h.innerHTML=cs.length>1?`<button class="chip ${S.c?"":"sel"}" onclick="C.svc.c='
 function svcList(){const S=C.svc,q=S.q.trim().toLowerCase(),g={};
 S.l.filter(x=>(!S.c||(x.category||"قصات")==S.c)&&(!q||(x.name+" "+(x.category||"")).toLowerCase().includes(q))).forEach(x=>(g[x.category||"قصات"]=g[x.category||"قصات"]||[]).push(x));
 const ks=Object.keys(g);
-$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
+$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
 
 function svcClose(){C.dsL=null;const w=$("sheet");if(w){w.classList.add("out");setTimeout(()=>w.remove(),160)}}
 
@@ -82,3 +82,33 @@ async function bndSave(){const B=C.bn;if(B.s.length<2)return toast("اختار �
   if(error)return toast(error.message);toast("اتحفظت ✓");svcClose();bndLoad()}
 
 async function bndDel(id){if(!confirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
+
+
+// ===== خدمة بخيارات: كل اختيار بسعره (قص الشعر: كلاسيك / تدريج) =====
+// كل اختيار بيتخزن كخدمة عادية (name = «المجموعة — الاختيار») ليها group_name و option_label، فباقي النظام شغال زي ما هو
+const grpNames=()=>[...new Set(C.svc.l.filter(x=>x.group_name).map(x=>x.group_name))];
+function grpRow(g){const L=C.svc.l.filter(x=>x.group_name==g),on=L.filter(x=>x.active);
+return `<button class="row svc${on.length?"":" off"}" onclick="grpOpen(${grpNames().indexOf(g)})"><div><b>${esc(g)}</b><div class="m">${on.length?on.map(x=>esc(x.option_label)+" "+fm(x.price)).join(" · "):"كل الاختيارات موقوفة"}</div></div><span class="tag">${num(on.length)} اختيارات</span></button>`}
+function grpOpen(i){const g=i==null?"":grpNames()[i]||"",L=g?C.svc.l.filter(x=>x.group_name==g):[];
+C.svg={g,rows:L.length?L.map(x=>({id:x.id,label:x.option_label,price:x.price,dur:x.duration_min||30,active:x.active,cat:x.category})):[{label:"",price:"",dur:30,active:true},{label:"",price:"",dur:30,active:true}],cat:L[0]?L[0].category:""};
+const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
+w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${g?"تعديل خدمة بخيارات":"خدمة بخيارات"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
+<label class="m" for="sg-g">اسم الخدمة</label><input id="sg-g" value="${esc(g)}" placeholder="مثال: قص الشعر" autocomplete="off">
+<label class="m" for="sg-c">القسم</label><input id="sg-c" value="${esc(C.svg.cat||"")}" placeholder="قصات / ذقن / صبغة ..." autocomplete="off">
+<div class="m" style="margin-top:8px">الاختيارات (العميل بيختار واحد بس، وكل واحد بسعره)</div><div id="sg-r"></div>
+<button class="btn g s" onclick="grpAdd()">+ اختيار جديد</button>
+<button class="btn" id="sg-s" style="width:100%;margin-top:12px" onclick="grpSave()">حفظ</button></div>`;
+document.body.appendChild(w);grpDraw();setTimeout(()=>$("sg-g").focus(),60)}
+function grpDraw(){const R=C.svg.rows;$("sg-r").innerHTML=R.map((r,i)=>r.gone?"":`<div class="box" style="margin:6px 0${r.active?"":";opacity:.6"}"><input placeholder="اسم الاختيار (مثال: كلاسيك)" value="${esc(r.label)}" oninput="C.svg.rows[${i}].label=this.value"><div class="svc-2"><div><input type="number" inputmode="decimal" min="0" placeholder="السعر" value="${esc(r.price)}" oninput="C.svg.rows[${i}].price=this.value"></div><div><input type="number" inputmode="numeric" min="5" step="5" placeholder="المدة (دقيقة)" value="${esc(r.dur)}" oninput="C.svg.rows[${i}].dur=this.value"></div></div><div class="chips"><label class="svc-sw" style="margin:0"><input type="checkbox" ${r.active?"checked":""} onchange="C.svg.rows[${i}].active=this.checked;grpDraw()"><span>شغّال</span></label>${r.id?"":`<button class="btn s g" onclick="C.svg.rows[${i}].gone=1;grpDraw()">حذف</button>`}</div></div>`).join("")}
+function grpAdd(){C.svg.rows.push({label:"",price:"",dur:30,active:true});grpDraw()}
+async function grpSave(){const S=C.svg,g=$("sg-g").value.trim(),cat=$("sg-c").value.trim()||"قصات";
+if(!g)return toast("اكتب اسم الخدمة");
+const rows=S.rows.filter(r=>!r.gone&&(r.id||r.label.trim()||r.price!==""));
+for(const r of rows){if(!r.label.trim())return toast("اكتب اسم كل اختيار");if(!(parseFloat(r.price)>=0))return toast("اكتب سعر صحيح للاختيار «"+r.label+"»")}
+const labs=rows.map(r=>r.label.trim());if(new Set(labs).size!=labs.length)return toast("اسم الاختيار متكرر");
+if(rows.filter(r=>r.active).length<2)return toast("لازم اختياريين شغّالين على الأقل، وإلا اعمل خدمة عادية");
+if(g!==S.g&&C.svc.l.some(x=>x.group_name==g))return toast("فيه خدمة بخيارات بنفس الاسم");
+const b=$("sg-s");b.disabled=true;let err=null;
+for(const r of rows){const o={name:g+" — "+r.label.trim(),price:parseFloat(r.price),duration_min:Math.round(+r.dur)||30,category:cat,group_name:g,option_label:r.label.trim(),active:r.active};
+const q=r.id?await sb.from("services").update(o).eq("id",r.id):await sb.from("services").insert(o);if(q.error){err=q.error;break}}
+b.disabled=false;if(err)return toast(err.message);svcClose();toast("تم الحفظ ✓");V.svc()}

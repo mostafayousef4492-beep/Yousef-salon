@@ -18,6 +18,8 @@ async function init(){
   const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);
   document.title="احجز دورك - "+C.cfg.salon_name;$("bn").textContent=C.cfg.salon_name;
   const i=store.get("salon_book_info");if(i){C.f.n=i.n||"";C.f.p=i.p||""}
+  try{const q=new URLSearchParams(location.search),tid=q.get("t"),tp=(q.get("p")||"").replace(/\D/g,"");
+    if(tid&&/^\d+$/.test(tid)&&tp){store.set("salon_book_last",{id:+tid,p:tp});history.replaceState(null,"",location.pathname)}}catch(e){}
   if(store.get("salon_book_last"))return showTicket();
   start()}
 async function start(){
@@ -28,14 +30,14 @@ async function start(){
 
 function draw(){const b=C.b,days=bkDays();
   put(`<h1>احجز دورك</h1><p class="m" style="margin:0 0 4px">من غير تسجيل ولا تحميل تطبيق — اختار وخد رقم دورك.</p>
-${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red,#d9534f)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2><div class="chips">${C.sv.map(x=>`<button class="chip ${b.s.includes(x.id)?"sel":""}" onclick="tgS(${x.id})">${BN.star(b,x.id)}${esc(x.name)} · ${x.price}</button>`).join("")}</div>${BN.summary(b,C.sv,fm)}
+${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red,#d9534f)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2>${SG.render(C.sv,b.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgS(${x.id})">${BN.star(b,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(b,C.sv,fm)}
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
 <div id="bl"></div>
 <h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" value="${esc(C.f.n)}" autocomplete="name" oninput="C.f.n=this.value"><input id="fp" type="tel" inputmode="numeric" pattern="[0-9٠-٩]{11}" placeholder="رقم موبايلك (01xxxxxxxxx)" value="${esc(C.f.p)}" autocomplete="tel" oninput="C.f.p=this.value">
 <button class="btn" id="cbtn" style="width:100%" onclick="bookNow()" disabled>تأكيد وخد رقم دورك</button></div>${contact()}`);
   if(b.period)loadBarbers();upd()}
-function tgS(id){const b=C.b;b.s=b.s.includes(id)?b.s.filter(x=>x!=id):[...b.s,id];BN.sync(b);draw()}
+function tgS(id){const b=C.b;b.s=SG.tog(b.s,id,C.sv);BN.sync(b);draw()}
 function tgB(id){BN.pick(C.b,id);draw()}
 function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=BN.calc(b,C.sv).total,dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
   btn.disabled=!(b.s.length&&b.period&&b.barber!==undefined)||!!C.busy;
