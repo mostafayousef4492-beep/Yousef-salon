@@ -186,12 +186,10 @@ async function fullStaff(id,from){const f=C.fr,x=(f.staff||[]).find(y=>y.id==id)
   dsOpen(x.name+" · "+(RL[x.role]||""),`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${x.role=="assistant"?"":kc("اشتغل بكام",fm(x.sales),"")}${kc("ليه كام (مستحقاته)",fm(x.cost),"")}${kc("سحب كام",fm(x.advance),"")}${kc("اتصرف له",fm(x.paid),"")}${kc(bal>=0?"باقيله":"عليه",fm(Math.abs(bal)),bal>0?"var(--red)":"var(--ok)")}</div>
 <div class="m" style="margin:8px 0">مستحقاته = عمولة ${fm(x.commission)} + راتب ${fm(x.salary)} + مكافآت ${fm(x.bonus)} − خصومات ${fm(x.deduction)}. «باقيله» رصيد حسابه من أول يوم لحد دلوقتي.</div>
 <h2>حركات الفترة</h2>`+(E.length?E.map(r=>fRow(`${esc(r.label)}<div class="m">${FKIND[r.kind]||""} · ${new Date(r.at).toLocaleDateString("ar-EG")}</div>`,(+r.credit>0?"+ "+fm(r.credit):"− "+fm(r.debit)),null,+r.credit>0?"var(--ok)":"var(--red)")).join(""):`<p class="m">مفيش حركات.</p>`),{back:1})}
-<<<<<<< HEAD
 async function fullNoBarber(){const[a,b]=C.rr;
   const{data,error}=await sb.from("invoices").select("id,no,total,created_at,payment_method,invoice_items(name,qty)").is("barber_id",null).gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at",{ascending:false}).limit(300);
   if(error)return toast(error.message);const L=data||[],tot=L.reduce((x,i)=>x+(+i.total),0);
   dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
-=======
 
 // تفاصيل الدرج: اللي دخل (مبيعات كاش + إيداع) واللي طلع (مصروفات + سحوبات + رواتب + مشتريات)، وكل بند بيفتح حركاته
 function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const f=D.f,n=k=>+f[k]||0;
@@ -212,4 +210,3 @@ async function fullDrw(k){const D=C.fdr,f0=D.from,t0=D.to,ts=new Date(f0+"T00:00
   else{q=sb.from("salary_payments").select("staff_id,amount,note,paid_on").eq("paid_from","drawer").gte("paid_on",f0).lte("paid_on",t0).order("paid_on",{ascending:false}).limit(300);T="رواتب من الدرج";R=r=>fRow(`${esc(nm(r.staff_id))}${r.note?" — "+esc(r.note):""}<div class="m">${r.paid_on}</div>`,fm(r.amount))}
   const{data,error}=await q;if(error)return toast(error.message);const L=data||[];
   dsOpen(T+" · "+fm(L.reduce((a,r)=>a+(+r.amount||+r.total||0),0)),L.map(R).join("")||`<p class="m">مفيش حركات.</p>`,{back:1})}
->>>>>>> origin/main
