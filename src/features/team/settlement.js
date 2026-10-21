@@ -14,7 +14,7 @@ async function doSettle(id){const a=parseFloat($("st_a").value),r=$("st_r").valu
 // ================= دور المدير + كروت المالية =================
 // المدير = كل صلاحيات المالك ما عدا: الحذف، مركز التحكم، وتعديل المالك/مدير تاني (الداتابيز نفسها بتمنعها).
 
-const MGR_HIDE=/^\s*(?:svcClose\(\);\s*)?(delAppt|delC|delStaff|ownerDel|delTx|delMove|delExp|delPay|undoStl|voidPur|doReset|cancelAw|attDel|delInv|delClose|delLeave)\(/;
+const MGR_HIDE=/^\s*(?:svcClose\(\);\s*)?(delC|delStaff|ownerDel|delMove|delExp|delPay|undoStl|voidPur|doReset|cancelAw|delInv|delClose|delLeave)\(/;
 
 let _mh=0;
 
