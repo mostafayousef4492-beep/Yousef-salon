@@ -97,18 +97,40 @@ w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="shee
 <label class="m" for="sg-c">القسم</label><input id="sg-c" value="${esc(C.svg.cat||"")}" placeholder="قصات / ذقن / صبغة ..." autocomplete="off">
 <div class="m" style="margin-top:8px">الاختيارات (العميل بيختار واحد بس، وكل واحد بسعره)</div><div id="sg-r"></div>
 <button class="btn g s" onclick="grpAdd()">+ اختيار جديد</button>
-<button class="btn" id="sg-s" style="width:100%;margin-top:12px" onclick="grpSave()">حفظ</button></div>`;
+<button class="btn" id="sg-s" style="width:100%;margin-top:12px" onclick="grpSave()">حفظ</button>${g?`<div class="chips" style="margin-top:10px"><button class="btn g s" style="flex:1" onclick="grpAll(${L.some(x=>x.active)?0:1})">${L.some(x=>x.active)?"إيقاف الخدمة كلها":"تشغيل الخدمة كلها"}</button><button class="btn g s" style="flex:1;color:var(--red)" onclick="grpDel()">🗑 حذف الخدمة</button></div><div class="m" style="margin-top:6px">الإيقاف بيخفيها عن العملاء من غير ما يمسح حاجة. الحذف بيمسحها نهائيًا، ولو مستخدمة في حجوزات قديمة بتتوقف بدل ما تتمسح.</div>`:""}</div>`;
 document.body.appendChild(w);grpDraw();setTimeout(()=>$("sg-g").focus(),60)}
-function grpDraw(){const R=C.svg.rows;$("sg-r").innerHTML=R.map((r,i)=>r.gone?"":`<div class="box" style="margin:6px 0${r.active?"":";opacity:.6"}"><input placeholder="اسم الاختيار (مثال: كلاسيك)" value="${esc(r.label)}" oninput="C.svg.rows[${i}].label=this.value"><div class="svc-2"><div><input type="number" inputmode="decimal" min="0" placeholder="السعر" value="${esc(r.price)}" oninput="C.svg.rows[${i}].price=this.value"></div><div><input type="number" inputmode="numeric" min="5" step="5" placeholder="المدة (دقيقة)" value="${esc(r.dur)}" oninput="C.svg.rows[${i}].dur=this.value"></div></div><div class="chips"><label class="svc-sw" style="margin:0"><input type="checkbox" ${r.active?"checked":""} onchange="C.svg.rows[${i}].active=this.checked;grpDraw()"><span>شغّال</span></label>${r.id?"":`<button class="btn s g" onclick="C.svg.rows[${i}].gone=1;grpDraw()">حذف</button>`}</div></div>`).join("")}
+function grpDraw(){const R=C.svg.rows;$("sg-r").innerHTML=R.map((r,i)=>r.gone?"":`<div class="box" style="margin:6px 0${r.active?"":";opacity:.6"}"><input placeholder="اسم الاختيار (مثال: كلاسيك)" value="${esc(r.label)}" oninput="C.svg.rows[${i}].label=this.value"><div class="svc-2"><div><input type="number" inputmode="decimal" min="0" placeholder="السعر" value="${esc(r.price)}" oninput="C.svg.rows[${i}].price=this.value"></div><div><input type="number" inputmode="numeric" min="5" step="5" placeholder="المدة (دقيقة)" value="${esc(r.dur)}" oninput="C.svg.rows[${i}].dur=this.value"></div></div><div class="chips"><label class="svc-sw" style="margin:0"><input type="checkbox" ${r.active?"checked":""} onchange="C.svg.rows[${i}].active=this.checked;grpDraw()"><span>شغّال</span></label>${r.id?`<button class="btn s g" style="color:var(--red)" onclick="grpOptDel(${i})">حذف</button>`:`<button class="btn s g" onclick="C.svg.rows[${i}].gone=1;grpDraw()">حذف</button>`}</div></div>`).join("")}
 function grpAdd(){C.svg.rows.push({label:"",price:"",dur:30,active:true});grpDraw()}
 async function grpSave(){const S=C.svg,g=$("sg-g").value.trim(),cat=$("sg-c").value.trim()||"قصات";
 if(!g)return toast("اكتب اسم الخدمة");
 const rows=S.rows.filter(r=>!r.gone&&(r.id||r.label.trim()||r.price!==""));
 for(const r of rows){if(!r.label.trim())return toast("اكتب اسم كل اختيار");if(!(parseFloat(r.price)>=0))return toast("اكتب سعر صحيح للاختيار «"+r.label+"»")}
 const labs=rows.map(r=>r.label.trim());if(new Set(labs).size!=labs.length)return toast("اسم الاختيار متكرر");
-if(rows.filter(r=>r.active).length<2)return toast("لازم اختياريين شغّالين على الأقل، وإلا اعمل خدمة عادية");
+{const on=rows.filter(r=>r.active).length;if(on==1)return toast("لازم اختياريين شغّالين على الأقل (أو وقّف الخدمة كلها)، وإلا اعمل خدمة عادية")}
 if(g!==S.g&&C.svc.l.some(x=>x.group_name==g))return toast("فيه خدمة بخيارات بنفس الاسم");
 const b=$("sg-s");b.disabled=true;let err=null;
 for(const r of rows){const o={name:g+" — "+r.label.trim(),price:parseFloat(r.price),duration_min:Math.round(+r.dur)||30,category:cat,group_name:g,option_label:r.label.trim(),active:r.active};
 const q=r.id?await sb.from("services").update(o).eq("id",r.id):await sb.from("services").insert(o);if(q.error){err=q.error;break}}
 b.disabled=false;if(err)return toast(err.message);svcClose();toast("تم الحفظ ✓");V.svc()}
+
+/* حذف/إيقاف الخدمات اللي بخيارات: الحذف الفعلي لو مفيش حجوزات عليها، وإلا بتتوقف */
+async function grpRemove(ids){
+  if(!ids.length)return{del:0,off:0};
+  const gone=[];
+  for(const id of ids){const d=await sb.from("services").delete().eq("id",id).select("id");if(!d.error&&d.data&&d.data.length)gone.push(id)}
+  const rest=ids.filter(i=>!gone.includes(i));
+  let off=0;
+  if(rest.length){const u=await sb.from("services").update({active:false}).in("id",rest);if(u.error)throw u.error;off=rest.length}
+  return{del:gone.length,off}}
+async function grpDel(){const g=C.svg&&C.svg.g;if(!g)return;
+  if(!confirm("حذف الخدمة «"+g+"» بكل اختياراتها؟"))return;
+  try{const ids=C.svc.l.filter(x=>x.group_name==g).map(x=>x.id),r=await grpRemove(ids);
+    svcClose();toast(r.off?"اتمسح "+r.del+" واتوقف "+r.off+" (مستخدمين في حجوزات قديمة)":"اتمسحت الخدمة ✓");V.svc()}catch(e){toast(e.message)}}
+async function grpOptDel(i){const r=C.svg.rows[i];if(!r||!r.id)return;
+  const live=C.svg.rows.filter(x=>!x.gone&&x.id!=r.id&&x.active).length;
+  if(r.active&&live<2&&!confirm("كده هيفضل أقل من اختياريين شغّالين. الأحسن توقف الخدمة كلها. تكمل الحذف؟"))return;
+  if(!confirm("حذف الاختيار «"+r.label+"»؟"))return;
+  try{const x=await grpRemove([r.id]);r.gone=1;toast(x.off?"الاختيار مستخدم في حجوزات قديمة فاتوقف بدل ما يتمسح":"اتمسح ✓");grpDraw();V.svc()}catch(e){toast(e.message)}}
+async function grpAll(on){const g=C.svg&&C.svg.g;if(!g)return;
+  const{error}=await sb.from("services").update({active:!!on}).eq("group_name",g);
+  if(error)return toast(error.message);svcClose();toast(on?"الخدمة اشتغلت ✓":"الخدمة اتوقفت وبقت مخفية عن العملاء");V.svc()}
