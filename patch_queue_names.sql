@@ -47,3 +47,6 @@ begin
 end $$;
 revoke all on function public.public_queue_names(bigint, text) from public;
 grant execute on function public.public_queue_names(bigint, text) to anon, authenticated;
+
+-- الإعداد شغّال افتراضيًا (يظهر مفعّل في شاشة الإعدادات)
+insert into app_settings(key, value) values ('queue_show_names', 'true'::jsonb) on conflict (key) do nothing;
