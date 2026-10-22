@@ -54,7 +54,7 @@ button:disabled{opacity:.5}
 <script>
 const $=i=>document.getElementById(i);
 const MAIL="@staff.abu-yousef-salon.com";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); // نفس جلسة تطبيق الموظفين لو داخل بيه
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:"salon-auth-attendance"}}); // جلسة خاصة بتسجيل الحضور
 const TOKEN=(location.hash||"").replace(/^#/,"").replace(/[^a-f0-9]/gi,"");
 const show=id=>["vNo","vLogin","vGo"].forEach(v=>$(v).classList.toggle("hide",v!==id));
 const toEmail=c=>{c=String(c||"").trim();return c.includes("@")?c:c+MAIL};
