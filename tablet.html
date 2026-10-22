@@ -19,13 +19,14 @@ iframe.on{display:block}
 </style>
 </head>
 <body>
-<nav><button id="b1" class="on" onclick="sw(1)">تسجيل الزبائن</button><button id="b2" onclick="sw(2)">شاشة الدور</button><button id="b3" onclick="sw(3)">باركود الحيطة</button></nav>
+<nav><button id="b1" class="on" onclick="sw(1)">تسجيل الزبائن</button><button id="b2" onclick="sw(2)">شاشة الدور</button><button id="b3" onclick="sw(3)">باركود الحيطة</button><button id="b4" onclick="sw(4)">حضور الموظفين</button></nav>
 <iframe id="f1" class="on" src="/kiosk"></iframe>
 <iframe id="f2" src="/board"></iframe>
 <iframe id="f3" src="/wall"></iframe>
+<iframe id="f4" src="/att-kiosk"></iframe>
 <script>
-function sw(n){for(const i of[1,2,3]){document.getElementById("f"+i).classList.toggle("on",i==n);document.getElementById("b"+i).classList.toggle("on",i==n)}}
-if(location.hash=="#board")sw(2);if(location.hash=="#qr")sw(3);
+function sw(n){for(const i of[1,2,3,4]){document.getElementById("f"+i).classList.toggle("on",i==n);document.getElementById("b"+i).classList.toggle("on",i==n)}}
+if(location.hash=="#board")sw(2);if(location.hash=="#qr")sw(3);if(location.hash=="#att")sw(4);
 </script>
 </body>
 </html>

@@ -3,158 +3,108 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0B0D12">
 <meta name="robots" content="noindex">
-<title>تسجيل الحضور - صالون أبو يوسف</title>
+<title>تسجيل الزبائن</title>
 <link rel="icon" type="image/png" href="/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+:root{--bg:#0B0D12;--card:#161a22;--fg:#f4f1ea;--gold:#c9a24a;--mut:#9aa0ab;--ok:#2ea66b}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#0B0D12;color:#f2ede1;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif}
-body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;gap:16px;text-align:center}
-h1{font:700 40px/1.2 Amiri,serif;margin:0;color:#e8c36a}
-p{margin:0;font-size:20px;color:#cfc8b6}
-#qrbox{background:#fff;padding:18px;border-radius:20px;line-height:0;box-shadow:0 6px 30px #0008;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center}
-#qrbox canvas,#qrbox img{max-width:min(70vw,60vh,340px);height:auto!important}
-.bar{width:min(340px,70vw);height:8px;border-radius:8px;background:#222836;overflow:hidden}
-.bar i{display:block;height:100%;width:100%;background:#c9a24a;transform-origin:right;transition:transform 1s linear}
-button{font:700 20px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:14px 22px;border:0;border-radius:14px;background:#c9a24a;color:#1b1710;cursor:pointer}
-button.g{background:#1b2030;color:#e8e2d2;border:1px solid #333b52}
-button:disabled{opacity:.5}
-input{width:100%;font:20px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:14px;border-radius:12px;border:1px solid #333b52;background:#141826;color:#f2ede1;direction:ltr;text-align:center}
-.card{width:min(420px,100%);background:#141826;border:1px solid #262d42;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:12px}
-.row{display:flex;gap:10px}.row>*{flex:1}
-#msg{font-size:22px;font-weight:700;min-height:30px}
-.ok{color:#6fe3a4}.err{color:#ff8d8d}
-.small{font-size:15px;color:#8f9ab3}
-.hide{display:none!important}
-#clock{position:fixed;top:12px;left:16px;font-size:18px;color:#8f9ab3;direction:ltr}
-#dot{position:fixed;top:14px;right:16px;width:12px;height:12px;border-radius:50%;background:#6fe3a4}
-#dot.off{background:#ff8d8d}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:28px 20px;gap:18px}
+h1{font:700 44px/1.1 Amiri,serif;margin:0;text-align:center;color:var(--gold)}
+h2{font-size:22px;margin:6px 0 0}
+.m{color:var(--mut);font-size:18px}
+#app{width:min(720px,100%);display:flex;flex-direction:column;gap:14px}
+.box{background:var(--card);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
+input{font:600 26px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg)}
+input[type=tel]{direction:ltr;text-align:left}
+.row{font:600 22px "IBM Plex Sans Arabic",system-ui;display:flex;justify-content:space-between;align-items:center;padding:18px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);cursor:pointer;width:100%}
+.row.sel{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold) inset}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font:600 22px "IBM Plex Sans Arabic",system-ui;padding:14px 18px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);cursor:pointer}
+.chip.sel{border-color:var(--gold);background:#2a2415;box-shadow:0 0 0 2px var(--gold) inset}
+.btn{font:700 28px "IBM Plex Sans Arabic",system-ui;padding:20px;border:0;border-radius:16px;background:var(--gold);color:#1b1710;cursor:pointer}
+.btn:disabled{opacity:.45}
+.ticket{text-align:center}
+.no{font-size:96px;font-weight:800;color:var(--gold);line-height:1}
+#qr{background:#fff;padding:16px;border-radius:16px;line-height:0;align-self:center}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#c0392b;color:#fff;padding:14px 22px;border-radius:12px;font-size:20px}
 </style>
 </head>
 <body>
-<div id="dot"></div><div id="clock"></div>
-<h1 id="sn">صالون أبو يوسف</h1>
-
-<!-- دخول حساب التابلت (مرة واحدة) -->
-<div id="vLogin" class="card hide">
-  <p>دخول حساب التابلت (كاشير / مدير / مالك)</p>
-  <input id="lc" placeholder="الكود" autocomplete="username" autocapitalize="off">
-  <input id="lp" type="password" placeholder="كلمة السر" autocomplete="current-password">
-  <button id="lb">دخول</button>
-  <div id="lm" class="err"></div>
-</div>
-
-<!-- شاشة الباركود -->
-<div id="vQr" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:16px">
-  <p>امسح الباركود بتليفونك<br>وسجّل حضورك أو انصرافك</p>
-  <div id="qrbox"></div>
-  <div class="bar"><i id="prog"></i></div>
-  <div class="small">الباركود بيتغيّر كل نص دقيقة تقريبًا، فصورته مبتنفعش</div>
-  <button class="g" id="openFb">مشكلة في الباركود؟ سجّل بالكود والباسورد</button>
-</div>
-
-<!-- تسجيل بالكود والباسورد (البديل) -->
-<div id="vFb" class="card hide">
-  <p>تسجيل بالكود والباسورد</p>
-  <input id="fc" placeholder="كودك" autocomplete="off" autocapitalize="off">
-  <input id="fp" type="password" placeholder="كلمة السر" autocomplete="off">
-  <div class="row"><button id="fin">حضور</button><button id="fout" class="g">انصراف</button></div>
-  <div id="fm"></div>
-  <button class="g" id="fback">رجوع للباركود</button>
-</div>
-
+<h1 id="bn">صالون أبو يوسف</h1>
+<div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/config.js"></script>
+<script src="/src/ui/bundles-ui.js"></script>
 <script>
+// تابلت الصالون: التسجيل بنفس دالة الحجز العامة (public_book_v2) من غير ما نحفظ أي حاجة على التابلت،
+// وبعدها باركود لتذكرة الزبون بس: لما يمسحه من موبايله يفتح حجزه علطول.
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
 const $=i=>document.getElementById(i);
-const MAIL="@staff.abu-yousef-salon.com";
-const ROTATE_SEC=30, TABLET_ROLES=["owner","manager","cashier"];
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); // جلسة التابلت (مشتركة مع تطبيق الإدارة)
-let cur=null, timer=null, rotTimer=null, tickTimer=null, started=0, wake=null;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
+const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)};
+const period=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
+const nf=n=>Number(n||0).toLocaleString("ar-EG");
+const K={name:"",phone:"",barber:null,L:[],SV:[],s:[],bd:null,busy:false,timer:null,poll:null};
 
-const show=id=>["vLogin","vQr","vFb"].forEach(v=>$(v).classList.toggle("hide",v!==id));
-const toEmail=c=>{c=String(c||"").trim();return c.includes("@")?c:c+MAIL};
+async function init(){
+  const{data}=await sb.from("app_settings").select("*");const cfg={};(data||[]).forEach(r=>cfg[r.key]=r.value);
+  K.cfg=cfg;if(cfg.salon_name){$("bn").textContent=cfg.salon_name;document.title="تسجيل الزبائن - "+cfg.salon_name}
+  const sv=await sb.from("services").select("*").eq("active",true).order("id");
+  K.SV=sv.data||[];await BN.load(sb);
+  showForm()}
 
-setInterval(()=>{$("clock").textContent=new Date().toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})},1000);
+function tg(id){K.s=SG.tog(K.s,id,K.SV);BN.sync(K);drawS()}
+function tgB(id){BN.pick(K,id);drawS()}
+const fk=n=>nf(n)+" ج";
+function drawS(){
+  const el=$("sv");if(!el)return;
+  el.innerHTML=K.SV.length?SG.render(K.SV,K.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tg(${x.id})">${BN.star(K,x.id)}${esc(sh?SG.label(x):x.name)} · ${nf(x.price)}</button>`):`<p class="m">مقدرناش نحمّل الخدمات، كلّم الكاشير.</p>`;
+  const bh=$("bnh");if(bh)bh.innerHTML=BN.html(K,"tgB",fk);const bs=$("bns");if(bs)bs.innerHTML=BN.summary(K,K.SV,fk);
+  const tot=BN.calc(K,K.SV).total;
+  const g=$("go");if(g)g.textContent=K.s.length?"سجّلني · "+nf(tot):"سجّلني"}
 
-async function keepAwake(){try{if("wakeLock" in navigator)wake=await navigator.wakeLock.request("screen")}catch(e){}}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!wake)keepAwake()});
+function showForm(){
+  clearTimeout(K.timer);clearInterval(K.poll);K.name="";K.phone="";K.barber=null;K.s=[];K.bd=null;K.busy=false;
+  $("app").innerHTML=`<p class="m" style="text-align:center;margin:0">اكتب اسمك ورقمك واختار الحلاق، وخد باركود دورك</p>
+<div id="bnh"></div><h2>الخدمات <span class="m">(لازم تختار واحدة على الأقل)</span></h2><div class="chips" id="sv"></div><div id="bns"></div>
+<h2>الحلاق</h2><div id="bl"><p class="m">جاري التحميل...</p></div>
+<h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" autocomplete="off" oninput="K.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" autocomplete="off" oninput="K.phone=this.value"><button class="btn" id="go" onclick="join()" disabled>سجّلني</button></div>`;
+  drawS();loadB();K.poll=setInterval(loadB,10000)}
 
-async function boot(){
-  const{data:{session}}=await sb.auth.getSession();
-  if(!session)return show("vLogin");
-  const{data:p}=await sb.from("profiles").select("role,full_name").eq("id",session.user.id).single();
-  if(!p||!TABLET_ROLES.includes(p.role)){await sb.auth.signOut({scope:"local"});$("lm").textContent="الحساب ده مش مسموح للتابلت. ادخل بحساب كاشير أو مدير.";return show("vLogin")}
-  try{const{data:s}=await sb.from("app_settings").select("value").eq("key","salon_name").single();if(s&&s.value)$("sn").textContent=String(s.value).replace(/^"|"$/g,"")}catch(e){}
-  show("vQr");keepAwake();rotate();
-}
+async function loadB(){
+  const d=new Date().toLocaleDateString("en-CA");
+  const{data,error}=await sb.rpc("available_barbers",{p_day:d,p_period:period()});
+  const el=$("bl");if(!el)return;
+  if(error){el.innerHTML=`<p class="m">مقدرناش نحمّل الحلاقين، جرّب تاني.</p>`;return}
+  K.L=(data||[]).slice().sort((a,b)=>(a.waiting||0)-(b.waiting||0));
+  if(K.barber&&!K.L.some(x=>x.id==K.barber))K.barber=null;
+  el.innerHTML=K.L.length?`<button class="row ${K.barber?"":"sel"}" onclick="K.barber=null;loadB()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+K.L.map(x=>`<button class="row ${K.barber==x.id?"sel":""}" style="margin-top:10px" onclick="K.barber='${x.id}';loadB()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting?nf(x.waiting)+" قدامك · ~"+nf(x.est_min)+" د":"متاح دلوقتي"}</span></button>`).join(""):`<div class="box"><p class="m">مفيش حلاق متاح دلوقتي، كلّم الكاشير.</p></div>`;
+  $("go").disabled=!K.L.length||K.busy}
 
-$("lb").onclick=async()=>{
-  const b=$("lb");b.disabled=true;$("lm").textContent="";
-  try{const{error}=await sb.auth.signInWithPassword({email:toEmail($("lc").value),password:$("lp").value});
-    if(error)$("lm").textContent="الكود أو كلمة السر غلط";else{$("lp").value="";boot()}}
-  finally{b.disabled=false}
-};
+async function join(){
+  if(K.busy)return;const n=(K.name||"").trim(),ph=dig(K.phone);
+  if(!K.s.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
+  K.busy=true;$("go").disabled=true;
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:K.s});
+  K.busy=false;const t=!r.error&&r.data&&r.data.ticket;
+  if(!t){$("go").disabled=false;return toast(!r.error?"التسجيل لم يتأكد، جرّب تاني":(r.error.message||"التسجيل لم يتأكد"))}
+  if(K.bd&&!(await BN.attach(sb,K,t.id,ph)))toast("اتسجّل دورك، بس الباقة ماتسجّلتش — قول للكاشير");
+  done(t,ph,n)}
 
-function drawQr(token){
-  const box=$("qrbox");box.innerHTML="";
-  new QRCode(box,{text:location.origin+"/k#"+token,width:320,height:320,correctLevel:QRCode.CorrectLevel.M});
-}
-
-async function rotate(){
-  clearTimeout(rotTimer);
-  try{
-    const{data,error}=await sb.rpc("kiosk_new_token");
-    if(error)throw error;
-    cur=data.token;drawQr(cur);started=Date.now();$("dot").classList.remove("off");
-    startProg();
-    rotTimer=setTimeout(rotate,ROTATE_SEC*1000);
-  }catch(e){
-    $("dot").classList.add("off");
-    if(/غير مصرح|JWT|session/i.test(String(e.message||e))){cur=null;return boot()}
-    rotTimer=setTimeout(rotate,4000); // مفيش نت؟ نحاول تاني
-  }
-}
-
-function startProg(){
-  clearInterval(tickTimer);const p=$("prog");
-  const tick=()=>{const left=Math.max(0,1-(Date.now()-started)/(ROTATE_SEC*1000));p.style.transform="scaleX("+left+")"};
-  tick();tickTimer=setInterval(tick,1000);
-}
-
-// ===== البديل: كود + باسورد على التابلت =====
-$("openFb").onclick=()=>{$("fm").textContent="";$("fc").value="";$("fp").value="";show("vFb");$("fc").focus()};
-$("fback").onclick=()=>{$("fc").value="";$("fp").value="";show("vQr")};
-
-async function fbDo(action){
-  const code=$("fc").value.trim(),pw=$("fp").value;
-  if(!code||!pw)return setFm("اكتب الكود وكلمة السر","err");
-  if(!cur)return setFm("استنى ثانية والباركود يتجدد وجرّب تاني","err");
-  const bs=[$("fin"),$("fout")];bs.forEach(b=>b.disabled=true);
-  // عميل مؤقت: مفيش جلسة بتتحفظ ولا بتتأثر جلسة التابلت
-  const tmp=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:"kiosk-tmp"}});
-  try{
-    const{error:e1}=await tmp.auth.signInWithPassword({email:toEmail(code),password:pw});
-    if(e1)return setFm("الكود أو كلمة السر غلط","err");
-    const{data,error}=await tmp.rpc("kiosk_scan",{p_token:cur,p_action:action});
-    if(error)return setFm(error.message,"err");
-    setFm(data.msg,"ok");
-    $("fc").value="";$("fp").value="";
-    setTimeout(()=>{if(!$("vFb").classList.contains("hide"))show("vQr")},4000);
-  }finally{
-    try{await tmp.auth.signOut({scope:"local"})}catch(e){}
-    bs.forEach(b=>b.disabled=false);
-  }
-}
-function setFm(t,c){const m=$("fm");m.textContent=t;m.className=c;m.style.fontWeight="700";m.style.fontSize="20px"}
-$("fin").onclick=()=>fbDo("in");
-$("fout").onclick=()=>fbDo("out");
-
-boot();
+function done(t,ph,n){
+  clearInterval(K.poll);
+  const url=location.origin+"/book?t="+encodeURIComponent(t.id)+"&p="+encodeURIComponent(ph);
+  $("app").innerHTML=`<div class="box ticket"><div class="m">أهلًا ${esc(n.split(" ")[0])} — رقم دورك</div><div class="no">${t.no==null?"—":esc(t.no)}</div>${t.barber?`<div class="m">مع ${esc(t.barber)}</div>`:""}<div id="qr"></div><div class="m">امسح الباركود من موبايلك وتابع دورك والحساب</div><div id="wab" style="margin-top:10px"></div></div><button class="btn" onclick="showForm()">تسجيل زبون جديد</button>`;
+  new QRCode($("qr"),{text:url,width:280,height:280,correctLevel:QRCode.CorrectLevel.M});
+  {let d=String(ph).replace(/\D/g,"");if(/^01\d{9}$/.test(d))d="20"+d.slice(1);const sn=(K.cfg&&K.cfg.salon_name)||"الصالون";
+   const msg=`أهلاً ${n.split(" ")[0]} 👋\nتم حجز دورك في ${sn} ✅\n🎟 رقم دورك: ${t.code||t.no||"—"}${t.barber?"\n✂️ مع: "+t.barber:""}\n\nتابع دورك لحظة بلحظة من الرابط ده:\n${url}`;
+   $("wab").innerHTML=`<a href="https://wa.me/${d}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="display:inline-block;background:#25D366;color:#fff;border-radius:999px;text-decoration:none;font-weight:700;padding:12px 22px">ابعتلي التذكرة على واتساب</a>`}
+  K.timer=setTimeout(showForm,45000)}
+init();
 </script>
 </body>
 </html>

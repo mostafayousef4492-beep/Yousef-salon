@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="robots" content="noindex">
+<title>حضور الموظفين - صالون أبو يوسف</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0B0D12;color:#f2ede1;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;gap:16px;text-align:center}
+h1{font:700 40px/1.2 Amiri,serif;margin:0;color:#e8c36a}
+p{margin:0;font-size:20px;color:#cfc8b6}
+#qrbox{background:#fff;padding:18px;border-radius:20px;line-height:0;box-shadow:0 6px 30px #0008;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center}
+#qrbox canvas,#qrbox img{max-width:min(70vw,60vh,340px);height:auto!important}
+.bar{width:min(340px,70vw);height:8px;border-radius:8px;background:#222836;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:#c9a24a;transform-origin:right;transition:transform 1s linear}
+button{font:700 20px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:14px 22px;border:0;border-radius:14px;background:#c9a24a;color:#1b1710;cursor:pointer}
+button.g{background:#1b2030;color:#e8e2d2;border:1px solid #333b52}
+button:disabled{opacity:.5}
+input{width:100%;font:20px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:14px;border-radius:12px;border:1px solid #333b52;background:#141826;color:#f2ede1;direction:ltr;text-align:center}
+.card{width:min(420px,100%);background:#141826;border:1px solid #262d42;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+#msg{font-size:22px;font-weight:700;min-height:30px}
+.ok{color:#6fe3a4}.err{color:#ff8d8d}
+.small{font-size:15px;color:#8f9ab3}
+.hide{display:none!important}
+#clock{position:fixed;top:12px;left:16px;font-size:18px;color:#8f9ab3;direction:ltr}
+#dot{position:fixed;top:14px;right:16px;width:12px;height:12px;border-radius:50%;background:#6fe3a4}
+#dot.off{background:#ff8d8d}
+</style>
+</head>
+<body>
+<div id="dot"></div><div id="clock"></div>
+<h1 id="sn">صالون أبو يوسف</h1>
+
+<!-- دخول حساب التابلت (مرة واحدة) -->
+<div id="vLogin" class="card hide">
+  <p>دخول حساب التابلت (كاشير / مدير / مالك)</p>
+  <input id="lc" placeholder="الكود" autocomplete="username" autocapitalize="off">
+  <input id="lp" type="password" placeholder="كلمة السر" autocomplete="current-password">
+  <button id="lb">دخول</button>
+  <div id="lm" class="err"></div>
+</div>
+
+<!-- شاشة الباركود -->
+<div id="vQr" class="hide" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+  <p>امسح الباركود بتليفونك<br>وسجّل حضورك أو انصرافك</p>
+  <div id="qrbox"></div>
+  <div class="bar"><i id="prog"></i></div>
+  <div class="small">الباركود بيتغيّر كل نص دقيقة تقريبًا، فصورته مبتنفعش</div>
+  <button class="g" id="openFb">مشكلة في الباركود؟ سجّل بالكود والباسورد</button>
+</div>
+
+<!-- تسجيل بالكود والباسورد (البديل) -->
+<div id="vFb" class="card hide">
+  <p>تسجيل بالكود والباسورد</p>
+  <input id="fc" placeholder="كودك" autocomplete="off" autocapitalize="off">
+  <input id="fp" type="password" placeholder="كلمة السر" autocomplete="off">
+  <div class="row"><button id="fin">حضور</button><button id="fout" class="g">انصراف</button></div>
+  <div id="fm"></div>
+  <button class="g" id="fback">رجوع للباركود</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/config.js"></script>
+<script>
+const $=i=>document.getElementById(i);
+const MAIL="@staff.abu-yousef-salon.com";
+const ROTATE_SEC=30, TABLET_ROLES=["owner","manager","cashier"];
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:"salon-auth-attendance"}}); // جلسة خاصة بشاشة الحضور (مش بتتخلط مع تطبيق العملاء)
+let cur=null, timer=null, rotTimer=null, tickTimer=null, started=0, wake=null;
+
+const show=id=>["vLogin","vQr","vFb"].forEach(v=>$(v).classList.toggle("hide",v!==id));
+const toEmail=c=>{c=String(c||"").trim();return c.includes("@")?c:c+MAIL};
+
+setInterval(()=>{$("clock").textContent=new Date().toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"})},1000);
+
+async function keepAwake(){try{if("wakeLock" in navigator)wake=await navigator.wakeLock.request("screen")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!wake)keepAwake()});
+
+async function boot(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session)return show("vLogin");
+  const{data:p}=await sb.from("profiles").select("role,full_name").eq("id",session.user.id).single();
+  if(!p||!TABLET_ROLES.includes(p.role)){await sb.auth.signOut({scope:"local"});$("lm").textContent="الحساب ده مش مسموح للتابلت. ادخل بحساب كاشير أو مدير.";return show("vLogin")}
+  try{const{data:s}=await sb.from("app_settings").select("value").eq("key","salon_name").single();if(s&&s.value)$("sn").textContent=String(s.value).replace(/^"|"$/g,"")}catch(e){}
+  show("vQr");keepAwake();rotate();
+}
+
+$("lb").onclick=async()=>{
+  const b=$("lb");b.disabled=true;$("lm").textContent="";
+  try{const{error}=await sb.auth.signInWithPassword({email:toEmail($("lc").value),password:$("lp").value});
+    if(error)$("lm").textContent="الكود أو كلمة السر غلط";else{$("lp").value="";boot()}}
+  finally{b.disabled=false}
+};
+
+function drawQr(token){
+  const box=$("qrbox");box.innerHTML="";
+  new QRCode(box,{text:location.origin+"/k#"+token,width:320,height:320,correctLevel:QRCode.CorrectLevel.M});
+}
+
+async function rotate(){
+  clearTimeout(rotTimer);
+  try{
+    const{data,error}=await sb.rpc("kiosk_new_token");
+    if(error)throw error;
+    cur=data.token;drawQr(cur);started=Date.now();$("dot").classList.remove("off");
+    startProg();
+    rotTimer=setTimeout(rotate,ROTATE_SEC*1000);
+  }catch(e){
+    $("dot").classList.add("off");
+    if(/غير مصرح|JWT|session/i.test(String(e.message||e))){cur=null;return boot()}
+    rotTimer=setTimeout(rotate,4000); // مفيش نت؟ نحاول تاني
+  }
+}
+
+function startProg(){
+  clearInterval(tickTimer);const p=$("prog");
+  const tick=()=>{const left=Math.max(0,1-(Date.now()-started)/(ROTATE_SEC*1000));p.style.transform="scaleX("+left+")"};
+  tick();tickTimer=setInterval(tick,1000);
+}
+
+// ===== البديل: كود + باسورد على التابلت =====
+$("openFb").onclick=()=>{$("fm").textContent="";$("fc").value="";$("fp").value="";show("vFb");$("fc").focus()};
+$("fback").onclick=()=>{$("fc").value="";$("fp").value="";show("vQr")};
+
+async function fbDo(action){
+  const code=$("fc").value.trim(),pw=$("fp").value;
+  if(!code||!pw)return setFm("اكتب الكود وكلمة السر","err");
+  if(!cur)return setFm("استنى ثانية والباركود يتجدد وجرّب تاني","err");
+  const bs=[$("fin"),$("fout")];bs.forEach(b=>b.disabled=true);
+  // عميل مؤقت: مفيش جلسة بتتحفظ ولا بتتأثر جلسة التابلت
+  const tmp=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:"kiosk-tmp"}});
+  try{
+    const{error:e1}=await tmp.auth.signInWithPassword({email:toEmail(code),password:pw});
+    if(e1)return setFm("الكود أو كلمة السر غلط","err");
+    const{data,error}=await tmp.rpc("kiosk_scan",{p_token:cur,p_action:action});
+    if(error)return setFm(error.message,"err");
+    setFm(data.msg,"ok");
+    $("fc").value="";$("fp").value="";
+    setTimeout(()=>{if(!$("vFb").classList.contains("hide"))show("vQr")},4000);
+  }finally{
+    try{await tmp.auth.signOut({scope:"local"})}catch(e){}
+    bs.forEach(b=>b.disabled=false);
+  }
+}
+function setFm(t,c){const m=$("fm");m.textContent=t;m.className=c;m.style.fontWeight="700";m.style.fontSize="20px"}
+$("fin").onclick=()=>fbDo("in");
+$("fout").onclick=()=>fbDo("out");
+
+boot();
+</script>
+</body>
+</html>
