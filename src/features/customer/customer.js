@@ -20,10 +20,11 @@ put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div
 function tgS(id){const b=C.b;b.s=SG.tog(b.s,id,C.sv);BN.sync(b);drawBk()}
 function tgB(id){BN.pick(C.b,id);drawBk()}
 
+function barberLoad(x){const n=+x.waiting||0;return (n?`<b style="color:var(--gold,#c9a24a)">معاه ${n} ${n==1?"زبون":n==2?"زبونين":"زباين"}</b>`:`<b style="color:var(--ok,#6fe3a4)">فاضي دلوقتي</b>`)+` · ~${x.est_min||0} دقيقة`}
 async function loadBarbers(){const b=C.b,d=bkDays()[b.day];const{data,error}=await sb.rpc("available_barbers",{p_day:d.iso,p_period:b.period});if(error)return toast(error.message);
 const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset;":"";
 const sv=C.sv.filter(x=>b.s.includes(x.id)),tot=BN.calc(b,C.sv).total,dur=sv.reduce((a,x)=>a+x.duration_min,0);
-$("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور · ~${x.est_min} دقيقة</span></button>`).join("")+`<button class="btn" style="width:100%;margin-top:8px" ${b.s.length&&b.barber!==undefined?"":"disabled"} onclick="bookNow()">تأكيد وخد رقم دورك · ${fm(tot)} · ~${dur} دقيقة</button>`:`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`)}
+$("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadBarbers()"><b>أي حلاق (الأقل زحمة)</b><span class="m">أسرع دور</span></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadBarbers()"><b>${esc(x.full_name)}</b><span class="m">${barberLoad(x)}</span></button>`).join("")+`<button class="btn" style="width:100%;margin-top:8px" ${b.s.length&&b.barber!==undefined?"":"disabled"} onclick="bookNow()">تأكيد وخد رقم دورك · ${fm(tot)} · ~${dur} دقيقة</button>`:`<p class="m">مفيش حلاق متاح في الفترة دي، جرّب فترة تانية.</p>`)}
 
 const curPer=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
 function drawUrg(){const b=C.b,m=+C.cfg.urgent_multiplier||2;

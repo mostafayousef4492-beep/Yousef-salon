@@ -36,3 +36,14 @@ function waTicketCard(n,ph,data,barber){
   const txt=waTicketMsg(n,t.no,t.code||t.ticket_code,barber,t.id,ph);
   return `<div class="box" style="margin:10px 0;text-align:center"><b>تم الحجز ✓ رقم الدور ${esc(String(t.code||t.no||"—"))}</b><div class="m" style="margin:6px 0 10px">ابعت للعميل التذكرة ولينك متابعة الدور على واتساب</div>${waBtn(ph,true,txt)}<div style="margin-top:10px"><button class="btn g s" onclick="go('appts')">تم</button></div></div>`;
 }
+
+/* ===== زرار واتساب في الطابور: اختار استدعاء ولا رابط البرنامج ===== */
+function waCallMsg(name,code,barber){
+  return `أهلاً ${name||""} 👋\nجه دورك في ${waSalon()} ✅\n🎟 رقم دورك: ${code||"—"}${barber?"\n✂️ مع: "+barber:""}\n\nمن فضلك اتفضل على الصالون دلوقتي 🙏`;
+}
+function waQueuePick(id){
+  const a=(C.A||[]).find(x=>x.id==id);if(!a)return;
+  const ph=a.customers&&a.customers.phone,nm=(a.customers&&a.customers.name)||"",code=a.ticket_code||("#"+a.ticket_no),br=a.profiles&&a.profiles.full_name;
+  if(!waNum(ph))return toast("مفيش رقم موبايل للعميل ده");
+  dsOpen("واتساب — "+esc(nm)+" · "+esc(code),`<div class="m" style="margin-bottom:12px">تبعت له إيه؟</div><div style="display:flex;flex-direction:column;gap:10px;align-items:stretch">${waBtn(ph,1,waCallMsg(nm,code,br)).replace("واتساب</a>","📣 استدعاء (تعالى دورك جه)</a>")}${waBtn(ph,1,waTicketMsg(nm,a.ticket_no,a.ticket_code,br,a.id,String(ph).replace(/\D/g,""))).replace("واتساب</a>","📲 رابط البرنامج (متابعة الدور)</a>")}</div>`);
+}
