@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="robots" content="noindex">
+<title>تسجيل الحضور</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0B0D12;color:#f2ede1;font-family:"IBM Plex Sans Arabic",system-ui,sans-serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;gap:16px;text-align:center}
+h1{font:700 34px/1.2 Amiri,serif;margin:0;color:#e8c36a}
+p{margin:0;font-size:18px;color:#cfc8b6}
+.card{width:min(420px,100%);background:#141826;border:1px solid #262d42;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:12px}
+input{width:100%;font:18px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:14px;border-radius:12px;border:1px solid #333b52;background:#0f1320;color:#f2ede1;direction:ltr;text-align:center}
+button{font:700 20px "IBM Plex Sans Arabic",system-ui,sans-serif;padding:16px;border:0;border-radius:14px;background:#c9a24a;color:#1b1710;cursor:pointer;width:100%}
+button.g{background:#1b2030;color:#e8e2d2;border:1px solid #333b52}
+button.s{font-size:15px;padding:10px;background:transparent;border:0;color:#8f9ab3;text-decoration:underline}
+button:disabled{opacity:.5}
+.row{display:flex;gap:10px}.row>*{flex:1}
+#res{font-size:22px;font-weight:700;min-height:28px}
+.ok{color:#6fe3a4}.err{color:#ff8d8d}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<h1>صالون أبو يوسف</h1>
+
+<div id="vNo" class="card hide">
+  <p>امسح الباركود الظاهر على تابلت الصالون عشان تسجّل حضورك أو انصرافك.</p>
+</div>
+
+<div id="vLogin" class="card hide">
+  <p>ادخل بكودك وكلمة السر</p>
+  <input id="lc" placeholder="الكود" autocomplete="username" autocapitalize="off">
+  <input id="lp" type="password" placeholder="كلمة السر" autocomplete="current-password">
+  <button id="lb">دخول</button>
+  <div id="lm" class="err"></div>
+</div>
+
+<div id="vGo" class="card hide">
+  <p id="who"></p>
+  <div class="row"><button id="bin">حضور</button><button id="bout" class="g">انصراف</button></div>
+  <div id="res"></div>
+  <button class="s" id="sw">مش حسابك؟ بدّل الحساب</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script>
+const $=i=>document.getElementById(i);
+const MAIL="@staff.abu-yousef-salon.com";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); // نفس جلسة تطبيق الموظفين لو داخل بيه
+const TOKEN=(location.hash||"").replace(/^#/,"").replace(/[^a-f0-9]/gi,"");
+const show=id=>["vNo","vLogin","vGo"].forEach(v=>$(v).classList.toggle("hide",v!==id));
+const toEmail=c=>{c=String(c||"").trim();return c.includes("@")?c:c+MAIL};
+let busy=false;
+
+async function boot(){
+  if(!TOKEN)return show("vNo");
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session)return show("vLogin");
+  const{data:p}=await sb.from("profiles").select("full_name").eq("id",session.user.id).single();
+  $("who").textContent="أهلاً "+((p&&p.full_name)||"");
+  $("res").textContent="";show("vGo");
+}
+
+$("lb").onclick=async()=>{
+  const b=$("lb");b.disabled=true;$("lm").textContent="";
+  try{const{error}=await sb.auth.signInWithPassword({email:toEmail($("lc").value),password:$("lp").value});
+    if(error)$("lm").textContent="الكود أو كلمة السر غلط";else{$("lp").value="";boot()}}
+  finally{b.disabled=false}
+};
+
+async function go(action){
+  if(busy)return;busy=true;
+  const bs=[$("bin"),$("bout")];bs.forEach(b=>b.disabled=true);
+  const r=$("res");r.className="";r.textContent="لحظة...";
+  try{
+    const{data,error}=await sb.rpc("kiosk_scan",{p_token:TOKEN,p_action:action});
+    if(error){r.className="err";r.textContent=error.message;return}
+    r.className="ok";r.textContent=data.msg;
+    history.replaceState(null,"",location.pathname); // نشيل الباركود من اللينك
+  }finally{busy=false;bs.forEach(b=>b.disabled=false)}
+}
+$("bin").onclick=()=>go("in");
+$("bout").onclick=()=>go("out");
+$("sw").onclick=async()=>{await sb.auth.signOut({scope:"local"});boot()};
+
+boot();
+</script>
+</body>
+</html>
