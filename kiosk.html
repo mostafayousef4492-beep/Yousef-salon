@@ -75,8 +75,10 @@ function showForm(){
 <h2>بياناتك</h2><div class="box"><input id="fn" placeholder="اسمك" autocomplete="off" oninput="K.name=this.value"><input id="fp" type="tel" inputmode="numeric" placeholder="رقم موبايلك (01xxxxxxxxx)" autocomplete="off" oninput="K.phone=this.value"><button class="btn" id="go" onclick="join()" disabled>سجّلني</button></div>`;
   drawS();loadB();K.poll=setInterval(loadB,10000)}
 
+let BIZ=null;async function bizInit(){try{const{data}=await sb.rpc("business_day_state");if(data)BIZ=data}catch(e){}}
+const bizDay=()=>(BIZ&&BIZ.open&&BIZ.day)||new Date().toLocaleDateString("en-CA");
 async function loadB(){
-  const d=new Date().toLocaleDateString("en-CA");
+  await bizInit();const d=bizDay();
   const{data,error}=await sb.rpc("available_barbers",{p_day:d,p_period:period()});
   const el=$("bl");if(!el)return;
   if(error){el.innerHTML=`<p class="m">مقدرناش نحمّل الحلاقين، جرّب تاني.</p>`;return}
@@ -89,7 +91,7 @@ async function join(){
   if(K.busy)return;const n=(K.name||"").trim(),ph=dig(K.phone);
   if(!K.s.length)return toast("اختار خدمة واحدة على الأقل");if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
   K.busy=true;$("go").disabled=true;
-  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:K.s});
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:K.barber||null,p_day:bizDay(),p_period:period(),p_services:K.s});
   K.busy=false;const t=!r.error&&r.data&&r.data.ticket;
   if(!t){$("go").disabled=false;return toast(!r.error?"التسجيل لم يتأكد، جرّب تاني":(r.error.message||"التسجيل لم يتأكد"))}
   if(K.bd&&!(await BN.attach(sb,K,t.id,ph)))toast("اتسجّل دورك، بس الباقة ماتسجّلتش — قول للكاشير");

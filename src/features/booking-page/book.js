@@ -11,10 +11,11 @@ const dig=s=>String(s||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(
 const PERIODS=[["morning","الصبح","6ص–12ظ",12],["afternoon","العصر","12–5م",17],["evening","المساء","5م–12",24],["night","بعد منتصف الليل","12–6ص",6]];
 const PLB={morning:"الصبح",afternoon:"العصر",evening:"المساء",night:"بعد منتصف الليل"};
 const ST={upcoming:"قادم",checked_in:"وصل",in_service:"على الكرسي",done:"خلص",cancelled:"ملغي"};
-const bkDays=()=>[...Array(Math.max(+C.cfg.days_ahead||5,1))].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
+const bkDays=()=>[...Array(Math.max(+C.cfg.days_ahead||5,1))].map((_,i)=>{const d=C.biz&&C.biz.open&&C.biz.day?new Date(C.biz.day+"T12:00:00"):new Date();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
 const contact=()=>`<div class="foot m">${C.cfg.phone?`للاستفسار: <a href="tel:${esc(C.cfg.phone)}">${esc(C.cfg.phone)}</a>`:""}${C.cfg.address?`<div>${esc(C.cfg.address)}</div>`:""}<div style="margin-top:8px"><a href="/">تطبيق الصالون (النقاط والعروض)</a></div></div>`;
 
 async function init(){
+  try{const{data:bz}=await sb.rpc("business_day_state");if(bz)C.biz=bz}catch(e){}
   const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);
   document.title="احجز دورك - "+C.cfg.salon_name;$("bn").textContent=C.cfg.salon_name;
   const i=store.get("salon_book_info");if(i){C.f.n=i.n||"";C.f.p=i.p||""}
