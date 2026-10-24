@@ -64,7 +64,7 @@ const getPos=()=>new Promise(r=>navigator.geolocation?navigator.geolocation.getC
 async function admForm(){const e=$("adm");if(e.innerHTML)return e.innerHTML="";const[{data:sv},{data:br}]=await Promise.all([sb.from("services").select("id,name,price,group_name,option_label").eq("active",true).order("id"),sb.from("profiles").select("id,full_name").eq("role","barber").order("full_name")]);await BN.load(sb);C.ad={s:[],bd:null,walk:false,sv:sv||[],br:br||[]};drawAdm()}
 
 function drawAdm(){const A=C.ad,e=$("adm");if(!e)return;const nm=$("ad_n")?$("ad_n").value:"",ph=$("ad_p")?$("ad_p").value:"",day=$("ad_d")?$("ad_d").value:bizToday(),pe=$("ad_pe")?$("ad_pe").value:"evening",bb=$("ad_b")?$("ad_b").value:"";
-  e.innerHTML=`<div class="box" style="margin:10px 0"><div class="m">حجز إداري (بيدخل الدور زي أي حجز) — الخدمات اختيارية</div><div class="chips"><button class="chip ${A.walk?"sel":""}" onclick="admWk()">وصل الصالون دلوقتي (Walk-in)</button>${isAdm(me)&&C.cfg.urgent_enabled!==false?`<button class="chip ${A.urgent?"sel":""}" onclick="C.ad.urgent=!C.ad.urgent;drawAdm()">⚡ مستعجل (حاضر دلوقتي · أول الدور · الحساب ×${+C.cfg.urgent_multiplier||2})</button>`:""}</div><input id="ad_n" placeholder="اسم العميل" value="${esc(nm)}"><input id="ad_p" type="tel" inputmode="numeric" placeholder="موبايل العميل" value="${esc(ph)}">${BN.html(A,"admBn",fm)}${SG.render(A.sv,A.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="admTg(${x.id})">${BN.star(A,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(A,A.sv,fm)}<select id="ad_b"><option value="">أي حلاق (الأقل زحمة)</option>${A.br.map(x=>`<option value="${x.id}" ${bb==x.id?"selected":""}>${esc(x.full_name)}</option>`).join("")}</select>${A.walk?`<div class="m">هيتسجّل في دور الحلاق المختار النهارده (لو سيبته فاضي بيقترح الأقل زحمة).</div>`:`<input id="ad_d" type="date" value="${day}" min="${bizToday()}"><select id="ad_pe">${Object.entries(PLB).map(([k,v])=>`<option value="${k}" ${pe==k?"selected":""}>${v}</option>`).join("")}</select>`}<div class="chips"><button class="btn" onclick="admSave()">حجز</button><button class="btn g" onclick="$('adm').innerHTML=''">إلغاء</button></div></div>`}
+  e.innerHTML=`<div class="box" style="margin:10px 0"><div class="m">حجز إداري (بيدخل الدور زي أي حجز) — الخدمات اختيارية</div><div class="chips"><button class="chip ${A.walk?"sel":""}" onclick="admWk()">وصل الصالون دلوقتي (Walk-in)</button>${isAdm(me)&&C.cfg.urgent_enabled!==false?`<button class="chip ${A.urgent?"sel":""}" onclick="C.ad.urgent=!C.ad.urgent;drawAdm()">⚡ مستعجل (حاضر دلوقتي · أول الدور · الحساب ×${+C.cfg.urgent_multiplier||2})</button>`:""}</div><input id="ad_n" placeholder="اسم العميل" value="${esc(nm)}" oninput="admNm()"><input id="ad_p" type="tel" inputmode="numeric" placeholder="موبايل العميل" value="${esc(ph)}" oninput="admPh()"><div id="ad_r">${admCardHtml()}</div>${BN.html(A,"admBn",fm)}${SG.render(A.sv,A.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="admTg(${x.id})">${BN.star(A,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(A,A.sv,fm)}<select id="ad_b"><option value="">أي حلاق (الأقل زحمة)</option>${A.br.map(x=>`<option value="${x.id}" ${bb==x.id?"selected":""}>${esc(x.full_name)}</option>`).join("")}</select>${A.walk?`<div class="m">هيتسجّل في دور الحلاق المختار النهارده (لو سيبته فاضي بيقترح الأقل زحمة).</div>`:`<input id="ad_d" type="date" value="${day}" min="${bizToday()}"><select id="ad_pe">${Object.entries(PLB).map(([k,v])=>`<option value="${k}" ${pe==k?"selected":""}>${v}</option>`).join("")}</select>`}<div class="chips"><button class="btn" onclick="admSave()">حجز</button><button class="btn g" onclick="$('adm').innerHTML=''">إلغاء</button></div></div>`}
 
 function admTg(id){const A=C.ad;A.s=SG.tog(A.s,id,A.sv);BN.sync(A);drawAdm()}
 function admBn(id){BN.pick(C.ad,id);drawAdm()}
@@ -92,3 +92,26 @@ async function moveT(id){const{data:br}=await sb.from("profiles").select("id,ful
   const k=prompt("انقل لأي حلاق؟ اكتب الرقم:\n"+br.map((x,i)=>(i+1)+") "+x.full_name).join("\n"));if(!k)return;const x=br[+k-1];if(!x)return toast("رقم غلط");
   const{data,error}=await sb.rpc("reassign_ticket",{p_id:id,p_barber:x.id});if(error)return toast(netErr(error)?"النقل لم يتأكد — النت واقف":error.message);
   toast(data&&data.changed===false?"الحجز عند نفس الحلاق":"اتنقل ✓");go("appts")}
+
+// ===== حجز إداري: لو العميل مسجّل قبل كده يظهر حسابه (بالاسم أو برقم الموبايل) =====
+const admDig=v=>String(v||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");
+const admCols="id,name,phone,points,visits";
+function admCardHtml(){const p=(C.ad||{}).pick;if(!p)return"";const ph=typeof dsPh=="function"&&dsPh()&&p.phone?`<span dir="ltr">${esc(p.phone)}</span> · `:"";
+  return `<div class="box" style="margin-top:8px;border-color:var(--ok)"><b>✅ ${esc(p.name)}</b> <span class="m">حساب مسجّل</span><div class="m">${ph}${+p.points||0} نقطة · ${+p.visits||0} زيارة</div><button class="btn s g" style="margin-top:6px" onclick="admUnpick()">مش هو</button></div>`}
+function admPick(c){const A=C.ad;if(!A||!c)return;A.pick=c;const n=$("ad_n"),p=$("ad_p");if(n)n.value=c.name||"";if(p&&c.phone)p.value=admDig(c.phone).replace(/^2(?=01)/,"");const r=$("ad_r");if(r)r.innerHTML=admCardHtml()}
+function admUnpick(){const A=C.ad;if(!A)return;A.pick=null;const r=$("ad_r");if(r)r.innerHTML=""}
+let _admT=0;
+async function admPh(){const A=C.ad,el=$("ad_p"),r=$("ad_r");if(!A||!el||!r)return;const ph=admDig(el.value);
+  if(A.pick&&admDig(A.pick.phone).replace(/^2(?=01)/,"")!=ph)A.pick=null;
+  if(!/^01\d{9}$/.test(ph)){if(!A.pick)r.innerHTML="";return}
+  const my=++_admT;const{data}=await sb.from("customers").select(admCols).in("phone",[ph,"+2"+ph,"2"+ph]).order("id").limit(1);
+  if(my!=_admT||!$("ad_r"))return;
+  if(data&&data[0]){admPick(data[0]);const n=$("ad_n");if(n&&!n.value.trim())n.value=data[0].name}else{A.pick=null;r.innerHTML=`<div class="m" style="margin-top:6px">عميل جديد — هيتسجّل بالرقم ده.</div>`}}
+async function admNm(){const A=C.ad,el=$("ad_n"),r=$("ad_r");if(!A||!el||!r)return;const n=el.value.trim();
+  if(A.pick&&A.pick.name!=n)A.pick=null;
+  if(A.pick)return;
+  if(n.length<2){r.innerHTML="";return}
+  const my=++_admT;const{data}=await sb.from("customers").select(admCols).ilike("name","%"+n.replace(/[%_,()]/g," ")+"%").order("visits",{ascending:false}).limit(6);
+  if(my!=_admT||!$("ad_r")||A.pick)return;
+  window._anm=data||[];
+  r.innerHTML=window._anm.length?`<div class="m" style="margin-top:6px">عملاء مسجّلين بنفس الاسم — اختار لو هو:</div><div class="chips">${window._anm.map((c,i)=>c.phone?`<button class="btn s g" onclick="admPick(window._anm[${i}])">${esc(c.name)}${typeof dsPh=="function"&&dsPh()?" · <span dir=ltr>"+esc(c.phone)+"</span>":""} · ${+c.points||0} نقطة</button>`:`<span class="m">${esc(c.name)} (من غير رقم)</span>`).join("")}</div>`:`<div class="m" style="margin-top:6px">مفيش عميل مسجّل بالاسم ده.</div>`}
