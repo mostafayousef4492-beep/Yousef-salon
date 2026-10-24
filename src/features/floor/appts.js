@@ -37,7 +37,7 @@ async function closeStale(id,lbl){
 // تخطّي بسبب إجباري، وقرار طلب النقل
 // تفاصيل الحجز: رقم التذكرة + وقت الحجز + التليفون + فتح صفحة العميل
 const tkExtra=a=>{const ph=(typeof dsPh=="function"&&dsPh()&&a.customers?.phone)?a.customers.phone:"",tm=a.created_at?new Date(a.created_at).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"}):"",pg=a.customer_id&&typeof gsCust=="function"&&(isAdm(me)||can("view_customers"));
-return `<div class="m">تذكرة ${esc(TC(a))}${tm?" · اتحجزت "+tm:""}${ph?` · <a href="tel:${esc(ph)}" dir="ltr">${esc(ph)}</a>`:""}${pg?` · <a href="#" onclick="gsCust(${+a.customer_id});return false">صفحته ›</a>`:""}</div>`};
+return `<div class="m">تذكرة ${esc(TC(a))}${tm?" · اتحجزت "+tm:""}${ph?` · <a href="tel:${esc(ph)}" dir="ltr">${esc(ph)}</a>`:""}${pg?` · <a href="#" onclick="gsCust(${+a.customer_id});return false">صفحته ›</a>`:""}${a.customer_id&&(isAdm(me)||can("use_pos")||can("manage_appts"))?` · <a href="#" data-n="${esc(a.customers?.name||"")}" onclick="custRename(${+a.customer_id},this.dataset.n);return false">✏️ الاسم</a>`:""}</div>`};
 
 // تخطّي: زبون واحد، أو لآخر الدور، أو لم يحضر (بسبب إجباري)
 function skipT(id){dsOpen("تخطّي التذكرة",`<p class="m">اختار نوع التخطّي:</p><div style="display:flex;flex-direction:column;gap:8px"><button class="btn" onclick="skipGo(${id},'one')">تخطّي زبون واحد<div class="m">بيتبدل مكانه مع اللي بعده</div></button><button class="btn" onclick="skipGo(${id},'end')">تخطّي لآخر الدور<div class="m">بيروح في آخر الطابور</div></button><button class="btn s g" onclick="skipAbsent(${id})">لم يحضر (يتشال من الدور)</button></div>`)}
