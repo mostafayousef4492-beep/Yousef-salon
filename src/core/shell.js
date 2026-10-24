@@ -19,7 +19,7 @@ if(!cu)return authView("c");if(typeof migrateLegacyCred=="function")migrateLegac
 function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";try{localStorage.removeItem("salon_cred")}catch(e){}pushUnlink().finally(()=>sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()}));return}
 let hb=null;if(C.hubs){if(C.hubs[t]){hb=t;t=(C.hubLast||{})[hb]||C.hubs[hb][0][0]}else for(const k in C.hubs)if(C.hubs[k].some(x=>x[0]==t)){hb=k;break}}
 if(hb){(C.hubLast=C.hubLast||{})[hb]=t;C.hubBar=`<div class="hubbar" role="tablist">${C.hubs[hb].map(x=>`<button role="tab" aria-selected="${x[0]==t}" class="chip ${x[0]==t?"sel":""}" onclick="go(\'${x[0]}\')">${x[1]}</button>`).join("")}</div>`}else C.hubBar="";
-tab=t;$("app").classList.remove("still");$("app").dataset.tab=t;drawNav(hb||t);put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();V[t]()}
+tab=t;$("app").classList.remove("still");$("app").dataset.tab=t;drawNav(hb||t);put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();(typeof bizLoad=="function"?bizLoad():Promise.resolve()).then(()=>V[t]())}
 
 // القائمة: شريط سفلي على الموبايل، وقائمة جانبية على الكمبيوتر (نفس العناصر ونفس الترتيب)
 function drawNav(act){const T=C.tabs||[],isPin=x=>NAV_PINNED.includes(x[0]),main=T.filter(x=>!isPin(x)&&x[0]!="out"),pin=T.filter(isPin),out=T.filter(x=>x[0]=="out"),ord=[...main,...pin,...out],NV=ord.length>6?5:ord.length;

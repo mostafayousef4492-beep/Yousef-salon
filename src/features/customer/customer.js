@@ -6,7 +6,7 @@ const PERIODS=[["morning","الصبح","6ص–12ظ",12],["afternoon","العصر
 
 const PLB={morning:"الصبح",afternoon:"العصر",evening:"المساء",night:"بعد منتصف الليل"};
 
-const bkDays=()=>[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
+const bkDays=()=>[...Array(+C.cfg.days_ahead)].map((_,i)=>{const d=bizBase();d.setDate(d.getDate()+i);return{i,iso:d.toLocaleDateString("en-CA"),off:d.getDay()==C.cfg.weekly_off,l:i?d.toLocaleDateString("ar-EG",{weekday:"short",day:"numeric",month:"numeric"}):"اليوم"}});
 
 V.book=async()=>{if(!C.cfg.booking_open)return put(`<h1>احجز دورك</h1><p class="m">الحجز متوقف حاليًا.</p>`);
 const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[];await BN.load(sb);C.b=C.b||{s:[],bd:null,barber:undefined,day:0,period:null};drawBk()};
@@ -29,7 +29,7 @@ $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="
 const curPer=()=>{const h=new Date().getHours();return h>=6&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17?"evening":"night"};
 function drawUrg(){const b=C.b,m=+C.cfg.urgent_multiplier||2;
 put(`<div class="hello">أهلاً ${esc((me.full_name||"").split(" ")[0])}</div><h1>⚡ دخول مستعجل</h1><div class="box" style="border-color:var(--red)"><div class="m">هتدخل بعد اللي على الكرسي مباشرة لو الصالون وافق على طلبك. حساب الخدمات بيتضرب في ${m}.</div></div><h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة)"}</span></h2>${SG.render(C.sv,b.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgS(${x.id})">${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}<div id="bl"></div><button class="btn g" style="width:100%;margin-top:8px" onclick="C.b.urgent=0;drawBk()">‹ رجوع للحجز العادي</button>`);loadUrgBarbers()}
-async function loadUrgBarbers(){const b=C.b,m=+C.cfg.urgent_multiplier||2;const{data,error}=await sb.rpc("available_barbers",{p_day:new Date().toLocaleDateString("en-CA"),p_period:curPer()});if(error||!$("bl"))return;
+async function loadUrgBarbers(){const b=C.b,m=+C.cfg.urgent_multiplier||2;const{data,error}=await sb.rpc("available_barbers",{p_day:bizToday(),p_period:curPer()});if(error||!$("bl"))return;
 const L=data||[],sel=v=>b.barber===v?"border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset;":"",tot=C.sv.filter(x=>b.s.includes(x.id)).reduce((a,x)=>a+x.price,0)*m;
 $("bl").innerHTML=`<h2>الحلاق</h2>`+(L.length?`<button class="row" style="cursor:pointer;${sel(null)}" onclick="C.b.barber=null;loadUrgBarbers()"><b>أي حلاق متاح</b></button>`+L.map(x=>`<button class="row" style="cursor:pointer;${sel(x.id)}" onclick="C.b.barber='${x.id}';loadUrgBarbers()"><b>${esc(x.full_name)}</b><span class="m">${x.waiting} في الدور</span></button>`).join("")+`<button class="btn" style="width:100%;margin-top:8px;background:var(--red);color:#fff" ${b.s.length&&b.barber!==undefined?"":"disabled"} onclick="urgNow()">⚡ اطلب دخول مستعجل · ${fm(tot)}</button>`:`<p class="m">مفيش حلاق متاح دلوقتي.</p>`)}
 async function urgNow(){const b=C.b;if(!b.s.length)return toast("اختار خدمة واحدة على الأقل");const m=+C.cfg.urgent_multiplier||2,tot=C.sv.filter(x=>b.s.includes(x.id)).reduce((a,x)=>a+x.price,0)*m;
@@ -43,7 +43,7 @@ function namesBox(L){if(!L||!L.length)return"";const ST={in_service:"على ال
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
 if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;const qs=q[0];try{const{data:v2,error:e2}=await sb.rpc("queue_status_v2",{p_id:act.id});if(!e2&&v2){qs.ahead=v2.ahead;qs.est_min=v2.est_wait_min;qs.current_no=v2.current_no;qs.ticket_no=v2.ticket_no;qs.ticket_code=v2.ticket_code;qs.near_turn=v2.near_turn}}catch(e){}try{const{data:tq}=await sb.from("ticket_transfers").select("id").eq("appointment_id",act.id).eq("status","pending").maybeSingle();qs.trq=tq?tq.id:null}catch(e){}try{const{data:ug}=await sb.rpc("my_urgent");qs.urg=ug}catch(e){}try{const{data:nq}=await sb.rpc("queue_names",{p_id:act.id});qs.names=Array.isArray(nq)?nq:[]}catch(e){qs.names=[]}startNotif();drawQ(qs);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
 if(fin)return rateView2(fin.id);
-const ns=L[0]&&L[0].status=="no_show"&&L[0].day==new Date().toLocaleDateString("en-CA");
+const ns=L[0]&&L[0].status=="no_show"&&L[0].day==bizToday();
 put(`<h1>دوري</h1><div class="box" style="text-align:center">${ns?`<p class="m" style="color:var(--red)">اتلغى دورك لأنك ما حضرتش في الميعاد.</p>`:""}<p class="m">مفيش دور نشط دلوقتي.</p><button class="btn" onclick="go('book')">احجز دورك</button></div>`)};
 
 async function eta(st){const{error}=await sb.rpc("ticket_eta",{p_id:C.qid,p_state:st});error?toast(error.message):(toast(st=="arrived"?"تمام، الصالون عرف إنك وصلت":"تمام، مستنينك"),V.queue())}

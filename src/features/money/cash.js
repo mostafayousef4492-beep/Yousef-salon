@@ -16,7 +16,7 @@ const errBox=(box,e)=>{box.innerHTML=`<p class="m">${esc(e.message||e)} — لو
 
 function closeCard(r){return `<div class="box">${tbl(["","المتوقع","المعدود","الفرق"],CASHK.map(([k,l])=>{const d=+r["diff_"+k];return [l,fm(r["expected_"+k]),fm(r["counted_"+k]),`<b style="color:${d==0?"var(--ok)":"var(--red)"}">${d==0?"مظبوط ✓":(d>0?"زيادة ":"عجز ")+fm(Math.abs(d))}</b>`]}))}</div>`}
 
-V.cash=async()=>{const own=isAdm(me),today=ymd(new Date());if(!own||!C.cd)C.cd=today;const day=C.cd;
+V.cash=async()=>{await bizLoad();const own=isAdm(me),today=bizToday();if(!own||!C.cd)C.cd=today;const day=C.cd;
   const[{data:closed,error:e0},{data:sm},{data:cl},{data:mv}]=await Promise.all([sb.rpc("is_day_closed",{p_day:day}),own?sb.rpc("day_summary",{p_day:day}):{data:null},own?sb.from("cash_closings").select("*").order("day",{ascending:false}).limit(30):{data:null},own?sb.from("cash_moves").select("*").eq("day",day).order("id"):{data:null}]);
   if(e0)return put(`<h1>الخزنة</h1><p class="m">${esc(e0.message)} — شغّل patch9.sql في Supabase الأول.</p>`);
   let h=`<h1>الخزنة</h1>`;
@@ -34,12 +34,12 @@ V.cash=async()=>{const own=isAdm(me),today=ymd(new Date());if(!own||!C.cd)C.cd=t
 async function doClose(){const g=id=>{const v=$(id).value;return v===""?NaN:parseFloat(v)},c=g("kc_cash"),cd=g("kc_card"),w=g("kc_wallet");
   if([c,cd,w].some(x=>isNaN(x)||x<0))return toast("اكتب الكاش والكارت والمحفظة (اكتب 0 لو مفيش)");
   const op=$("kc_open")?$("kc_open").value:"";if(!confirm("تقفل اليوم؟ مش هتقدر تعدّل بعد كده."))return;
-  const{data,error}=await sb.rpc("close_day",{p_day:C.cd||ymd(new Date()),p_counted_cash:c,p_counted_card:cd,p_counted_wallet:w,p_opening:op===""?null:parseFloat(op),p_note:$("kc_note").value||null});
-  if(error)return toast(error.message);C.cres=data;toast("تم قفل اليوم ✓");V.cash()}
+  const{data,error}=await sb.rpc("close_day",{p_day:C.cd||bizToday(),p_counted_cash:c,p_counted_card:cd,p_counted_wallet:w,p_opening:op===""?null:parseFloat(op),p_note:$("kc_note").value||null});
+  if(error)return toast(error.message);C.cres=data;await bizLoad(true);toast("تم قفل اليوم ✓");V.cash()}
 
 async function delClose(id){if(!confirm("تمسح القفل ده عشان تعيده؟"))return;const{error}=await sb.from("cash_closings").delete().eq("id",id);error?toast(error.message):(C.cres=null,V.cash())}
 
-async function addMove(){const a=parseFloat($("mv_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("cash_moves").insert({day:C.cd||ymd(new Date()),kind:$("mv_k").value,amount:a,note:$("mv_n").value||null});error?toast(error.message):(toast("تم ✓"),V.cash())}
+async function addMove(){const a=parseFloat($("mv_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("cash_moves").insert({day:C.cd||bizToday(),kind:$("mv_k").value,amount:a,note:$("mv_n").value||null});error?toast(error.message):(toast("تم ✓"),V.cash())}
 
 function delMove(id){return ownerDel("cash_moves",id,()=>V.cash(),"حذف الحركة؟")}
 
@@ -49,4 +49,4 @@ function dsBar(id,pay){const P=C.kp;if(!P)return;const b=id&&(P.bars||[]).find(x
 
 function dsAll(){const P=C.kp;if(P)dsInv({t:"كل فواتير الفترة",from:P.A,to:P.B})}
 
-function dsDayPay(p){const day=C.cd||ymd(new Date()),a=new Date(day+"T00:00"),b=new Date(a);b.setDate(b.getDate()+1);dsInv({t:"فواتير "+PAYL[p]+" — "+day,from:a.toISOString(),to:b.toISOString(),pay:p})}
+function dsDayPay(p){const day=C.cd||bizToday(),a=new Date(day+"T00:00"),b=new Date(a);b.setDate(b.getDate()+1);dsInv({t:"فواتير "+PAYL[p]+" — "+day,from:a.toISOString(),to:b.toISOString(),pay:p})}

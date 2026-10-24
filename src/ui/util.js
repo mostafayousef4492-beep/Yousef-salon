@@ -6,6 +6,18 @@ async function copyLink(p){const u=location.origin+p;try{await navigator.clipboa
 
 const num=x=>Math.round(+x||0).toLocaleString("ar-EG"),ymd=d=>d.toLocaleDateString("en-CA");
 
+// ===== يوم العمل: المالك/المدير هو اللي يفتح اليوم ويقفله (مش الساعة 12) =====
+let _bizAt=0;
+const bizToday=()=>(C.biz&&C.biz.open&&C.biz.day)||ymd(new Date());
+const bizBase=()=>new Date(bizToday()+"T12:00:00");
+const bizFrom=()=>{if(C.biz&&C.biz.open&&C.biz.window_from)return new Date(C.biz.window_from);const d=new Date();d.setHours(0,0,0,0);return d};
+async function bizLoad(force){if(!force&&Date.now()-_bizAt<15000)return;try{const{data}=await sb.rpc("business_day_state");if(data){C.biz=data;_bizAt=Date.now()}}catch(e){}}
+async function bizOpen(){if(!confirm("تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;const{error}=await sb.rpc("open_business_day");if(error)return toast(error.message);await bizLoad(true);toast("اتفتح اليوم ✓");go("home")}
+function bizClose(){if(!C.biz||!C.biz.open)return;C.cd=C.biz.day;go("cash");toast("اكتب جرد الدرج (كاش / كارت / محفظة) واضغط قفل اليوم")}
+const bizBox=()=>{const b=C.biz;if(!b)return"";const adm=isAdm(me),tm=t=>new Date(t).toLocaleString("ar-EG",{hourCycle:"h23",weekday:"short",hour:"2-digit",minute:"2-digit"});
+  return b.open?`<div class="box" style="margin:8px 0;border-color:var(--ok)"><b>🟢 يوم العمل مفتوح: ${esc(b.day)}</b><div class="m">اتفتح ${tm(b.opened_at)} — بيفضل شغّال لحد ما تقفله</div>${adm?`<button class="btn" style="margin-top:8px" onclick="bizClose()">قفل اليوم (جرد الدرج)</button>`:""}</div>`
+   :`<div class="box" style="margin:8px 0;border-color:var(--red)"><b>🔴 مفيش يوم عمل مفتوح</b><div class="m">الشغل شغّال عادي على تاريخ النهارده (${esc(b.day)}). افتح اليوم عشان الدور والدرج يتحسبوا عليه.</div>${adm?`<button class="btn" style="margin-top:8px" onclick="bizOpen()">فتح اليوم</button>`:""}</div>`};
+
 const tbl=(h,rows)=>rows.length?`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${h.map(x=>`<th style="text-align:right;padding:6px;border-bottom:1px solid var(--line);color:var(--mute);white-space:nowrap">${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td style="padding:6px;border-bottom:1px dashed var(--line)">${c}</td>`).join("")}</tr>`).join("")}</table></div>`:`<p class="m">مفيش بيانات في الفترة دي.</p>`;
 
 const bars=(a,lab,val,clk)=>{const m=Math.max(1,...a.map(val));return a.length?a.map((x,i)=>`<div style="margin-bottom:7px${clk?";cursor:pointer":""}"${clk?` role="button" onclick="${clk(x,i)}"`:""}><div style="display:flex;justify-content:space-between;font-size:12px"><span>${lab(x)}</span><b>${fm(val(x))}</b></div><div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden"><i style="display:block;height:100%;width:${val(x)/m*100}%;background:var(--blue)"></i></div></div>`).join(""):`<p class="m">مفيش بيانات.</p>`};

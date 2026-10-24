@@ -60,8 +60,10 @@ function drawS(){$("sl").innerHTML=C.sv.length?SG.render(C.sv,C.s,(x,s,sh)=>`<bu
 function tgS(id){C.s=SG.tog(C.s,id,C.sv);drawS();updGo()}
 function updGo(){const b=$("go");if(!b)return;const sv=C.sv.filter(x=>C.s.includes(x.id)),tot=sv.reduce((a,x)=>a+(+x.price||0),0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0);
   b.disabled=C.busy||!C.L.length||!C.s.length;b.textContent=C.s.length?`ادخل الطابور · ${tot} ج${dur?" · ~"+dur+" دقيقة":""}`:"اختار خدمة الأول"}
+let BIZ=null;async function bizInit(){try{const{data}=await sb.rpc("business_day_state");if(data)BIZ=data}catch(e){}}
+const bizDay=()=>(BIZ&&BIZ.open&&BIZ.day)||new Date().toLocaleDateString("en-CA");
 async function loadB(){
-  const d=new Date().toLocaleDateString("en-CA");
+  await bizInit();const d=bizDay();
   const{data,error}=await sb.rpc("available_barbers",{p_day:d,p_period:period()});
   if(error){$("bl").innerHTML=`<p class="m">مقدرناش نحمّل الحلاقين، جرّب تاني.</p>`;return}
   C.L=(data||[]).slice().sort((a,b)=>(a.waiting||0)-(b.waiting||0));
@@ -74,7 +76,7 @@ async function join(){if(C.busy)return;const n=(C.name||"").trim(),ph=dig(C.phon
   if(n.length<2)return toast("اكتب اسمك");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
   if(!C.s.length)return toast("اختار خدمة واحدة على الأقل");
   C.busy=true;$("go").disabled=true;
-  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:C.barber||null,p_day:new Date().toLocaleDateString("en-CA"),p_period:period(),p_services:C.s});
+  const r=await sb.rpc("public_book_v2",{p_name:n,p_phone:ph,p_barber:C.barber||null,p_day:bizDay(),p_period:period(),p_services:C.s});
   C.busy=false;const t=!r.error&&r.data&&r.data.ticket;
   if(!t){updGo();return toast(!r.error?"الحجز لم يتأكد، جرّب تاني":(!r.error.code&&!r.error.hint?"النت واقف — جرّب تاني (مش هيتكرر)":(r.error.message||"الحجز لم يتأكد")))}
   store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:t.id,p:ph});location.href="/book"}

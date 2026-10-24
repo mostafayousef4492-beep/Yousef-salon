@@ -18,9 +18,9 @@ async function addSup(){const n=$("sn_n").value.trim();if(n.length<2)return toas
 
 function supPayForm(id){const e=$("sp"+id);if(e.innerHTML)return e.innerHTML="";e.innerHTML=`<div class="box" style="margin-bottom:10px"><input id="spa${id}" type="number" inputmode="decimal" placeholder="المبلغ"><select id="sps${id}">${paySrc("drawer")}</select><input id="spn${id}" placeholder="ملاحظة (اختياري)"><button class="btn s" onclick="saveSupPay(${id})">حفظ التسديد</button></div>`}
 
-async function saveSupPay(id){const a=parseFloat($("spa"+id).value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("supplier_payments").insert({supplier_id:id,amount:a,paid_from:$("sps"+id).value,note:$("spn"+id).value||null,paid_on:ymd(new Date())});error?toast(error.message):(toast("تم التسديد ✓"),V.fin())}
+async function saveSupPay(id){const a=parseFloat($("spa"+id).value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("supplier_payments").insert({supplier_id:id,amount:a,paid_from:$("sps"+id).value,note:$("spn"+id).value||null,paid_on:bizToday()});error?toast(error.message):(toast("تم التسديد ✓"),V.fin())}
 
-function purForm(){C.pf={sup:"",kind:"stock",date:ymd(new Date()),items:[{product_id:"",name:"",qty:1,unit_cost:""}],paid:"",paid_from:"drawer",upd:false,note:""};drawPur()}
+function purForm(){C.pf={sup:"",kind:"stock",date:bizToday(),items:[{product_id:"",name:"",qty:1,unit_cost:""}],paid:"",paid_from:"drawer",upd:false,note:""};drawPur()}
 
 function pfTot(){return C.pf.items.reduce((a,i)=>a+(+i.qty||0)*(+i.unit_cost||0),0)}
 
@@ -58,7 +58,7 @@ async function finPay(){const box=$("fb");const now=ymd(new Date());C.pm=C.pm||n
 
 function payForm(id,rem){C.py=id;$("pyf").innerHTML=`<div class="box" style="margin-top:10px"><div class="m">صرف راتب</div><input id="py_a" type="number" inputmode="decimal" value="${rem||""}" placeholder="المبلغ"><select id="py_s">${paySrc("drawer")}</select><input id="py_n" placeholder="ملاحظة (اختياري)"><div class="chips"><button class="btn" onclick="savePay()">حفظ الصرف</button><button class="btn g" onclick="$('pyf').innerHTML=''">إلغاء</button></div></div>`;$("py_a").focus()}
 
-async function savePay(){const a=parseFloat($("py_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("salary_payments").insert({staff_id:C.py,period:C.pm,amount:a,paid_from:$("py_s").value,note:$("py_n").value||null,paid_on:ymd(new Date())});error?toast(error.message):(toast("تم صرف الراتب ✓"),V.fin())}
+async function savePay(){const a=parseFloat($("py_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("salary_payments").insert({staff_id:C.py,period:C.pm,amount:a,paid_from:$("py_s").value,note:$("py_n").value||null,paid_on:bizToday()});error?toast(error.message):(toast("تم صرف الراتب ✓"),V.fin())}
 
 function delPay(id){return ownerDel("salary_payments",id,()=>V.fin(),"تحذف سجل الصرف ده؟")}
 
