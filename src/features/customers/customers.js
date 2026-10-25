@@ -30,7 +30,7 @@ C.chOpenAfter=n;go("pos")}
 
 function custBook(id){const x=C.CU.find(y=>y.id==id);go("appts");let n=0;const w=setInterval(async()=>{if($("adm")||++n>40){clearInterval(w);if(!$("adm"))return;await admForm();let m=0;const w2=setInterval(()=>{if($("ad_n")||++m>40){clearInterval(w2);if($("ad_n")){$("ad_n").value=x.name;$("ad_p").value=x.phone||""}}},100)}},100)}
 
-async function adjP(id){const n=+prompt("عدد النقاط (موجب للإضافة، سالب للخصم)");if(!n)return;const note=prompt("السبب","تعديل إداري")||"";const{error}=await sb.rpc("adjust_points",{p_customer:id,p_pts:n,p_note:note});error?toast(error.message):(toast("تم ✓"),V.cust())}
+async function adjP(id){const n=+prompt("عدد النقاط (موجب للإضافة، سالب للخصم)");if(!n)return;const note=prompt("السبب (هيظهر للعميل في سجل نقاطه)","")||"";const{error}=await sb.rpc("adjust_points",{p_customer:id,p_pts:n,p_note:note});error?toast(error.message):(toast("تم ✓"),V.cust())}
 
 async function delC(id){if(!confirm("حذف العميل وكل حجوزاته وتقييماته؟ مش هيترجّع."))return;const{error}=await sb.rpc("delete_customer",{p_id:id});error?toast(error.message):(toast("تم الحذف"),V.cust())}
 
@@ -39,7 +39,7 @@ const dsCuRow=c=>{(C.dsN=C.dsN||{})[c.id]=c.name;return `<button class="row" sty
 function dsCust(id){const n=(C.dsN||{})[id]||((C.CU||[]).find(y=>y.id==id)||{}).name||"العميل";dsInv({t:"فواتير "+n,customer:id})}
 
 function dsLoyC(id){const n=(C.dsN||{})[id]||((C.CU||[]).find(y=>y.id==id)||{}).name||"العميل";
-  dsQ("نقاط "+n,sb.from("loyalty_ledger").select("points,reason,note,created_at").eq("customer_id",id).order("created_at",{ascending:false}).limit(200),L=>L.map(x=>dsRow(`<b>${esc(LYR[x.reason]||x.reason)}</b>`,dsT(x.created_at)+(x.note?" · "+esc(x.note):""),`<b style="color:${x.points>0?"var(--ok)":"var(--red)"}">${x.points>0?"+":""}${x.points}</b>`)).join(""))}
+  dsQ("نقاط "+n,sb.from("loyalty_ledger").select("points,reason,note,created_at").eq("customer_id",id).order("created_at",{ascending:false}).limit(200),L=>L.map(x=>dsRow(`<b>${esc(lyT(x)||LYR[x.reason]||x.reason)}</b>`,dsT(x.created_at)+(x.note&&!lyT(x)?" · "+esc(x.note):""),`<b style="color:${x.points>0?"var(--ok)":"var(--red)"}">${x.points>0?"+":""}${x.points}</b>`)).join(""))}
 
 // كود دخول العميل: الكاشير/المالك يشوفه أو يطلّع واحد جديد (الجديد بيخرّج العميل من أجهزته القديمة)
 async function custCode(id){const x=C.CU.find(y=>y.id==id);if(!x)return;
