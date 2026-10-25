@@ -39,5 +39,13 @@ insert into business_days(day, opened_at, opened_by) values ((now() at time zone
 select t.ok('العلاج: إمبارح هو المفتوح', (select count(*) = 1 and min(day) = (now() at time zone my_tz())::date - 1 from business_days where closed_at is null));
 select t.ok('العلاج: بداية إمبارح من أول اليوم', (select opened_at = (day::timestamp at time zone my_tz()) from business_days where closed_at is null));
 select t.ok('العلاج: biz_today رجع لإمبارح', biz_today() = (now() at time zone my_tz())::date - 1);
+-- 4) قائمة أيام العمل للتقارير
+select t.as_(:'own');
+select business_days_list() as bl \gset
+select t.back();
+select t.ok('القائمة فيها اليوم المفتوح', jsonb_array_length(:'bl'::jsonb) = 1);
+select t.as_('00000000-0000-0000-0000-0000000000c1');
+select t.ok('العميل مايشوفش القائمة', business_days_list() = '[]'::jsonb);
+select t.back();
 rollback;
 select 'BUSINESS GUARD DONE';

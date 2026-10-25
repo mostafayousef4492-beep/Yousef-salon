@@ -12,6 +12,7 @@ const bizToday=()=>(C.biz&&C.biz.open&&C.biz.day)||ymd(new Date());
 const bizBase=()=>new Date(bizToday()+"T12:00:00");
 const bizFrom=()=>{if(C.biz&&C.biz.open&&C.biz.window_from)return new Date(C.biz.window_from);const d=new Date();d.setHours(0,0,0,0);return d};
 async function bizLoad(force){if(!force&&Date.now()-_bizAt<15000)return;try{const{data}=await sb.rpc("business_day_state");if(data){C.biz=data;_bizAt=Date.now()}}catch(e){}}
+async function bizKeyer(){const f=t=>ymd(new Date(t));try{const{data}=await sb.rpc("business_days_list");if(!Array.isArray(data)||!data.length)return f;const R=[];let lc=null;data.forEach(r=>{const st=lc||new Date(Math.min(new Date(r.opened_at),new Date(r.day+"T00:00")));const en=r.closed_at?new Date(r.closed_at):null;R.push({day:r.day,st,en});if(en&&(!lc||en>lc))lc=en});return t=>{const d=new Date(t);for(const r of R)if(d>=r.st&&(!r.en||d<r.en))return r.day;return f(t)}}catch(e){return f}}
 async function bizOpen(){if(!confirm("تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;const{error}=await sb.rpc("open_business_day");if(error)return toast(error.message);await bizLoad(true);toast("اتفتح اليوم ✓");go("home")}
 function bizClose(){if(!C.biz||!C.biz.open)return;C.cd=C.biz.day;go("cash");toast("اكتب جرد الدرج (كاش / كارت / محفظة) واضغط قفل اليوم")}
 const bizBox=()=>{const b=C.biz;if(!b)return"";const adm=isAdm(me),tm=t=>new Date(t).toLocaleString("ar-EG",{hourCycle:"h23",weekday:"short",hour:"2-digit",minute:"2-digit"});
