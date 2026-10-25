@@ -16,7 +16,7 @@ function waAppMsg(name){return `أهلاً ${name||""} 👋\nسجّل في تط�
 
 function waInvText(i,name){const L=(i.invoice_items||[]).map(z=>`• ${z.name}${z.qty>1?" ×"+z.qty:""} — ${fm((+z.unit_price||0)*(z.qty||1))}`).join("\n");
 const dt=new Date(i.created_at).toLocaleString("ar-EG",{hourCycle:"h23",dateStyle:"medium",timeStyle:"short"});
-return `*${waSalon()}*\nفاتورة رقم ${i.no}\n${dt}${name?"\nالعميل: "+name:""}\n──────────\n${L}\n──────────\n`+(+i.discount>0?`الإجمالي: ${fm(i.subtotal)}\nالخصم: ${fm(i.discount)}\n`:"")+`*المطلوب: ${fm(i.total)}*\nالدفع: ${WA_PAY[i.payment_method]||i.payment_method}\n\nشكراً لزيارتكم 🙏`}
+return `*${waSalon()}*\nفاتورة رقم ${i.no}\n${dt}${name?"\nالعميل: "+name:""}\n──────────\n${L}\n──────────\n`+(+i.discount>0?`الإجمالي: ${fm(i.subtotal)}\nالخصم: ${fm(i.discount)}\n`:"")+`*المدفوع: ${fm(i.total)}*\nالدفع: ${WA_PAY[i.payment_method]||i.payment_method}\n\nشكراً لزيارتكم 🙏`}
 
 async function waPrep(id,cust,cid){C.lastWa=null;try{if(!id||typeof id=="object")return;let ph=cust&&cust.phone,nm=cust&&cust.name;
 if(!ph&&cid){const{data:c}=await sb.from("customers").select("name,phone").eq("id",cid).maybeSingle();if(c){ph=c.phone;nm=c.name}}
