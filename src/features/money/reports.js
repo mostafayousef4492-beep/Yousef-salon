@@ -129,8 +129,9 @@ async function rpdLoad(){const box=$("rpd");if(!box||!C.rr)return;const[a,b]=C.r
     if(error){box.innerHTML=`<p class="m">${esc(error.message)}</p>`;return}inv.push(...(data||[]));if((data||[]).length<1000)break}
   const{data:wd}=await sb.from("staff_transactions").select("amount,note,created_at,profiles(full_name)").eq("kind","advance").gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at");
   if(!$("rpd"))return;
+  const bk=await bizKeyer();if(!$("rpd"))return;
   const D={},get=k=>D[k]||(D[k]={i:[],x:[],w:[]});
-  inv.forEach(i=>get(ymd(new Date(i.created_at))).i.push(i));(C.rx||[]).forEach(x=>get(x.spent_on).x.push(x));(wd||[]).forEach(w=>get(ymd(new Date(w.created_at))).w.push(w));
+  inv.forEach(i=>get(bk(i.created_at)).i.push(i));(C.rx||[]).forEach(x=>get(x.spent_on).x.push(x));(wd||[]).forEach(w=>get(bk(w.created_at)).w.push(w));
   const ks=Object.keys(D).sort();if(!ks.length){box.innerHTML=`<p class="m">مفيش حركة في الفترة دي.</p>`;return}
   const sm=(L,f)=>L.reduce((t,x)=>t+(+f(x)||0),0),th=t=>`<th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--mute);white-space:nowrap">${t}</th>`,td=(c,st)=>`<td style="padding:7px 8px;border-bottom:1px dashed var(--line);${st||""}">${c}</td>`,
   wk=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];let G={s:0,x:0,w:0,n:0};
