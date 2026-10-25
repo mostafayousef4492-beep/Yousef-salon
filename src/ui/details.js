@@ -4,6 +4,7 @@
 // أي كارت رقم بيتضغط عليه بيفتح نافذة فيها الداتا اللي اتحسب منها الرقم، والفاتورة بتفتح بتفاصيلها كاملة.
 // PAYL متعرّف فوق في ملف التقارير
 
+const lyT=x=>(x.reason=="adjust"||x.reason=="admin")&&x.note&&x.note.trim()?x.note.trim():null;
 const LYR={redeem:"استبدال",visit:"زيارة",purchase:"فاتورة",invoice:"فاتورة",review:"تقييم",welcome:"هدية تسجيل",admin:"تعديل إداري",adjust:"تعديل إداري",visit_bonus:"مكافأة زيارات"};
 
 const dsT=d=>d?new Date(d).toLocaleString("ar-EG",{hourCycle:"h23",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
