@@ -1,15 +1,157 @@
 // صالون أبو يوسف - Service Worker (الشبكة أولًا عشان التحديثات تظهر فورًا)
-const V = "salon-v77";
-const SHELL = ["/", "/catalog", "/staff", "/admin", "/config.js", "/src/ui/base.css", "/src/ui/theme.css", "/src/core/state.js", "/src/core/views.js", "/src/core/nav.js", "/src/ui/icons.js", "/src/ui/theme.js", "/src/ui/util.js", "/src/ui/datefilter.js", "/src/ui/details.js", "/src/ui/search.js", "/src/ui/whatsapp.js", "/src/ui/global.js", "/src/core/shell.js", "/src/core/pwa.js", "/src/core/push.js", "/src/features/auth/auth.js", "/src/ui/bundles-ui.js", "/src/features/customer/customer.js", "/src/features/customer/premium.js", "/src/features/floor/pos.js", "/src/features/floor/discounts.js", "/src/features/floor/appts.js", "/src/features/home/home.js", "/src/features/customers/customers.js", "/src/features/customers/reminders.js", "/src/features/customers/loyalty.js", "/src/features/team/staff.js", "/src/features/team/attendance.js", "/src/features/team/announcements.js", "/src/features/team/leaderboard.js", "/src/features/team/settlement.js", "/src/features/team/payroll.js", "/src/features/team/targets.js", "/src/features/money/cash.js", "/src/features/money/finance.js", "/src/features/money/export.js", "/src/features/money/kpi.js", "/src/features/money/invoices.js", "/src/features/money/backfill.js", "/src/features/money/reports.js", "/src/features/catalog/services.js", "/src/features/catalog/stock.js", "/src/features/control/permissions.js", "/src/features/control/settings.js", "/src/features/control/rules.js", "/src/features/control/audit.js", "/src/main.js", "/icon-192.png", "/manifest.webmanifest", "/manifest-staff.webmanifest", "/manifest-admin.webmanifest"];
+// كل تطبيق (عميل / موظف / إدارة) بيسجّل نسخة منفصلة (?app=...) بنطاق وكاش وملفات خاصة بيه، ومفيش تطبيق بيشوف كاش التاني.
+const APP = (new URL(self.location.href).searchParams.get("app") || "customer");
+const V0 = "salon-v78";
+const V = V0 + "-" + APP;
+const SHELLS = {
+  customer: [
+    "/",
+    "/catalog",
+    "/config.js",
+    "/src/ui/base.css",
+    "/src/ui/theme.css",
+    "/src/core/state.js",
+    "/src/core/views.js",
+    "/src/core/nav.js",
+    "/src/ui/icons.js",
+    "/src/ui/theme.js",
+    "/src/ui/util.js",
+    "/src/ui/details.js",
+    "/src/ui/global.js",
+    "/src/core/shell.js",
+    "/src/core/pwa.js",
+    "/src/core/push.js",
+    "/src/features/auth/auth.js",
+    "/src/ui/bundles-ui.js",
+    "/src/features/customer/customer.js",
+    "/src/features/customer/premium.js",
+    "/src/main.js",
+    "/icon-192.png",
+    "/manifest.webmanifest"
+  ],
+  staff: [
+    "/staff",
+    "/config.js",
+    "/src/ui/base.css",
+    "/src/ui/theme.css",
+    "/src/core/state.js",
+    "/src/core/views.js",
+    "/src/core/nav.js",
+    "/src/ui/icons.js",
+    "/src/ui/theme.js",
+    "/src/ui/util.js",
+    "/src/ui/datefilter.js",
+    "/src/ui/details.js",
+    "/src/ui/search.js",
+    "/src/ui/whatsapp.js",
+    "/src/ui/global.js",
+    "/src/core/shell.js",
+    "/src/core/pwa.js",
+    "/src/core/push.js",
+    "/src/features/auth/auth.js",
+    "/src/features/customer/customer.js",
+    "/src/features/customer/premium.js",
+    "/src/ui/bundles-ui.js",
+    "/src/features/floor/pos.js",
+    "/src/features/floor/discounts.js",
+    "/src/features/floor/appts.js",
+    "/src/features/home/home.js",
+    "/src/features/customers/customers.js",
+    "/src/features/customers/reminders.js",
+    "/src/features/team/staff.js",
+    "/src/features/team/attendance.js",
+    "/src/features/team/announcements.js",
+    "/src/features/team/leaderboard.js",
+    "/src/features/team/settlement.js",
+    "/src/features/team/targets.js",
+    "/src/features/money/cash.js",
+    "/src/features/money/export.js",
+    "/src/features/money/kpi.js",
+    "/src/features/money/invoices.js",
+    "/src/features/money/edit_dates.js",
+    "/src/features/money/backfill.js",
+    "/src/features/money/reports.js",
+    "/src/features/catalog/stock.js",
+    "/src/features/control/permissions.js",
+    "/src/features/control/audit.js",
+    "/src/main.js",
+    "/icon-staff-192.png",
+    "/manifest-staff.webmanifest"
+  ],
+  admin: [
+    "/admin",
+    "/config.js",
+    "/src/ui/base.css",
+    "/src/ui/theme.css",
+    "/src/core/state.js",
+    "/src/core/views.js",
+    "/src/core/nav.js",
+    "/src/ui/icons.js",
+    "/src/ui/theme.js",
+    "/src/ui/util.js",
+    "/src/ui/datefilter.js",
+    "/src/ui/details.js",
+    "/src/ui/search.js",
+    "/src/ui/whatsapp.js",
+    "/src/ui/global.js",
+    "/src/core/shell.js",
+    "/src/core/pwa.js",
+    "/src/core/push.js",
+    "/src/features/auth/auth.js",
+    "/src/features/customer/customer.js",
+    "/src/features/customer/premium.js",
+    "/src/ui/bundles-ui.js",
+    "/src/features/floor/pos.js",
+    "/src/features/floor/discounts.js",
+    "/src/features/floor/appts.js",
+    "/src/features/home/home.js",
+    "/src/features/customers/customers.js",
+    "/src/features/customers/reminders.js",
+    "/src/features/customers/loyalty.js",
+    "/src/features/team/staff.js",
+    "/src/features/team/attendance.js",
+    "/src/features/team/announcements.js",
+    "/src/features/team/leaderboard.js",
+    "/src/features/team/settlement.js",
+    "/src/features/team/payroll.js",
+    "/src/features/team/targets.js",
+    "/src/features/money/cash.js",
+    "/src/features/money/finance.js",
+    "/src/features/money/export.js",
+    "/src/features/money/kpi.js",
+    "/src/features/money/invoices.js",
+    "/src/features/money/edit_dates.js",
+    "/src/features/money/backfill.js",
+    "/src/features/money/reports.js",
+    "/src/features/catalog/services.js",
+    "/src/features/catalog/stock.js",
+    "/src/features/control/permissions.js",
+    "/src/features/control/settings.js",
+    "/src/features/control/rules.js",
+    "/src/features/control/audit.js",
+    "/src/main.js",
+    "/icon-admin-192.png",
+    "/manifest-admin.webmanifest"
+  ]
+};
+const SHELL = SHELLS[APP] || SHELLS.customer;
+// طلبات صفحات الإدارة والموظفين مش من شغل سوّاق العميل (ولا العكس): بتروح للشبكة مباشرة
+const foreign = (u, r) => {
+  const own = APP === "customer" ? /^\/(?!staff(\/|$)|admin(\/|$))/ : APP === "staff" ? /^\/staff(\/|$)/ : /^\/admin(\/|$)/;
+  let refPath = ""; try { refPath = r.referrer ? new URL(r.referrer).pathname : ""; } catch (_) {}
+  if (r.mode === "navigate") return !own.test(u.pathname);
+  return !!refPath && !own.test(refPath);
+};
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(V).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== V).map(x => caches.delete(x)))).then(() => clients.claim()));
+  e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== V && (x.endsWith("-" + APP) || /^salon-v\d+$/.test(x))).map(x => caches.delete(x)))).then(() => clients.claim()));
 });
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== "GET") return;
+  if (foreign(u, r)) return;
   const cdn = u.hostname === "cdn.jsdelivr.net" || u.hostname === "fonts.googleapis.com" || u.hostname === "fonts.gstatic.com";
   if (u.origin !== location.origin && !cdn) return; // طلبات سوبابيز تروح للشبكة مباشرة ومبتتخزنش
   if (cdn) { // مكتبات وخطوط: الكاش أولًا
@@ -19,7 +161,7 @@ self.addEventListener("fetch", e => {
   e.respondWith(fetch(r).then(res => {
     if (res.ok && !res.redirected) { const cp = res.clone(); caches.open(V).then(c => c.put(r, cp)); }
     return res;
-  }).catch(() => caches.match(r).then(m => m || caches.match(r.mode === "navigate" ? (u.pathname.startsWith("/admin") ? "/admin" : u.pathname.startsWith("/staff") ? "/staff" : "/") : r))));
+  }).catch(() => caches.match(r).then(m => m || caches.match(r.mode === "navigate" ? (APP === "admin" ? "/admin" : APP === "staff" ? "/staff" : "/") : r))));
 });
 
 // ===== الإشعارات (Web Push): بتظهر وتصدّر صوت حتى لو التطبيق مقفول =====

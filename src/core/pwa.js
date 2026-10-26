@@ -2,7 +2,7 @@
 
 // ================= PWA: تثبيت التطبيق =================
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js?app="+APP_MODE,{scope:APP_MODE=="customer"?"/":"/"+APP_MODE}).catch(()=>{}));
 
 let dip=null;
 

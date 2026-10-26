@@ -31,7 +31,6 @@ S.l.filter(x=>(!S.c||(x.category||"قصات")==S.c)&&(!q||(x.name+" "+(x.categor
 const ks=Object.keys(g);
 $("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
 
-function svcClose(){C.dsL=null;const w=$("sheet");if(w){w.classList.add("out");setTimeout(()=>w.remove(),160)}}
 
 function svcOpen(id){const x=id?C.svc.l.find(y=>y.id==id):{name:"",price:"",duration_min:30,category:"",description:"",active:true};if(!x)return;C.svc.e=id||0;
 const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
