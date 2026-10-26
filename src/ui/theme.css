@@ -221,3 +221,26 @@ p.m.empty{border-color:var(--line);background:transparent}
 .hm-go{font-weight:700;color:var(--gold2,#E8CB7C);white-space:nowrap}
 .hm-rep,.hm-gift{margin-top:12px}
 .hm-gift{border-color:rgba(201,162,75,.6)}
+
+/* ===== واجهة العميل البريميوم: الرئيسية + الحجز ===== */
+.hm-shell{display:flex;flex-direction:column;gap:12px}
+.hm-shell>*{margin:0}
+.hm-badges{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
+.hm-badges::-webkit-scrollbar{display:none}
+.hm-badge{white-space:nowrap;font-size:12px;font-weight:600;padding:6px 12px;border-radius:99px;background:var(--gold-soft);color:var(--gold2);border:1px solid var(--line)}
+.hm-ghost{text-align:center;padding:16px;border-style:dashed}
+.hm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.hm-mini{padding:14px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.hm-mini b{font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hm-mini-ico{font-size:22px;line-height:1}
+.hm-cta{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.hm-cta .btn{padding:13px 8px}
+.hm-note{padding:14px}
+.hm-note b{display:block;margin:4px 0 10px}
+.hm-note-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hm-live-r .tag{margin-bottom:4px;display:inline-block}
+.booking-hero{margin-bottom:6px}
+.booking-badges{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.premium-cta{background:linear-gradient(120deg,var(--gold-soft),transparent)}
+.barber-option{transition:border-color .15s,transform .1s}
+.barber-option:active{transform:scale(.99)}
