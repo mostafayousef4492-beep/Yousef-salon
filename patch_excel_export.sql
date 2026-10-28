@@ -76,11 +76,11 @@ begin
       from expenses e where e.spent_on >= p_from and e.spent_on <= p_to
     union all
     select 3, tt - interval '1 second',
-      jsonb_build_array(null, p_to::text, null, pr.full_name, 'راتب ثابت (استحقاق الفترة)', null, null, null, null, null, round(salary_part(pr.salary, tf, tt), 2), null)
-      from profiles pr where pr.role::text <> 'owner' and coalesce(pr.salary, 0) > 0 and round(salary_part(pr.salary, tf, tt), 2) > 0
+      jsonb_build_array(null, p_to::text, null, pr.full_name, 'راتب ثابت (استحقاق الفترة)', null, null, null, null, null, round(salary_part_for(pr.id, pr.salary, tf, tt), 2), null)
+      from profiles pr where pr.role::text <> 'owner' and coalesce(pr.salary, 0) > 0 and round(salary_part_for(pr.id, pr.salary, tf, tt), 2) > 0
     union all
     select 4, t.created_at,
-      jsonb_build_array(null, to_char(t.created_at at time zone tz, 'YYYY-MM-DD HH24:MI'), null, pr.full_name, case t.kind when 'bonus' then 'مكافأة' else 'خصم' end, null, null, null, null, null,
+      jsonb_build_array(null, to_char(t.created_at at time zone tz, 'YYYY-MM-DD HH24:MI'), null, pr.full_name, case when t.kind = 'bonus' and coalesce(t.note,'') like 'أجر يوم%' then 'أجر يوم' when t.kind = 'bonus' then 'مكافأة' else 'خصم' end, null, null, null, null, null,
         case t.kind when 'bonus' then t.amount else -t.amount end, t.note)
       from staff_transactions t join profiles pr on pr.id = t.staff_id
      where t.kind in ('bonus','deduction') and t.created_at >= tf and t.created_at < tt and pr.role::text <> 'owner'
@@ -98,13 +98,13 @@ begin
      where i.created_at >= tf and i.created_at < tt group by (i.created_at at time zone tz)::date, i.barber_id, b.full_name, b.role, b.commission_pct, i.created_at::date
     union all
     select 2, null, pr.id,
-      jsonb_build_array(p_to::text, pr.id::text, pr.full_name, null, null, round(salary_part(pr.salary, tf, tt), 2), null, null, null, 'راتب ثابت (استحقاق الفترة)', null, null), p_to
-      from profiles pr where pr.role::text <> 'owner' and coalesce(pr.salary, 0) > 0 and round(salary_part(pr.salary, tf, tt), 2) > 0
+      jsonb_build_array(p_to::text, pr.id::text, pr.full_name, null, null, round(salary_part_for(pr.id, pr.salary, tf, tt), 2), null, null, null, 'راتب ثابت (استحقاق الفترة)', null, null), p_to
+      from profiles pr where pr.role::text <> 'owner' and coalesce(pr.salary, 0) > 0 and round(salary_part_for(pr.id, pr.salary, tf, tt), 2) > 0
     union all
     select 3, null, t.staff_id,
       jsonb_build_array((t.created_at at time zone tz)::date::text, t.staff_id::text, pr.full_name,
         null, null, case when t.kind = 'bonus' then t.amount end, case when t.kind = 'advance' then t.amount end, case when t.kind = 'deduction' then t.amount end, null,
-        case t.kind when 'bonus' then 'مكافأة' when 'advance' then 'سلفة' else 'خصم' end, t.id::text, t.note), (t.created_at at time zone tz)::date
+        case when t.kind = 'bonus' and coalesce(t.note,'') like 'أجر يوم%' then 'أجر يوم' when t.kind = 'bonus' then 'مكافأة' when t.kind = 'advance' then 'سلفة' else 'خصم' end, t.id::text, t.note), (t.created_at at time zone tz)::date
       from staff_transactions t join profiles pr on pr.id = t.staff_id
      where t.created_at >= tf and t.created_at < tt and pr.role::text <> 'owner'
     union all
