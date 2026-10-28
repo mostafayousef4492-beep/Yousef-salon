@@ -15,7 +15,7 @@ begin;
 update profiles set commission_pct=40, salary=3000 where id=:'b1';
 insert into invoices(barber_id,subtotal,discount,total,payment_method) values (:'b1',200,0,200,'cash'),(:'b1',100,0,100,'wallet');
 insert into expenses(spent_on,category,amount,note) values (current_date,'إيجار',500,'x'),(current_date,'كهرباء',120,'y');
-insert into staff_transactions(staff_id,kind,amount,note) values (:'b1','advance',50,'سلفة'),(:'b1','bonus',30,'مكافأة'),(:'b1','deduction',10,'خصم');
+insert into staff_transactions(staff_id,kind,amount,note) values (:'b1','advance',50,'سلفة'),(:'b1','bonus',30,'مكافأة'),(:'b1','deduction',10,'خصم'),(:'b1','bonus',100,'أجر يوم 2026-10-27');
 select t.as_(:'own');
 create temp table x as select export_report(null, current_date - 30, current_date) j, full_report((current_date - 30)::timestamp at time zone my_tz(), (current_date + 1)::timestamp at time zone my_tz()) f;
 grant all on x to public;
