@@ -1,0 +1,20 @@
+{
+  "id": "/kiosk",
+  "name": "صالون أبو يوسف - شاشة الصالون",
+  "short_name": "شاشة الصالون",
+  "description": "شاشة التابلت: الطابور وحضور الموظفين",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/kiosk",
+  "scope": "/kiosk",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#0B0D12",
+  "theme_color": "#0B0D12",
+  "icons": [
+    {"src": "/icon-kiosk-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icon-kiosk-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/icon-kiosk-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
