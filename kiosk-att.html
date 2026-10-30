@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="robots" content="noindex">
+<title>حضور الموظفين</title>
+<link rel="manifest" href="/manifest-kiosk.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="شاشة الصالون">
+<link rel="icon" type="image/png" href="/icon-kiosk-192.png">
+<link rel="apple-touch-icon" href="/icon-kiosk-180.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/ui/theme.css">
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;user-select:none;-webkit-user-select:none;overflow:hidden}
+h1{font:700 38px/1 Amiri,serif;margin:0;color:var(--gold2)}
+#msg{font-size:24px;min-height:34px;text-align:center;font-weight:600}
+#msg.bad{color:#f87171}#msg.ok{color:#4ade80}
+#disp{width:min(340px,90vw);text-align:center;font-size:44px;letter-spacing:6px;font-weight:700;background:var(--card);border:1px solid var(--line2);border-radius:18px;padding:14px;min-height:76px;font-variant-numeric:tabular-nums}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:min(340px,90vw)}
+.pad button,.big{font:700 32px "IBM Plex Sans Arabic",system-ui;background:var(--card);color:var(--ink);border:1px solid var(--line2);border-radius:18px;padding:18px 0;cursor:pointer}
+.pad button:active,.big:active{background:var(--card2)}
+.pad .go{background:var(--gold);color:#1B1710}
+.big{width:min(340px,90vw);font-size:30px}.big.in{background:#15803d;color:#fff;border-color:#15803d}.big.out{background:#b45309;color:#fff;border-color:#b45309}
+a.back{color:var(--mute);font-size:18px;text-decoration:none}
+input.tk{width:min(340px,90vw);font-size:22px;padding:14px;text-align:center}
+</style>
+</head>
+<body>
+<h1>حضور الموظفين</h1>
+<div id="msg"></div>
+<div id="box"></div>
+<a class="back" href="/kiosk">رجوع</a>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script>
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const $=i=>document.getElementById(i);
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let st={step:"code",code:"",pin:"",name:"",present:false,busy:false},idle;
+const say=(t,c)=>{$("msg").textContent=t||"";$("msg").className=c||""};
+function bump(){clearTimeout(idle);idle=setTimeout(()=>{if(st.step!="code"||st.code)reset();else location.href="/kiosk"},30000)}
+["pointerdown","keydown"].forEach(e=>addEventListener(e,bump,{passive:true}));
+function reset(m,c){st={step:"code",code:"",pin:"",name:"",present:false,busy:false};say(m,c);draw();bump()}
+function draw(){
+  if(!ls.get("kiosk_token")){$("box").innerHTML=`<input id="tk" class="tk" placeholder="كود الجهاز (من المالك)" autocomplete="off"><button class="big" style="margin-top:12px" onclick="saveTok()">حفظ</button>`;return}
+  if(st.step=="act"){$("box").innerHTML=`<div id="disp" style="font-size:32px;letter-spacing:0">${esc(st.name)}</div><button class="big ${st.present?"out":"in"}" style="margin-top:14px" onclick="doAct('${st.present?"out":"in"}')">${st.present?"تسجيل انصراف":"تسجيل حضور"}</button><button class="big" style="margin-top:12px;font-size:22px" onclick="reset()">إلغاء</button>`;return}
+  const v=st.step=="code"?st.code:"•".repeat(st.pin.length);
+  say($("msg").textContent||(st.step=="code"?"اكتب كودك":"اكتب الـ PIN"),$("msg").className);
+  $("box").innerHTML=`<div id="disp">${v||"&nbsp;"}</div><div class="pad" style="margin-top:14px">${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="key('${n}')">${n}</button>`).join("")}<button onclick="key('b')">⌫</button><button onclick="key('0')">0</button><button class="go" onclick="key('ok')">✓</button></div>`}
+function saveTok(){const v=$("tk").value.trim();if(v.length<16)return say("الكود غلط","bad");ls.set("kiosk_token",v);say("");draw()}
+function key(k){if(st.busy)return;const f=st.step=="code"?"code":"pin";
+  if(k=="b")st[f]=st[f].slice(0,-1);
+  else if(k=="ok"){if(st.step=="code"){if(!st.code)return;st.step="pin";say("اكتب الـ PIN")}else{if(st.pin.length<4)return say("الـ PIN 4 أرقام على الأقل","bad");return call("status")}}
+  else if(st[f].length<(f=="code"?12:6)){st[f]+=k;if($("msg").className)say(st.step=="code"?"اكتب كودك":"اكتب الـ PIN")}
+  draw()}
+async function call(a){st.busy=true;say("لحظة...");
+  try{const{data,error}=await sb.rpc("kiosk_att",{p_token:ls.get("kiosk_token"),p_code:st.code,p_pin:st.pin,p_action:a});
+    if(error)throw error;
+    if(data.device===false){ls.set("kiosk_token",null);st.busy=false;say("الجهاز مش مصرّح","bad");return draw()}
+    if(!data.ok){return reset(data.msg,"bad")}
+    if(a=="status"){st.name=data.name;st.present=data.present;st.step="act";st.busy=false;say(data.present?"إنت حاضر دلوقتي":"مرحبًا");return draw()}
+    st.busy=false;reset(data.name+" — "+data.msg,"ok");setTimeout(()=>{if($("msg").className=="ok")say("")},4000)
+  }catch(e){reset("مفيش اتصال، جرّب تاني","bad")}}
+function doAct(a){if(st.busy)return;call(a)}
+draw();bump();
+</script>
+<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))</script>
+</body>
+</html>

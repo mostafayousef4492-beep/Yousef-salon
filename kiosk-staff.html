@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<meta name="robots" content="noindex">
+<title>شاشة الموظفين</title>
+<link rel="manifest" href="/manifest-kiosk.webmanifest">
+<link rel="icon" type="image/png" href="/icon-kiosk-192.png">
+<link rel="apple-touch-icon" href="/icon-kiosk-180.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/ui/theme.css">
+<style>
+*{box-sizing:border-box}html,body{min-height:100%;margin:0}
+body{font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--ink);user-select:none;-webkit-user-select:none;padding:16px 18px calc(24px + env(safe-area-inset-bottom,0px))}
+h1{font:700 34px/1.1 Amiri,serif;margin:0;color:var(--gold2)}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:14px}.top .sp{flex:1}
+button,.wa{font:700 20px "IBM Plex Sans Arabic",system-ui;border-radius:14px;border:1px solid var(--line2);background:var(--card);color:var(--ink);padding:14px 18px;cursor:pointer;text-decoration:none;display:inline-block}
+button:active{background:var(--card2)}.gold{background:var(--gold);color:#1B1710;border-color:var(--gold)}.grn{background:#15803d;color:#fff;border-color:#15803d}.red{background:#7f1d1d;color:#fff;border-color:#7f1d1d}
+.wa{background:#128C7E;color:#fff;border-color:#128C7E;font-size:16px;padding:10px 14px}
+#msg{min-height:30px;font-size:20px;font-weight:600;text-align:center;margin:8px 0}#msg.bad{color:#f87171}#msg.ok{color:#4ade80}
+.card{background:var(--card);border:1px solid var(--line2);border-radius:20px;padding:16px;margin-bottom:12px}
+.card .h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.card b{font-size:24px}.m{color:var(--mute);font-size:16px}
+.tag{border-radius:10px;padding:4px 10px;font-size:15px;font-weight:700;background:var(--card2);margin-inline-start:auto}
+.tag.in_service{background:#15803d;color:#fff}.tag.checked_in{background:#b45309;color:#fff}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+#disp{width:min(340px,90vw);margin:8px auto;text-align:center;font-size:42px;letter-spacing:6px;font-weight:700;background:var(--card);border:1px solid var(--line2);border-radius:18px;padding:12px;min-height:72px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:min(340px,90vw);margin:12px auto}.pad button{font-size:30px;padding:16px 0}
+.c{text-align:center}
+</style>
+</head>
+<body>
+<div class="top"><h1 id="ttl">شاشة الموظفين</h1><div class="sp"></div><span id="who" class="m"></span><button id="att" class="gold" style="display:none" onclick="attToggle()"></button><button id="lock" style="display:none" onclick="logout()">قفل</button><a href="/kiosk" class="m" style="padding:0 6px">رجوع</a></div>
+<div id="msg"></div>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script>
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const waNum=ph=>{let d=String(ph||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g,"");if(!d)return"";if(d.startsWith("00"))d=d.slice(2);if(/^01\d{9}$/.test(d))return"20"+d.slice(1);if(/^1\d{9}$/.test(d))return"20"+d;return d.length>=10?d:""};
+let S={step:"code",code:"",pin:"",tickets:[],present:false,salon:"الصالون",busy:false},idle,poll;
+const say=(t,c)=>{$("msg").textContent=t||"";$("msg").className=c||""};
+function bump(){clearTimeout(idle);if(S.step=="panel")idle=setTimeout(()=>logout("اتقفلت الشاشة لعدم الاستخدام"),90000)}
+["pointerdown","keydown"].forEach(e=>addEventListener(e,bump,{passive:true}));
+async function q(action,id,reason){return (await sb.rpc("kiosk_q",{p_token:ls("kiosk_token"),p_code:S.code,p_pin:S.pin,p_action:action,p_id:id||null,p_reason:reason||null})).data}
+async function att(a){return (await sb.rpc("kiosk_att",{p_token:ls("kiosk_token"),p_code:S.code,p_pin:S.pin,p_action:a})).data}
+function logout(m){clearInterval(poll);S={...S,step:"code",code:"",pin:"",tickets:[],busy:false};$("who").textContent="";$("att").style.display=$("lock").style.display="none";say(m||"");draw()}
+function draw(){
+  if(!ls("kiosk_token")){$("app").innerHTML='<p class="c m" style="font-size:20px">الجهاز لسه مش مسجّل. افتح «حضور الموظفين» واكتب كود الجهاز مرة واحدة.</p><p class="c"><a class="wa" href="/kiosk-att">فتح حضور الموظفين</a></p>';return}
+  if(S.step=="panel")return drawP();
+  const v=S.step=="code"?S.code:"•".repeat(S.pin.length);
+  if(!$("msg").textContent)say(S.step=="code"?"اكتب كودك":"اكتب الـ PIN");
+  $("app").innerHTML=`<div id="disp">${v||"&nbsp;"}</div><div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="key('${n}')">${n}</button>`).join("")}<button onclick="key('b')">⌫</button><button onclick="key('0')">0</button><button class="gold" onclick="key('ok')">✓</button></div>`}
+async function key(k){if(S.busy)return;const f=S.step=="code"?"code":"pin";
+  if(k=="b")S[f]=S[f].slice(0,-1);
+  else if(k=="ok"){if(S.step=="code"){if(!S.code)return;S.step="pin";say("اكتب الـ PIN")}else{if(S.pin.length<4)return say("الـ PIN 4 أرقام على الأقل","bad");return enter()}}
+  else if(S[f].length<(f=="code"?12:6)){S[f]+=k;say(S.step=="code"?"اكتب كودك":"اكتب الـ PIN")}
+  draw()}
+async function enter(){S.busy=true;say("لحظة...");
+  try{const d=await q("list");S.busy=false;
+    if(!d||!d.ok){if(d&&d.device===false)localStorage.removeItem("kiosk_token");S.code=S.pin="";S.step="code";say(d?d.msg:"مفيش اتصال","bad");return draw()}
+    S.step="panel";S.tickets=d.tickets;$("who").textContent=d.name;$("att").style.display=$("lock").style.display="";say("");await attState();drawP();bump();poll=setInterval(refresh,8000)
+  }catch(e){S.busy=false;say("مفيش اتصال","bad")}}
+async function attState(){const a=await att("status");S.present=!!(a&&a.ok&&a.present);$("att").textContent=S.present?"تسجيل انصراف":"تسجيل حضور";$("att").className=S.present?"red":"grn"}
+async function attToggle(){if(S.busy)return;S.busy=true;const a=await att(S.present?"out":"in");S.busy=false;say(a&&a.msg||"تعذّر التسجيل",a&&a.ok?"ok":"bad");await attState()}
+async function refresh(){if(S.busy||S.step!="panel")return;try{const d=await q("list");if(!d||!d.ok)return logout(d&&d.msg||"");S.tickets=d.tickets;drawP()}catch(e){}}
+async function act(id,a){if(S.busy)return;let reason;if(a=="skip"){reason=prompt("سبب التخطّي؟");if(!reason||reason.trim().length<2)return}
+  S.busy=true;try{const d=await q(a,id,reason);S.busy=false;if(!d)return say("مفيش اتصال","bad");if(!d.ok){say(d.msg,"bad");if(d.device===false||/PIN|محاولات/.test(d.msg))return logout(d.msg);return}
+    S.tickets=d.tickets;say({call:"اتندهت ✓",arrive:"اتسجّل حضوره ✓",start:"بدأت الخدمة ✓",finish:"انتهت الخدمة ✓ — الدفع من الكاشير",skip:"اتخطّت"}[a],"ok");drawP()}catch(e){S.busy=false;say("مفيش اتصال","bad")}}
+function wa(t,kind){const n=waNum(t.cphone);if(!n)return"";const nm=t.cname||"",b=t.barber||"الحلاق",cd=t.code?` (رقم ${t.code})`:"";
+  const M={now:`أهلاً ${nm} 👋\nدورك دلوقتي عند ${b}${cd}. اتفضل على الكرسي.`,soon:`أهلاً ${nm} 👋\nقرّبنا على دورك عند ${b}${cd}. من فضلك خليك قريب من الصالون.`,thx:`شكرًا يا ${nm} على زيارتك ${S.salon} 🙏\nننتظرك تاني.`}[kind];
+  const L={now:"واتساب: دورك جه",soon:"واتساب: قرّب دورك",thx:"واتساب: شكرًا"}[kind];
+  return `<a class="wa" target="_blank" rel="noopener" href="https://wa.me/${n}?text=${encodeURIComponent(M)}">${L}</a>`}
+const ST={upcoming:"في الانتظار",checked_in:"حضر",in_service:"على الكرسي"};
+function drawP(){const T=S.tickets;
+  $("app").innerHTML=T.length?T.map(t=>{const b=[];
+    if(t.status=="upcoming"){b.push(`<button class="gold" onclick="act(${t.id},'call')">${t.called?"استدعاء تاني":"استدعاء"}</button>`);if(t.called)b.push(`<button onclick="act(${t.id},'arrive')">حضر</button>`);b.push(`<button class="red" onclick="act(${t.id},'skip')">تخطّي</button>`);b.push(wa(t,"now"),wa(t,"soon"))}
+    else if(t.status=="checked_in"){b.push(`<button class="grn" onclick="act(${t.id},'start')">ابدأ الخدمة</button>`,`<button onclick="act(${t.id},'call')">استدعاء تاني</button>`,wa(t,"now"))}
+    else if(t.status=="in_service"){b.push(`<button class="grn" onclick="act(${t.id},'finish')">انتهت</button>`)}
+    return `<div class="card"><div class="h"><b dir="ltr">${esc(t.code||"#"+t.id)}</b><b>${esc(t.cname||"زبون")}</b><span class="tag ${t.status}">${ST[t.status]||t.status}</span></div><div class="m">${esc(t.barber||"-")}${t.services?" · "+esc(t.services):""}${t.calls?" · اتندهت "+t.calls+" مرة":""}</div><div class="btns">${b.join("")}</div></div>`}).join(""):'<p class="c m" style="font-size:22px;padding:50px 0">مفيش تذاكر في الطابور دلوقتي</p>'}
+(async()=>{try{const{data}=await sb.from("app_settings").select("*").eq("key","salon_name");if(data&&data[0])S.salon=String(data[0].value).replace(/^"|"$/g,"")}catch(e){}})();
+draw();
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
