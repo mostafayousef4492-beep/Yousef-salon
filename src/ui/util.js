@@ -11,9 +11,19 @@ let _bizAt=0;
 const bizToday=()=>(C.biz&&C.biz.open&&C.biz.day)||ymd(new Date());
 const bizBase=()=>new Date(bizToday()+"T12:00:00");
 const bizFrom=()=>{if(C.biz&&C.biz.open&&C.biz.window_from)return new Date(C.biz.window_from);const d=new Date();d.setHours(0,0,0,0);return d};
-async function bizLoad(force){if(!force&&Date.now()-_bizAt<15000)return;try{const{data}=await sb.rpc("business_day_state");if(data){C.biz=data;_bizAt=Date.now()}}catch(e){}}
+async function bizLoad(force){if(!force&&Date.now()-_bizAt<15000)return;try{const{data}=await sb.rpc("business_day_state");if(data){C.biz=data;_bizAt=Date.now()}}catch(e){}bizStrip()}
+// شريط تنبيه ثابت لما اليوم المفتوح أقدم من النهارده: كل حاجة بتتسجل على اليوم ده
+function bizStrip(){try{let el=document.getElementById("bzstrip");const b=C.biz;if(typeof me==="undefined"||!me||me.role==="customer"||!b||!b.open||!b.backdated){if(el)el.remove();return}
+  if(!el){el=document.createElement("div");el.id="bzstrip";el.style.cssText="position:sticky;top:0;z-index:70;background:#b45309;color:#fff;font:700 13px system-ui;padding:8px 12px;text-align:center";document.body.insertBefore(el,document.body.firstChild)}
+  el.textContent="⚠ شغّال على يوم "+b.day+" — النهارده الحقيقي "+(b.natural||b.calendar)+" · كل حاجة بتتسجل على يوم "+b.day}catch(e){}}
 async function bizKeyer(){const f=t=>ymd(new Date(t));try{const{data}=await sb.rpc("business_days_list");if(!Array.isArray(data)||!data.length)return f;const R=[];let lc=null;data.forEach(r=>{const st=lc||new Date(Math.min(new Date(r.opened_at),new Date(r.day+"T00:00")));const en=r.closed_at?new Date(r.closed_at):null;R.push({day:r.day,st,en});if(en&&(!lc||en>lc))lc=en});return t=>{const d=new Date(t);for(const r of R)if(d>=r.st&&(!r.en||d<r.en))return r.day;return f(t)}}catch(e){return f}}
-async function bizOpen(){if(!confirm("تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;const{error}=await sb.rpc("open_business_day");if(error)return toast(error.message);await bizLoad(true);toast("اتفتح اليوم ✓");go("home")}
+async function bizOpen(){const cal=(C.biz&&C.biz.calendar)||ymd(new Date());let min="";
+  try{const{data}=await sb.rpc("business_days_list");if(Array.isArray(data)&&data.length){const d=new Date(data[data.length-1].day+"T12:00:00");d.setDate(d.getDate()+1);min=ymd(d)}}catch(e){}
+  dsOpen("فتح يوم عمل",`<div class="m" style="margin-bottom:8px">اختار تاريخ اليوم اللي هتشتغل عليه. لو اخترت يوم قديم، كل الفواتير والمصروفات والسحب والسلف هتتسجل على اليوم ده (مش النهارده)، والحضور والانصراف بيفضلوا بالوقت الحقيقي. اليوم بيفضل مفتوح لحد ما تقفله بجرد الدرج.</div><input type="date" id="bo_d" value="${cal}" max="${cal}"${min?` min="${min}"`:""} oninput="bizOpenHint()"><div id="bo_n" class="m" style="margin:8px 0"></div><button class="btn" onclick="bizOpenGo()">فتح اليوم</button>`);bizOpenHint()}
+function bizOpenHint(){const v=$("bo_d")?.value,cal=(C.biz&&C.biz.calendar)||ymd(new Date()),n=$("bo_n");if(!n)return;n.innerHTML=v&&v<cal?`<b style="color:#b45309">⚠ هتشتغل على يوم ${esc(v)} والنهارده الحقيقي ${esc(cal)}</b>`:""}
+async function bizOpenGo(){const v=$("bo_d")?.value,cal=(C.biz&&C.biz.calendar)||ymd(new Date());if(!v)return toast("اختار التاريخ");
+  if(!confirm(v<cal?"تفتح يوم "+v+" والنهارده "+cal+"؟\nكل اللي هتسجله هيتحسب على يوم "+v+" لحد ما تقفل اليوم.":"تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;
+  const{error}=await sb.rpc("open_business_day",{p_day:v<cal?v:null});if(error)return toast(error.message);svcClose();await bizLoad(true);toast("اتفتح اليوم ✓");go("home")}
 function bizClose(){if(!C.biz||!C.biz.open)return;C.cd=C.biz.day;go("cash");toast("اكتب جرد الدرج (كاش / كارت / محفظة) واضغط قفل اليوم")}
 const bizBox=()=>{const b=C.biz;if(!b)return"";const adm=isAdm(me),tm=t=>new Date(t).toLocaleString("ar-EG",{hourCycle:"h23",weekday:"short",hour:"2-digit",minute:"2-digit"});
   return b.open?`<div class="box" style="margin:8px 0;border-color:var(--ok)"><b>🟢 يوم العمل مفتوح: ${esc(b.day)}</b><div class="m">اتفتح ${tm(b.opened_at)} — بيفضل شغّال لحد ما تقفله</div>${adm?`<button class="btn" style="margin-top:8px" onclick="bizClose()">قفل اليوم (جرد الدرج)</button>`:""}</div>`
