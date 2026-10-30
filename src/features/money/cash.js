@@ -35,7 +35,7 @@ async function doClose(){const g=id=>{const v=$(id).value;return v===""?NaN:pars
   if([c,cd,w].some(x=>isNaN(x)||x<0))return toast("اكتب الكاش والكارت والمحفظة (اكتب 0 لو مفيش)");
   const op=$("kc_open")?$("kc_open").value:"";if(!confirm("تقفل اليوم؟ مش هتقدر تعدّل بعد كده."))return;
   const{data,error}=await sb.rpc("close_day",{p_day:C.cd||bizToday(),p_counted_cash:c,p_counted_card:cd,p_counted_wallet:w,p_opening:op===""?null:parseFloat(op),p_note:$("kc_note").value||null});
-  if(error)return toast(error.message);C.cres=data;await bizLoad(true);toast("تم قفل اليوم ✓");V.cash()}
+  if(error)return toast(error.message);C.cres=data;await bizLoad(true);toast("تم قفل اليوم ✓");V.cash();if(!(C.biz&&C.biz.open)&&confirm("اتقفل اليوم ✓\nتفتح اليوم الجديد دلوقتي؟"))bizOpen()}
 
 async function delClose(id){if(!confirm("تمسح القفل ده عشان تعيده؟"))return;const{error}=await sb.from("cash_closings").delete().eq("id",id);error?toast(error.message):(C.cres=null,V.cash())}
 
