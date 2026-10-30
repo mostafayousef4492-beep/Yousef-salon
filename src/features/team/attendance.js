@@ -9,7 +9,7 @@ put(`<button class="btn g s" style="margin-top:12px" onclick="V.team()">‹ رج
 <h2>إجازة محددة</h2><div class="box"><label class="m">من</label><input type="date" id="lf"><label class="m">إلى</label><input type="date" id="lt"><input id="lr" placeholder="السبب (اختياري)"><button class="btn" onclick="addLeave()">إضافة الإجازة</button></div>`+(lv||[]).map(l=>`<div class="row"><div>${l.from_date} ← ${l.to_date}<div class="m">${esc(l.reason||"")}</div></div><button class="btn s g" onclick="delLeave(${l.id})">حذف</button></div>`).join(""))}
 
 async function saveShift(){const rows=[0,1,2,3,4,5,6].map(i=>({staff_id:C.sid,weekday:i,is_off:$("o"+i).checked,start_time:$("a"+i).value||"10:00",end_time:$("b"+i).value||"20:00"}));
-if(rows.some(r=>!r.is_off&&r.start_time===r.end_time))return toast("وقت البداية والنهاية مينفعش يبقوا نفس الوقت");
+if(rows.some(r=>!r.is_off&&r.start_time===r.end_time))return toast("وقت البداية والنهاية مينفعش يكونوا نفس الوقت");// النهاية الأصغر من البداية = شيفت بعد نص الليل (مثلاً 14:00 ← 02:00)
 const{error}=await sb.from("staff_shifts").upsert(rows);error?toast(error.message):toast("تم حفظ الشيفت")}
 
 async function addLeave(){const f=$("lf").value,t=$("lt").value||f;if(!f)return toast("اختار تاريخ البداية");if(t<f)return toast("تاريخ النهاية قبل البداية");
@@ -44,8 +44,11 @@ async function stmtLoad(id){if(!$("stmt"))return;const[f,t]=rangeOf(C.rg);
 
 function stmtFilter(f){C.smf=f;drawStmt()}
 
+// من غير صلاحية الفواتير: عمولات اليوم الواحد بتتجمّع في سطر واحد من غير تفاصيل الفواتير
+function stmtGroup(a){const o=[];a.forEach(x=>{if(x.kind!="commission")return o.push(x);const day=new Date(x.at).toLocaleDateString("en-CA"),p=o[o.length-1];if(p&&p._g&&p._day==day){p.credit=(+p.credit||0)+(+x.credit||0);p.debit=(+p.debit||0)+(+x.debit||0);p.balance=x.balance;p.at=x.at}else o.push({...x,_g:1,_day:day,ref:null,label:"عمولات اليوم"})});return o}
+
 function drawStmt(){const box=$("stmt"),d=C.sm;if(!box||!d)return;const f=C.smf||"all",cl=+d.closing||0,canInv=isAdm(me)||can("view_invoices");
-  const E=(d.entries||[]).filter(x=>f=="all"||(f=="in"?+x.credit>0:+x.debit>0)).slice().reverse().slice(0,200);
+  const E=(canInv?(d.entries||[]):stmtGroup(d.entries||[])).filter(x=>f=="all"||(f=="in"?+x.credit>0:+x.debit>0)).slice().reverse().slice(0,200);
   box.innerHTML=`<h2>كشف الحساب</h2><div class="box" style="text-align:center"><div class="m">رصيد الحساب</div><div style="font-size:30px;font-weight:800;color:${cl>=0?"var(--ok)":"var(--red)"}">${fm(cl)}</div><div class="m">أول الفترة ${fm(d.opening)} · داخل +${fm(d.credits)} · خارج −${fm(d.debits)}</div></div><div class="chips" style="margin:8px 0">${[["all","الكل"],["in","داخل"],["out","خارج"]].map(x=>`<button class="chip ${f==x[0]?"sel":""}" onclick="stmtFilter('${x[0]}')">${x[1]}</button>`).join("")}</div>`+
   (E.length?E.map(x=>{const cr=+x.credit>0,click=x.kind=="commission"&&x.ref&&canInv;return `<div class="row"${click?` role="button" style="cursor:pointer" onclick="dsInvOne(${x.ref})"`:""}><div><b>${esc(x.label)}</b><div class="m">${dsT(x.at)} · ${STK[x.kind]||esc(x.kind)}</div></div><div style="text-align:left"><b style="color:${cr?"var(--ok)":"var(--red)"}">${cr?"+"+fm(x.credit):"−"+fm(x.debit)}</b><div class="m">الرصيد ${fm(x.balance)}</div></div></div>`}).join(""):`<p class="m">مفيش حركات في الفترة دي.</p>`)+
   `<div class="m" style="margin-top:6px">أي فلوس تدخل (راتب، يومية، عمولة، إيداع) بتتضاف للرصيد، وأي سحب أو خصم أو صرف بيتخصم منه. الراتب الشهري بيدخل يوم بيوم من يوم فتح الحساب.</div>`}
@@ -59,7 +62,7 @@ V.att=async()=>{C.am=C.am||ymd(new Date()).slice(0,7);const[,b]=monthR(C.am),e=n
   if(error)return put(`<h1>الحضور والانصراف</h1><p class="m">${esc(error.message)}</p>`);
   C.ar=data;const R=data.rows||[],cnt=k=>R.filter(r=>attSt(r)==k).length,sm=f=>R.reduce((a,r)=>a+(+r[f]||0),0);
   const bd=r=>{const s=attSt(r);return `<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="openStaff('${r.id}','${esc(r.name)}')"><div><b>${esc(r.name)}</b><div class="m">${RL[r.role]||r.role}${r.today_in?" · حضر "+dsHm(r.today_in):""}${r.today_out&&!r.today_open?" · انصرف "+dsHm(r.today_out):""}${+r.today_late>0?" · تأخير "+r.today_late+" د":""}</div></div><span class="tag" style="${s=="in"?"background:var(--ok);color:#fff":s=="none"?"background:var(--red);color:#fff":""}">${{in:"حاضر",out:"انصرف",off:"راحة",none:"لسه"}[s]}</span></button>`};
-  put(`<h1>الحضور والانصراف</h1>${me.role=="owner"?`<button class="btn s g" onclick="lateRules()">⚙️ خصم التأخير</button>`:""}${isAdm(me)?attCodeBox():""}<h2>النهارده</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${kc("حاضرين دلوقتي",cnt("in"),"var(--ok)","attList('in')")}${kc("انصرفوا",cnt("out"),"","attList('out')")}${kc("لسه ما حضروش",cnt("none"),cnt("none")?"var(--red)":"","attList('none')")}${kc("راحة / إجازة",cnt("off"),"","attList('off')")}</div>${R.map(bd).join("")}
+  put(`<h1>الحضور والانصراف</h1>${isAdm(me)?attCodeBox():""}<h2>النهارده</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${kc("حاضرين دلوقتي",cnt("in"),"var(--ok)","attList('in')")}${kc("انصرفوا",cnt("out"),"","attList('out')")}${kc("لسه ما حضروش",cnt("none"),cnt("none")?"var(--red)":"","attList('none')")}${kc("راحة / إجازة",cnt("off"),"","attList('off')")}</div>${R.map(bd).join("")}
 <h2>تقرير الشهر</h2><div class="chips" style="align-items:center"><input type="month" value="${C.am}" style="width:auto;margin:0" onchange="C.am=this.value||'${C.am}';V.att()"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">${kc("أيام غياب",sm("absent_days"),sm("absent_days")?"var(--red)":"","attKpi('absent_days','أيام الغياب','يوم')")}${kc("دقايق تأخير",sm("late_min"),"","attKpi('late_min','دقايق التأخير','دقيقة')")}${kc("ساعات شغل",sm("hours").toFixed(1),"","attKpi('hours','ساعات الشغل','ساعة')")}${kc("نسي الانصراف",sm("missing_out"),sm("missing_out")?"var(--red)":"","attKpi('missing_out','نسيوا الانصراف','مرة')")}</div>
 ${tbl(["الموظف","حضور","غياب","تأخير","ساعات"],R.map(r=>[`<a href="#" style="color:var(--gold2)" onclick="openStaff('${r.id}','${esc(r.name)}');return false">${esc(r.name)}</a><div class="m">${RL[r.role]||r.role}</div>`,r.present_days,+r.absent_days?`<b style="color:var(--red)">${r.absent_days}</b>`:r.absent_days,+r.late_min?r.late_min+" د":"—",(+r.hours).toFixed(1)]))}
@@ -102,36 +105,4 @@ if(e2)return toast(/duplicate key|unique/i.test(e2.message||"")?st.full_name+" �
 toast(st.full_name+" — "+lbl+(isT?"":" ("+d+")")+" ✓"+(data?.late_min>0&&kind=="in"?" · متأخر "+data.late_min+" د":""));V.att()
 }finally{C.acBusy=0}}
 
-/* features/team/late_rules.js — شاشة التحكم في طريقة خصم التأخير لكل موظف (للمالك) */
-const LATE_M={flat:"خصم الدقيقة",att:"أجر يوم بالحضور",adj:"تعديل بالساعات",none:"بدون خصم تأخير"};
-async function lateRules(){
-  const{data,error}=await sb.rpc("late_rules_list");
-  if(error)return toast(error.code=="PGRST202"?"شغّل patch_late_deduction.sql في Supabase الأول":error.message);
-  const g=data;
-  dsOpen("خصم التأخير",`<div class="box" style="display:flex;flex-direction:column;gap:8px">
-<label class="m"><input type="checkbox" id="lr_on" ${g.enabled?"checked":""}> تشغيل "خصم الدقيقة"</label>
-<label class="m"><input type="checkbox" id="lr_w" ${g.wage_on?"checked":""}> نزّل اليومية أول ما الموظف يسجل حضور (ناقص خصم التأخير)</label>
-<label class="m">دقايق السماح</label><input id="lr_g" type="number" inputmode="numeric" value="${+g.grace}">
-<label class="m">الخصم لكل دقيقة (جنيه)</label><input id="lr_r" type="number" inputmode="decimal" value="${+g.rate}">
-<div class="m">بعد السماح يتخصم من أول دقيقة. مثال: ${+g.grace+1} دقيقة تأخير = ${fm((+g.grace+1)*(+g.rate))}</div>
-<button class="btn" onclick="lateGlobal()">حفظ</button></div>
-<div class="box" style="display:flex;flex-direction:column;gap:8px"><b>الراتب الثابت بالحضور</b><div class="m">أي موظف (غير المدير والمالك) براتب ثابت: الراتب بيتحسب يومية بتنزل أول ما يسجل حضور بدل ما ينزل كل يوم من التقويم. اليومية = الراتب ÷ 30 (أو اليومية المسجلة). اللي فات قبل النهارده بيفضل زي ما هو.</div><button class="btn" onclick="attPayAll()">حوّل كل أصحاب الراتب الثابت للحضور</button></div>
-<h2>طريقة الخصم لكل موظف</h2><div class="m" style="margin-bottom:6px">المالك والمدير مستثنيين. اختيار طريقة بيوقف التانية (من غير ما يمسح إعداداتها).</div>
-${(g.staff||[]).map(s=>`<div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><div><b>${esc(s.name)}</b> <span class="m">${RL[s.role]||s.role} · ${+s.wage>0?"يومية "+fm(s.wage):"مفيش يومية محددة"}</span></div>
-<select onchange="lateSet('${s.id}',this.value)">${Object.keys(LATE_M).map(k=>`<option value="${k}" ${s.method==k?"selected":""}>${LATE_M[k]}</option>`).join("")}</select></div>`).join("")||`<p class="m">مفيش موظفين.</p>`}`);
-}
-async function attPayAll(){
-  if(!confirm("تحويل كل الموظفين أصحاب الراتب الثابت لنظام الحضور؟ الراتب هيبطل ينزل بالتقويم من النهارده وينزل بتسجيل الحضور."))return;
-  const{data,error}=await sb.rpc("att_pay_all");
-  if(error)return toast(error.code=="PGRST202"?"شغّل patch_attendance_pay.sql في Supabase الأول":error.message);
-  toast((data||[]).length?"اتحوّل "+data.length+" موظف: "+data.map(x=>x.name+" ("+fm(x.daily_wage)+")").join("، "):"مفيش حد محتاج تحويل");lateRules();
-}
-async function lateGlobal(){
-  const{error}=await sb.rpc("set_late_global",{p_enabled:$("lr_on").checked,p_grace:Math.round(+$("lr_g").value),p_rate:+$("lr_r").value,p_wage:$("lr_w").checked});
-  error?toast(error.message):(toast("تم الحفظ ✓"),lateRules());
-}
-async function lateSet(id,m){
-  const{error}=await sb.rpc("set_late_method",{p_staff:id,p_method:m});
-  error?toast(error.message):toast("تم ✓ — "+LATE_M[m]);
-  lateRules();
-}
+async function setStaffPin(id){const v=prompt("اكتب PIN الحضور للموظف (4 إلى 6 أرقام) — هيستخدمه على تابلت الصالون مع كوده");if(v===null)return;const pin=String(v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim();if(!/^\d{4,6}$/.test(pin))return toast("الـ PIN لازم يكون من 4 إلى 6 أرقام");const{data,error}=await sb.rpc("admin_set_staff_pin",{p_staff:id,p_pin:pin});error?toast(error.message):toast(data||"اتحفظ ✓")}
