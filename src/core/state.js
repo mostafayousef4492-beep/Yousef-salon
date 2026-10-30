@@ -2,8 +2,9 @@
 
 const APP_MODE=window.SALON_MODE||"customer";
 
-// كل تطبيق (زبون/موظف/إدارة) له جلسة دخول مستقلة، عشان يشتغلوا مع بعض على نفس الموبايل
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:"salon-auth-"+APP_MODE}});
+// جلسة منفصلة لكل تطبيق. العملاء بيفضلوا على المفتاح الافتراضي عشان جلساتهم الحالية ما تتمسحش
+try{if(APP_MODE=="customer"){const dk="sb-"+new URL(SUPABASE_URL).hostname.split(".")[0]+"-auth-token",nk="salon-auth-customer";if(!localStorage.getItem(dk)&&localStorage.getItem(nk))localStorage.setItem(dk,localStorage.getItem(nk))}}catch(e){}
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,APP_MODE=="customer"?undefined:{auth:{storageKey:"salon-auth-"+APP_MODE}});
 
 const $=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -19,7 +20,7 @@ const ST={upcoming:"قادم",checked_in:"وصل",in_service:"على الكرس�
 
 let me=null,tab="";
 
-const C={cfg:{salon_name:"صالون أبو يوسف",phone:"",address:"",currency:"ج.م",open_hour:10,close_hour:20,slot_minutes:60,days_ahead:5,weekly_off:5,cancel_before_hours:2,points_per_currency:10,max_discount_pct:20,booking_open:true}};
+const C={cfg:{salon_name:"صالون أبو يوسف",phone:"",address:"",currency:"ج.م",open_hour:10,close_hour:20,slot_minutes:60,days_ahead:5,weekly_off:5,cancel_before_hours:2,points_per_currency:10,max_discount_pct:20,booking_open:true,referral_enabled:true,birthday_enabled:true,birthday_points:50,referral_points:50,referral_min_total:0,referral_max_per_customer:0,urgent_enabled:true,urgent_multiplier:2,late_fine_enabled:true,late_fine_grace_min:15,late_fine_per_min:1}};
 
 const PD={cashier:{use_attendance:1,use_pos:1,view_stock:1,view_invoices:1,manage_appts:1,view_customers:1,view_customer_phone:1,cash_ops:1},barber:{use_attendance:1,view_own_sales:1,view_own_commission:1,view_own_finance:1,view_own_reviews:1,view_own_schedule:1,view_own_target:1},assistant:{use_attendance:1,view_own_finance:1}};
 
