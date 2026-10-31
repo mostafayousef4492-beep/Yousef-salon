@@ -235,6 +235,7 @@ p.m.empty{border-color:var(--line);background:transparent}
 .hm-mini-ico{font-size:22px;line-height:1}
 .hm-cta{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
 .hm-cta .btn{padding:13px 8px}
+.hm-catalog{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;padding:12px 14px;border:1px solid #b98b3e;border-radius:13px;background:linear-gradient(110deg,#17130d,#211a10);color:#e3bd72;text-decoration:none;font-weight:700}
 .hm-note{padding:14px}
 .hm-note b{display:block;margin:4px 0 10px}
 .hm-note-actions{display:flex;gap:8px;flex-wrap:wrap}
