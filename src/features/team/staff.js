@@ -24,7 +24,7 @@ sb.from("staff_transactions").select("*").eq("staff_id",id).gte("created_at",f).
 sb.from("reviews").select("id,rating,tags,note,created_at").eq("barber_id",id).order("created_at",{ascending:false}).limit(20),
 sb.rpc("staff_schedule",{p_staff:id}),sb.from("attendance").select("*").eq("staff_id",id).gte("check_in",f).lt("check_in",t).order("check_in",{ascending:false}),sb.from("attendance").select("id,check_in").eq("staff_id",id).is("check_out",null).limit(1),sb.from("staff_shifts").select("*").eq("staff_id",id),sb.from("staff_leaves").select("*").eq("staff_id",id).gte("to_date",new Date().toISOString().slice(0,10)).order("from_date")]);
 if(e1)return $("panel").innerHTML=`<p class="m">${esc(e1.message)}</p>`;
-const s=sm?.[0]||{};C.pn={id,owner,f,t,s,tx:tx||[],al:al||[]};const avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
+const s=sm?.[0]||{};C.pn={id,owner,f,t,s,tx:tx||[],al:al||[]};if(!owner&&$("mehero"))meHero();const avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
 const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c,a)=>`<div class="box kpi"${a?` role="button" tabindex="0" onclick="${a}" style="cursor:pointer"`:""}><div class="kpi-l">${l}</div><div class="kpi-v" style="color:${c||"inherit"}">${v}</div>${a?`<div class="m" style="font-size:11px">اضغط للتفاصيل</div>`:""}</div>`;
 const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const attOn=owner||can("use_attendance");
@@ -52,11 +52,21 @@ function delTx(id){return ownerDel("staff_transactions",id,()=>C.reload(),"حذ�
 
 async function myS(id,st){const{error}=await sb.rpc("set_my_appt_status",{p_id:id,p_status:st});error?toast(error.message):C.reload()}
 
-V.me=()=>{put(`<h1>شاشتي — ${esc(me.full_name)}</h1>${me.role=="barber"?`<div id="bnow"></div>`:""}<div id="panel"></div>`);if(me.role=="barber")barberNow();panel(me.id,false)};
+V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="bnow"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber")barberNow();panel(me.id,false)};
+
+// ===== كارت الترحيب في شاشة الموظف (عرض فقط — بيقرا اللي متحمّل أصلًا من شاشتي) =====
+function meHero(){const el=$("mehero");if(!el)return;
+const P=C.pn&&C.pn.id==me.id&&!C.pn.owner?C.pn:null,sm=P?P.s:null,hr=new Date().getHours(),gr=hr>=5&&hr<12?"صباح الخير":"مساء الخير",first=String(me.full_name||"").trim().split(/\s+/)[0]||"",
+RGL={day:"اليوم",week:"الأسبوع",month:"الشهر",custom:"الفترة"}[C.rg]||"الفترة",
+cf=can("view_own_finance"),cc=can("view_own_commission"),cs=can("view_own_sales"),n=x=>sm?fm(+x||0):"—";
+if(C.meAv===undefined){C.meAv=null;sb.rpc("staff_profile",{p_staff:me.id}).then(r=>{if(r&&r.data&&r.data.avatar){C.meAv=r.data.avatar;meHero()}}).catch(()=>{})}
+const big=cf?{l:"صافي مستحقاتك — "+RGL,v:n(sm&&sm.net)}:cc?{l:"عمولتك — "+RGL,v:n(sm&&sm.commission)}:null;
+const st=[];if(cc&&cf)st.push(["العمولة",n(sm&&sm.commission)]);if(cs)st.push(["القصّات",sm?String(+sm.cuts||0):"—"]);if(cf)st.push(["السحب",n(sm&&sm.advances)]);if(C.meQ)st.push(["في الانتظار",String(C.meQ.w)]);
+el.innerHTML=`<div class="me-hero"><div class="me-top">${avatarHtml({avatar:C.meAv,name:me.full_name},52,false)}<div class="me-id"><div class="me-gr">${gr}</div><div class="me-nm">${esc(first)}</div><span class="tag">${RL[me.role]||""}</span></div></div>${big?`<div class="me-big"><div class="me-bl">${big.l}</div><div class="me-bv">${big.v}</div></div>`:""}${st.length?`<div class="me-st">${st.map(x=>`<div><div class="me-sl">${x[0]}</div><div class="me-sv">${x[1]}</div></div>`).join("")}</div>`:""}</div>`}
 
 async function barberNow(){const{data,error}=await sb.rpc("my_queue");const e=$("bnow");if(!e||error)return;
 const{data:ub}=await sb.rpc("urgent_board"),U=new Set((ub||[]).filter(x=>x.state=="approved").map(x=>x.id)),L=data||[],act=L.filter(a=>a.status!="no_show"),sk=L.filter(a=>a.status=="no_show"),cur=act.find(a=>a.status=="in_service"),q=act.filter(a=>a.status!="in_service"),nx=q.find(a=>a.status=="checked_in")||q.find(a=>a.called)||q[0],ca=can("manage_appts"),cd=a=>a.ticket_code||"#"+a.ticket_no,nm=a=>(U.has(a.id)?"⚡ ":"")+esc(a.customer_name||"عميل");
-e.innerHTML=`<div class="box"><div class="cc-l">العميل الحالي</div>${cur?`<div class="cc-n" style="font-size:1.4rem">${nm(cur)}</div><div class="m"><span dir="ltr">${cd(cur)}</span> · ${esc(cur.services)||"—"}</div><button class="btn s" style="margin-top:8px" onclick="tk('finish_ticket',${cur.id})">خلّصت الخدمة</button>`:`<div class="m">مفيش حد على الكرسي دلوقتي</div>`}</div>
+C.meQ={w:q.length};if($("mehero"))meHero();e.innerHTML=`<div class="box"><div class="cc-l">العميل الحالي</div>${cur?`<div class="cc-n" style="font-size:1.4rem">${nm(cur)}</div><div class="m"><span dir="ltr">${cd(cur)}</span> · ${esc(cur.services)||"—"}</div><button class="btn s" style="margin-top:8px" onclick="tk('finish_ticket',${cur.id})">خلّصت الخدمة</button>`:`<div class="m">مفيش حد على الكرسي دلوقتي</div>`}</div>
 <div class="box" style="margin-top:8px"><div class="cc-l">العميل التالي</div>${nx?`<b>${nm(nx)}</b> <span class="m"><span dir="ltr">${cd(nx)}</span> · ${nx.status=="checked_in"?"حاضر وبينتظر":nx.called?"تم الاستدعاء"+(nx.call_count>1?" ×"+nx.call_count:"")+(nx.eta=="on_way"?" (في الطريق)":""):"لسه ما اتنادش"}${nx.services?" · "+esc(nx.services):""}</span>
 <div class="chips" style="margin-top:8px">${nx.status=="upcoming"?`<button class="btn s" onclick="tk('call_ticket',${nx.id})">${nx.called?"إعادة نداء":"استدعاء"}</button>${nx.called?`<button class="btn s" onclick="tk('confirm_arrival',${nx.id})">وصل</button>`:""}`:""}${nx.status=="checked_in"&&ca&&!cur?`<button class="btn s" onclick="setS(${nx.id},'in_service')">ابدأ الخدمة</button>`:""}${nx.status=="checked_in"&&!ca?`<span class="m">الكاشير يبدأ الخدمة</span>`:""}<button class="btn s g" onclick="skipT(${nx.id})">تخطّي</button></div>`:`<div class="m">مفيش حد في الانتظار</div>`}</div>${q.length>1?`<div class="m" style="margin-top:6px">و ${q.length-1} كمان في الانتظار</div>`:""}
 ${sk.length?`<div class="box" style="margin-top:8px"><div class="cc-l">اتخطّوا النهارده</div>${sk.map(a=>`<div class="row"><div><b dir="ltr">${cd(a)}</b> · ${nm(a)}<div class="m">${esc(a.skip_reason||"")}</div></div><button class="btn s" onclick="tk('return_ticket',${a.id})">رجّعه لآخر الطابور</button></div>`).join("")}</div>`:""}`}

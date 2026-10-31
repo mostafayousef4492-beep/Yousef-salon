@@ -1,0 +1,117 @@
+/* ui/premium.css — طبقة "بريميوم" مشتركة لتطبيق الموظفين والعملاء والإدارة
+   شكل فقط: بتتحمّل بعد theme.css ومبتمسّش أي وظيفة أو بيانات. لو اتشالت الشاشات ترجع زي ما كانت. */
+
+:root{
+  --gold-grad:linear-gradient(135deg,#E6C98C 0%,#D4AF6A 48%,#A8832F 100%);
+  --hair:linear-gradient(90deg,transparent,rgba(212,175,106,.55),transparent);
+  --lift:inset 0 1px 0 rgba(255,255,255,.05);
+  --card-hi:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0) 42%);
+  --ease-p:cubic-bezier(.2,.7,.2,1);
+}
+:root[data-theme="light"]{
+  --gold-grad:linear-gradient(135deg,#B8923F 0%,#8F6A1C 55%,#6E5012 100%);
+  --hair:linear-gradient(90deg,transparent,rgba(143,106,28,.45),transparent);
+  --lift:inset 0 1px 0 rgba(255,255,255,.9);
+  --card-hi:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,0) 50%);
+}
+
+/* ===== الكروت: خط دقيق + لمعة علوية خفيفة ===== */
+.box,.row,.card,.ticket{
+  background-image:var(--card-hi);
+  border-color:var(--line2);
+  box-shadow:var(--lift),var(--shadow);
+  transition:border-color .25s var(--ease-p),transform .25s var(--ease-p),box-shadow .25s var(--ease-p);
+}
+button.row:active,.chip:active,.btn:active{transform:scale(.985)}
+@media (hover:hover){button.row:hover{transform:translateY(-1px)}}
+
+/* ===== الأزرار: ذهبي متدرّج بدل المصمت ===== */
+.btn{
+  background:var(--gold-grad);color:var(--on-gold);font-weight:700;letter-spacing:0;
+  border-radius:14px;min-height:var(--tap,44px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 8px 18px -12px rgba(143,111,42,.8);
+  transition:filter .2s var(--ease-p),transform .2s var(--ease-p),box-shadow .2s var(--ease-p);
+}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn.g{background:transparent;color:var(--gold2);box-shadow:none;border:1px solid var(--line)}
+.btn:disabled{background:var(--card2);color:var(--mute);box-shadow:none;filter:none}
+.btn[style*="--ok"]{background:linear-gradient(135deg,#6FD1A6,#3FA67B);color:#06241A}
+.chip.sel{background:var(--gold-grad);color:var(--on-gold);font-weight:700}
+
+/* ===== الأرقام المالية: أرقام ثابتة العرض وحجم واضح ===== */
+.kpi{position:relative;overflow:hidden;padding:15px 15px 13px}
+.kpi::before{content:"";position:absolute;inset-inline:0;top:0;height:2px;background:var(--hair);opacity:.9}
+.kpi-l{font-size:12px;color:var(--mute);font-weight:500}
+.kpi-v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.2px}
+.big2,.pass-no,.vip-pts,.tot{font-variant-numeric:tabular-nums lining-nums}
+
+/* ===== العناوين ===== */
+h1{font-weight:700;letter-spacing:0;line-height:1.35}
+h2{display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--hair);opacity:.6}
+
+/* ===== شاشة الدخول (الموظفين والعملاء) ===== */
+.hero{padding:44px 0 10px}
+.emblem{
+  width:92px;height:92px;border-radius:28px;color:var(--gold2);position:relative;
+  background:radial-gradient(circle at 30% 18%,rgba(232,201,140,.30),rgba(212,175,106,.04) 68%),var(--card);
+  border:1px solid var(--gold3);
+  box-shadow:0 0 0 7px rgba(212,175,106,.07),0 0 0 8px rgba(212,175,106,.10),0 24px 44px -16px rgba(0,0,0,.85);
+}
+:root[data-theme="light"] .emblem{box-shadow:0 0 0 7px rgba(143,106,28,.07),0 0 0 8px rgba(143,106,28,.12),0 20px 36px -18px rgba(60,45,10,.5)}
+.hero h1{font-family:var(--brand,"Amiri",serif);font-size:38px;font-weight:700;line-height:1.25;
+  background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.tagline{color:var(--mute);font-size:13px;letter-spacing:.2px}
+
+/* ===== الحقول ===== */
+input,select,textarea{border-radius:14px;min-height:46px;transition:border-color .2s var(--ease-p),box-shadow .2s var(--ease-p)}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--gold-soft),0 6px 18px -12px rgba(212,175,106,.6)}
+
+/* ===== القائمة السفلية: زجاج + مؤشر ذهبي ===== */
+nav{backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px) saturate(1.2)}
+nav button{transition:color .2s var(--ease-p),background .2s var(--ease-p)}
+nav button.on{background:var(--gold-soft);box-shadow:inset 0 0 0 1px var(--line)}
+@media (max-width:899px){nav button.on::after{width:16px;height:3px;border-radius:3px;background:var(--gold-grad);bottom:1px}}
+
+/* ===== التابات الفرعية والتنبيهات ===== */
+.hubbar .chip.sel{box-shadow:0 8px 18px -12px rgba(143,111,42,.9)}
+.toast{border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.toast.ok{border-color:rgba(95,197,154,.5)}
+.toast.err{border-color:rgba(229,115,106,.5)}
+.tag{border-radius:999px;font-weight:600}
+
+/* ===== حركة واحدة هادية: ظهور الشاشة عند الفتح ===== */
+@keyframes p-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#app>*{animation:p-in .38s var(--ease-p) both}
+#app>*:nth-child(n+7){animation:none}
+#app.still>*{animation:none} /* التحديث التلقائي كل 30 ثانية من غير وميض */
+
+/* ===== الكمبيوتر: عرض مريح ومسافات أكبر ===== */
+@media (min-width:900px){
+  .kpi-v{font-size:28px}
+  .box{padding:20px}
+  .row{padding:15px 18px}
+}
+@media (prefers-reduced-motion:reduce){
+  #app>*{animation:none}
+  .btn,.box,.row,nav button,input{transition:none}
+}
+
+/* ===== كارت الترحيب في شاشة الموظف ===== */
+.me-hero{position:relative;overflow:hidden;margin:6px 0 14px;padding:18px 18px 16px;border-radius:22px;
+  background:radial-gradient(420px 180px at 100% 0,rgba(212,175,106,.16),transparent 70%),var(--card);
+  background-image:radial-gradient(420px 180px at 100% 0,rgba(212,175,106,.16),transparent 70%),var(--card-hi);
+  border:1px solid var(--line);box-shadow:var(--lift),var(--shadow)}
+.me-hero::before{content:"";position:absolute;inset-inline:0;top:0;height:2px;background:var(--hair)}
+.me-top{display:flex;align-items:center;gap:14px}
+.me-hero .av{border:1.5px solid var(--gold3);box-shadow:0 0 0 4px var(--gold-soft)}
+.me-gr{font-size:12px;color:var(--mute)}
+.me-nm{font-family:var(--brand,"Amiri",serif);font-size:26px;font-weight:700;line-height:1.2;color:var(--gold2);margin-bottom:4px}
+.me-big{margin-top:16px;padding-top:14px;border-top:1px solid var(--line2)}
+.me-bl{font-size:12px;color:var(--mute)}
+.me-bv{font-size:36px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums lining-nums;
+  background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.me-st{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:10px;margin-top:12px}
+.me-sl{font-size:11px;color:var(--mute)}
+.me-sv{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums lining-nums}
+@media (min-width:900px){.me-bv{font-size:44px}.me-nm{font-size:30px}}
