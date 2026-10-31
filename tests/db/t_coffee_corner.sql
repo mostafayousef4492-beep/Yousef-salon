@@ -146,7 +146,7 @@ select pos_checkout_cafe(null, :'bar', '[{"type":"service","id":1,"qty":1}]'::js
   format('[{"id":%s,"qty":1}]', :tea)::jsonb) as inv2 \gset
 reset role;
 select t.as_(:'own');
-select admin_set_date('invoices', :inv2, current_date - 2, true);
+select admin_set_date('invoice', :inv2::text, now() - interval '2 days', true);
 reset role;
 select t.ok('تاريخ مبيعات الكوفي اتحرّك مع الفاتورة', (select (created_at at time zone my_tz())::date from cafe_sales where invoice_id = :inv2) = (now() at time zone my_tz())::date - 2);
 

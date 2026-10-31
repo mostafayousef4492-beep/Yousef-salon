@@ -477,7 +477,7 @@ end $$;
 -- ---------------------------------------------------------------- ربط الكوفي بإلغاء/تأريخ فاتورة الصالون
 do $$
 declare d text; a1 constant text := '  insert into deletion_log(table_name, row_id, row_data, extra)';
-        b1 constant text := '    update loyalty_ledger set created_at = v_new where invoice_id = p_id;';
+        b1 constant text := '  -- بنود الفاتورة لو ليها تاريخ خاص بيها';
 begin
   select pg_get_functiondef(p.oid) into d from pg_proc p where p.proname = 'admin_void_invoice' and p.pronamespace = 'public'::regnamespace;
   if d is null then raise exception 'admin_void_invoice مش موجودة'; end if;
@@ -501,8 +501,8 @@ begin
   if d is null then raise exception 'admin_set_date مش موجودة'; end if;
   if position('cafe_corner_date' in d) = 0 then
     if position(b1 in d) = 0 then raise exception 'مش لاقي نقطة التعديل في admin_set_date'; end if;
-    d := replace(d, b1, b1 || '
-    /* cafe_corner_date */ update cafe_sales set created_at = v_new where invoice_id = p_id;');
+    d := replace(d, b1, '  /* cafe_corner_date */ if p_kind = ''invoice'' then update cafe_sales set created_at = p_ts where invoice_id::text = p_id; end if;
+' || b1);
     execute d;
   end if;
 end $$;
