@@ -215,6 +215,9 @@ reset role;
 delete from cash_closings where day = biz_today();
 
 -- ===== حركة اليوم =====
+-- (بعد patch_cafe_shift_staffdrinks الموظف بيشوف ورديته بس، فبنسجّله حاضر. مالوش أثر قبل الباتش ده)
+delete from attendance where staff_id = :'cf';
+insert into attendance(staff_id, check_in) values (:'cf', now() - interval '12 hours');
 select t.as_(:'cf');
 select cafe_sell(format('[{"id":%s,"qty":1}]', :tea)::jsonb, 'card') as s9 \gset
 select cafe_staff_day() as dayj \gset
