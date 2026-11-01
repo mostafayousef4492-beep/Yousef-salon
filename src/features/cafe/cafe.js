@@ -199,3 +199,20 @@ V.cafe_day=async()=>{if(!canCafe())return cfDeny();put(cfHead("حركة اليو
   <h3 class="sec">تحصيل آجل</h3>${d.collections.map(p=>`<div class="box cf-rec"><div><b>${cfm(p.amount)}</b> <span class="tag">${esc(p.debtor)}</span><div class="m">${cfTm(p.at)}</div></div>${p.can_void?cfUndoBtn("cafe_void_collection",p.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}
   <h3 class="sec">مصروفات</h3>${d.expenses.map(e=>`<div class="box cf-rec"><div><b>${cfm(e.amount)}</b> <span class="tag">${esc(e.category)}</span><div class="m">${cfTm(e.at)}${e.note?" · "+esc(e.note):""}</div></div>${e.can_void?cfUndoBtn("cafe_delete_expense",e.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}
   <h3 class="sec">سحب</h3>${d.withdrawals.map(w=>`<div class="box cf-rec"><div><b>${cfm(w.amount)}</b> <span class="tag">${esc((CF_WK.find(k=>k[0]==w.kind)||[0,w.kind])[1])}</span><div class="m">${cfTm(w.at)}${w.note?" · "+esc(w.note):""}</div></div>${w.can_void?cfUndoBtn("cafe_void_withdrawal",w.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}`)};
+
+// ============================ شاشة موظف الكوفي الرئيسية: ترحيب + حضور/انصراف + مبيعاتي وسحوباتي ============================
+if(typeof IC!=="undefined"&&!IC.cafe_me)IC.cafe_me=IC.me;
+V.cafe_me=async()=>{if(!canCafe())return cfDeny();C.reload=()=>V.cafe_me();await bizLoad();
+  const[dr,op]=await Promise.all([cfRpc("cafe_staff_day"),can("use_attendance")?sb.from("attendance").select("id,check_in").eq("staff_id",me.id).is("check_out",null).order("check_in",{ascending:false}).limit(1):{data:[]}]);
+  const d=dr.data;if(!d)return put(cfHead("شاشتي")+`<p class="m">مقدرناش نحمّل بيانات اليوم.</p>`);
+  const hr=new Date().getHours(),gr=hr>=5&&hr<12?"صباح الخير":"مساء الخير",first=String(me.full_name||"").trim().split(/\s+/)[0]||"",
+  hm=t=>new Date(t).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),
+  s=d.sales||{},ws=d.withdrawals||[],es=d.expenses||[],cl=d.collections||[],open=(op.data||[])[0];
+  const row=(l,v)=>`<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${l}</span><b>${v}</b></div>`;
+  put(cfHead(gr+" يا "+esc(first),"أهلاً بيك في الكوفي كورنر ☕ — يوم العمل "+esc(d.day))
+   +(can("use_attendance")?`<div class="box" style="margin:10px 0;text-align:center">${open?`<div class="m" style="margin-bottom:6px">حاضر من ${hm(open.check_in)}</div><button class="btn" style="width:100%" onclick="att('check_out')">تسجيل انصراف</button>`:`<button class="btn" style="width:100%;background:var(--ok)" onclick="att('check_in')">تسجيل حضور</button>`}</div>`:"")
+   +`<button class="btn" style="width:100%;margin:6px 0" onclick="go('cafe')">☕ بيع سريع</button>`
+   +`<h3 class="sec">مبيعاتي النهارده</h3><div class="box">${row("عدد الطلبات",num(s.orders||0))}${row("كاش",cfm(s.cash))}${row("كارت",cfm(s.card))}${row("محفظة",cfm(s.wallet))}${row("آجل",cfm(s.credit))}${row("الإجمالي",cfm((+s.cash||0)+(+s.card||0)+(+s.wallet||0)+(+s.credit||0)))}</div>`
+   +`<h3 class="sec">سحوباتي النهارده</h3><div class="box">${ws.length?ws.map(w=>row(esc((CF_WK.find(k=>k[0]==w.kind)||[0,w.kind])[1])+" · "+hm(w.at),cfm(w.amount))).join("")+row("الإجمالي",cfm(cfSum(ws))):`<div class="m">مفيش سحوبات النهارده.</div>`}</div>`
+   +`<h3 class="sec">مصروفاتي النهارده</h3><div class="box">${es.length?es.map(w=>row(esc(w.category||"مصروف")+" · "+hm(w.at),cfm(w.amount))).join("")+row("الإجمالي",cfm(cfSum(es))):`<div class="m">مفيش مصروفات النهارده.</div>`}</div>`
+   +(cl.length?`<h3 class="sec">تحصيل آجل النهارده</h3><div class="box">${row("الإجمالي",cfm(cfSum(cl)))}</div>`:""))};
