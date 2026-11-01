@@ -18,7 +18,8 @@ const CF_PAY=[["cash","كاش"],["card","كارت"],["wallet","محفظة"],["cr
 const CF_WK=[["owner","سحب للمالك"],["bank","إيداع بنك / محفظة"],["advance","سلفة من مرتبي"],["other","سبب آخر (اكتبه)"]];
 const cfDig=v=>String(v||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^\d+]/g,"");
 const CF_CATS=["كهرباء","صيانة","مستلزمات","أخرى"];
-const cfPays=()=>CF_PAY.filter(x=>(x[0]!="card"||C.cfg.pay_card_enabled!==false)&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false));
+// الكوفي: كاش ومحفظة وآجل بس (الكارت مش بيتعرض للبيع). الكارت لسه بيظهر في التقارير لو فيه مبيعات قديمة بيه.
+const cfPays=()=>CF_PAY.filter(x=>x[0]!="card"&&(x[0]!="wallet"||C.cfg.pay_wallet_enabled!==false));
 const cfTm=t=>new Date(t).toLocaleString("ar-EG",{hourCycle:"h23",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});
 const cfAdm=()=>isAdm(me);
 const cfOwner=()=>!!me&&me.role=="owner";
@@ -135,7 +136,7 @@ V.cafe_rep=async()=>{if(!cfAdm())return cfDeny();await bizLoad();const R=C.cfr=C
   put(cfHead("تقارير الكوفي")+`<div class="chips">${[["day","اليوم"],["week","آخر 7 أيام"],["month","الشهر"],["custom","فترة مخصصة"]].map(x=>`<button class="chip ${R.mode==x[0]?"sel":""}" onclick="cfrMode('${x[0]}')">${x[1]}</button>`).join("")}</div>
   <div class="cf-two"><label class="m">من<input type="date" id="cfr_f" value="${R.from}" onchange="cfrCustom()"></label><label class="m">إلى<input type="date" id="cfr_t" value="${R.to}" onchange="cfrCustom()"></label></div>
   ${cfCards(r)}
-  <h3 class="sec">طرق الدفع</h3>${tbl(["الطريقة","المبلغ"],CF_PAY.map(p=>[p[1],cfm(r.by_method[p[0]])]))}
+  <h3 class="sec">طرق الدفع</h3>${tbl(["الطريقة","المبلغ"],CF_PAY.filter(p=>p[0]!="card"||+r.by_method[p[0]]).map(p=>[p[1],cfm(r.by_method[p[0]])]))}
   <h3 class="sec">يوم بيوم</h3>${tbl(["اليوم","المبيعات","الطلبات","التكلفة","المصروفات","المشتريات"],(r.by_day||[]).map(d=>[esc(d.day),cfm(d.sales),num(d.orders),cfm(d.cogs),cfm(d.expenses),cfm(d.purchases)]))}
   ${cfTop(r)}${(r.withdrawals_by_kind||[]).length?`<h3 class="sec">السحب حسب النوع</h3>`+tbl(["النوع","المبلغ"],r.withdrawals_by_kind.map(x=>[esc((CF_WK.find(w=>w[0]==x.kind)||[0,x.kind])[1]),cfm(x.amount)])):""}${cfDebtors(r)}${(r.expenses_by_category||[]).length?`<h3 class="sec">المصروفات حسب التصنيف</h3>`+tbl(["التصنيف","المبلغ"],r.expenses_by_category.map(x=>[esc(x.category),cfm(x.amount)])):""}${cfLow(r)}`)};
 function cfrMode(m){const R=C.cfr,t=bizToday(),dd=n=>ymd(new Date(new Date(t+"T12:00:00").getTime()-n*864e5));R.mode=m;if(m=="day"){R.from=R.to=t}else if(m=="week"){R.from=dd(6);R.to=t}else if(m=="month"){R.from=t.slice(0,8)+"01";R.to=t}V.cafe_rep()}
@@ -195,7 +196,7 @@ async function cfCollect(id){const a=parseFloat($("cfd_a_"+id).value);if(!(a>0))
 
 // ---- حركة اليوم ----
 V.cafe_day=async()=>{if(!canCafe())return cfDeny();put(cfHead("حركة اليوم")+`<p class="m">بنحمّل...</p>`);const d=await cfDay();if(!d)return;const s=d.sales||{},k=(t,v,c)=>`<div class="cf-kpi"><span class="m">${t}</span><b ${c?`style="color:${c}"`:""}>${v}</b></div>`;
-  put(cfHead("حركة اليوم","يوم العمل "+esc(d.day)+(d.scope=="all"?" — كل الموظفين":" — اللي سجلته أنت"))+`<div class="cf-kpis">${k("عدد الطلبات",num(s.orders))}${k("بيع كاش",cfm(s.cash))}${k("بيع كارت",cfm(s.card))}${k("بيع محفظة",cfm(s.wallet))}${k("بيع آجل",cfm(s.credit),+s.credit>0?"var(--red)":"")}${k("تحصيل آجل",cfm(cfSum(d.collections)))}${k("مصروفات",cfm(cfSum(d.expenses)))}${k("سحب",cfm(cfSum(d.withdrawals)))}</div>
+  put(cfHead("حركة اليوم","يوم العمل "+esc(d.day)+(d.scope=="all"?" — كل الموظفين":" — اللي سجلته أنت"))+`<div class="cf-kpis">${k("عدد الطلبات",num(s.orders))}${k("بيع كاش",cfm(s.cash))}${+(s.card||0)?k("بيع كارت",cfm(s.card)):""}${k("بيع محفظة",cfm(s.wallet))}${k("بيع آجل",cfm(s.credit),+s.credit>0?"var(--red)":"")}${k("تحصيل آجل",cfm(cfSum(d.collections)))}${k("مصروفات",cfm(cfSum(d.expenses)))}${k("سحب",cfm(cfSum(d.withdrawals)))}</div>
   <h3 class="sec">تحصيل آجل</h3>${d.collections.map(p=>`<div class="box cf-rec"><div><b>${cfm(p.amount)}</b> <span class="tag">${esc(p.debtor)}</span><div class="m">${cfTm(p.at)}</div></div>${p.can_void?cfUndoBtn("cafe_void_collection",p.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}
   <h3 class="sec">مصروفات</h3>${d.expenses.map(e=>`<div class="box cf-rec"><div><b>${cfm(e.amount)}</b> <span class="tag">${esc(e.category)}</span><div class="m">${cfTm(e.at)}${e.note?" · "+esc(e.note):""}</div></div>${e.can_void?cfUndoBtn("cafe_delete_expense",e.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}
   <h3 class="sec">سحب</h3>${d.withdrawals.map(w=>`<div class="box cf-rec"><div><b>${cfm(w.amount)}</b> <span class="tag">${esc((CF_WK.find(k=>k[0]==w.kind)||[0,w.kind])[1])}</span><div class="m">${cfTm(w.at)}${w.note?" · "+esc(w.note):""}</div></div>${w.can_void?cfUndoBtn("cafe_void_withdrawal",w.id,"cafe_day"):""}</div>`).join("")||`<p class="m">مفيش.</p>`}`)};
@@ -212,7 +213,7 @@ V.cafe_me=async()=>{if(!canCafe())return cfDeny();C.reload=()=>V.cafe_me();await
   put(cfHead(gr+" يا "+esc(first),"أهلاً بيك في الكوفي كورنر ☕ — يوم العمل "+esc(d.day))
    +(can("use_attendance")?`<div class="box" style="margin:10px 0;text-align:center">${open?`<div class="m" style="margin-bottom:6px">حاضر من ${hm(open.check_in)}</div><button class="btn" style="width:100%" onclick="att('check_out')">تسجيل انصراف</button>`:`<button class="btn" style="width:100%;background:var(--ok)" onclick="att('check_in')">تسجيل حضور</button>`}</div>`:"")
    +`<button class="btn" style="width:100%;margin:6px 0" onclick="go('cafe')">☕ بيع سريع</button>`
-   +`<h3 class="sec">مبيعاتي النهارده</h3><div class="box">${row("عدد الطلبات",num(s.orders||0))}${row("كاش",cfm(s.cash))}${row("كارت",cfm(s.card))}${row("محفظة",cfm(s.wallet))}${row("آجل",cfm(s.credit))}${row("الإجمالي",cfm((+s.cash||0)+(+s.card||0)+(+s.wallet||0)+(+s.credit||0)))}</div>`
+   +`<h3 class="sec">مبيعاتي النهارده</h3><div class="box">${row("عدد الطلبات",num(s.orders||0))}${row("كاش",cfm(s.cash))}${+s.card?row("كارت (قديم)",cfm(s.card)):""}${row("محفظة",cfm(s.wallet))}${row("آجل",cfm(s.credit))}${row("الإجمالي",cfm((+s.cash||0)+(+s.card||0)+(+s.wallet||0)+(+s.credit||0)))}</div>`
    +`<h3 class="sec">سحوباتي النهارده</h3><div class="box">${ws.length?ws.map(w=>row(esc((CF_WK.find(k=>k[0]==w.kind)||[0,w.kind])[1])+" · "+hm(w.at),cfm(w.amount))).join("")+row("الإجمالي",cfm(cfSum(ws))):`<div class="m">مفيش سحوبات النهارده.</div>`}</div>`
    +`<h3 class="sec">مصروفاتي النهارده</h3><div class="box">${es.length?es.map(w=>row(esc(w.category||"مصروف")+" · "+hm(w.at),cfm(w.amount))).join("")+row("الإجمالي",cfm(cfSum(es))):`<div class="m">مفيش مصروفات النهارده.</div>`}</div>`
    +(cl.length?`<h3 class="sec">تحصيل آجل النهارده</h3><div class="box">${row("الإجمالي",cfm(cfSum(cl)))}</div>`:""))};
