@@ -22,15 +22,18 @@ let me=null,tab="";
 
 const C={cfg:{salon_name:"صالون أبو يوسف",phone:"",address:"",currency:"ج.م",open_hour:10,close_hour:20,slot_minutes:60,days_ahead:5,weekly_off:5,cancel_before_hours:2,points_per_currency:10,max_discount_pct:20,booking_open:true,referral_enabled:true,birthday_enabled:true,birthday_points:50,referral_points:50,referral_min_total:0,referral_max_per_customer:0,urgent_enabled:true,urgent_multiplier:2,late_fine_enabled:true,late_fine_grace_min:15,late_fine_per_min:1}};
 
-const PD={cashier:{use_attendance:1,use_pos:1,view_stock:1,view_invoices:1,manage_appts:1,view_customers:1,view_customer_phone:1,cash_ops:1},barber:{use_attendance:1,view_own_sales:1,view_own_commission:1,view_own_finance:1,view_own_reviews:1,view_own_schedule:1,view_own_target:1},assistant:{use_attendance:1,view_own_finance:1}};
+const PD={cashier:{use_attendance:1,use_pos:1,use_cafe:1,view_stock:1,view_invoices:1,manage_appts:1,view_customers:1,view_customer_phone:1,cash_ops:1},barber:{use_attendance:1,view_own_sales:1,view_own_commission:1,view_own_finance:1,view_own_reviews:1,view_own_schedule:1,view_own_target:1},assistant:{use_attendance:1,view_own_finance:1}};
 
 const isAdm=p=>!!p&&(p.role=="owner"||p.role=="manager");
 
 const can=(k,p=me)=>p.role=="owner"||(p.perms&&k in p.perms?!!p.perms[k]:(p.role=="manager"||!!(PD[p.role]||{})[k]));
 
+// كوفي كورنر: مدير/مالك دايمًا. غيرهم: perms.use_cafe لو موجودة، وإلا بتتبع use_pos (نفس منطق can_use_cafe() في القاعدة)
+const canCafe=(p=me)=>isAdm(p)||(p.perms&&"use_cafe" in p.perms?!!p.perms.use_cafe:can("use_pos",p));
+
 async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);const sfx=APP_MODE=="staff"?" · الموظفين":APP_MODE=="admin"?" · الإدارة":"";document.title=C.cfg.salon_name+sfx;$("brand").innerHTML=ic("menu")+"<span>"+esc(C.cfg.salon_name)+sfx+"</span>"}
 
-const staffTabs=p=>{const T=[],cn=k=>can(k,p);if(cn("use_pos"))T.push(["pos","الكاشير"]);if(cn("use_pos"))T.push(["cash","الخزنة"]);if(cn("manage_appts"))T.push(["appts","الحجوزات"]);if(cn("view_stock"))T.push(["stock","المخزون"]);if(cn("view_invoices"))T.push(["inv","الفواتير"]);if(cn("view_customers"))T.push(["cust","العملاء"]);if(cn("view_customers"))T.push(["rem","التذكير","cust"]);if(cn("view_reports"))T.push(["rep","التقارير"]);if(p.role=="barber"||p.role=="assistant"||cn("use_attendance"))T.push(["me","شاشتي"]);T.push(["ann","الإعلانات"]);if(p.role!="assistant"&&p.role!="customer")T.push(["lb","المتصدرين"]);if(isAdm(p)||(p.role=="barber"&&cn("view_own_target")))T.push(["tgt","التارجت"]);return T};
+const staffTabs=p=>{const T=[],cn=k=>can(k,p),cf=canCafe(p);if(cf&&!cn("use_pos"))T.push(["cafe","كوفي كورنر"]);if(cn("use_pos"))T.push(["pos","الكاشير"]);if(cn("use_pos"))T.push(["cash","الخزنة"]);if(cf&&cn("use_pos"))T.push(["cafe","كوفي كورنر"]);if(cn("manage_appts"))T.push(["appts","الحجوزات"]);if(cn("view_stock"))T.push(["stock","المخزون"]);if(cn("view_invoices"))T.push(["inv","الفواتير"]);if(cn("view_customers"))T.push(["cust","العملاء"]);if(cn("view_customers"))T.push(["rem","التذكير","cust"]);if(cn("view_reports"))T.push(["rep","التقارير"]);if(p.role=="barber"||p.role=="assistant"||cn("use_attendance"))T.push(["me","شاشتي"]);T.push(["ann","الإعلانات"]);if(p.role!="assistant"&&p.role!="customer")T.push(["lb","المتصدرين"]);if(isAdm(p)||(p.role=="barber"&&cn("view_own_target")))T.push(["tgt","التارجت"]);return T};
 
 // المرتبات: المالك بس بيقراها (عمود salary مقفول عن الـ API لباقي المستخدمين)
 
