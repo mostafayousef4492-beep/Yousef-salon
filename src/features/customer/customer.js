@@ -44,7 +44,7 @@ if(error)return toast(error.code=="23505"?"حد حجز قبلك، جرّب تا�
 function namesBox(L){if(!L||!L.length)return"";const ST={in_service:"على الكرسي دلوقتي",checked_in:"وصل ومستني",upcoming:"مستني"};return `<div class="box" style="margin:10px 0"><b>اللي قبلك (${L.length})</b>${L.map((x,i)=>`<div class="row" style="margin-top:6px"><div><span class="m">${i+1}.</span> <b>${esc(x.name||"عميل")}</b></div><span class="tag">${ST[x.status]||""}</span></div>`).join("")}<div class="m" style="margin-top:6px">بنعرض الاسم الأول بس لخصوصية الزباين.</div></div>`}
 V.queue=async()=>{const{data:h}=await sb.rpc("my_history");const L=h||[],act=L.find(x=>["upcoming","checked_in","in_service"].includes(x.status)),fin=L.find(x=>x.status=="done"&&!x.rated);
 if(act){const{data:q}=await sb.rpc("queue_status",{p_id:act.id});if(!q?.[0])return;const qs=q[0];try{const{data:v2,error:e2}=await sb.rpc("queue_status_v2",{p_id:act.id});if(!e2&&v2){qs.ahead=v2.ahead;qs.est_min=v2.est_wait_min;qs.current_no=v2.current_no;qs.ticket_no=v2.ticket_no;qs.ticket_code=v2.ticket_code;qs.near_turn=v2.near_turn;qs.barber_arrived=v2.barber_arrived}}catch(e){}try{const{data:tq}=await sb.from("ticket_transfers").select("id").eq("appointment_id",act.id).eq("status","pending").maybeSingle();qs.trq=tq?tq.id:null}catch(e){}try{const{data:ug}=await sb.rpc("my_urgent");qs.urg=ug}catch(e){}try{const{data:nq}=await sb.rpc("queue_names",{p_id:act.id});qs.names=Array.isArray(nq)?nq:[]}catch(e){qs.names=[]}startNotif();drawQ(qs);clearInterval(C.poll);C.poll=setInterval(()=>tab=="queue"&&($("app").classList.add("still"),V.queue()),8000);return}
-if(fin)return rateView2(fin.id);
+if(fin){if(await payGate(fin.id))return;return rateView2(fin.id)}
 const ns=L[0]&&L[0].status=="no_show"&&L[0].day==bizToday();
 put(`<h1>دوري</h1><div class="box" style="text-align:center">${ns?`<p class="m" style="color:var(--red)">اتلغى دورك لأنك ما حضرتش في الميعاد.</p>`:""}<p class="m">مفيش دور نشط دلوقتي.</p><button class="btn" onclick="go('book')">احجز دورك</button></div>`)};
 
@@ -52,6 +52,25 @@ async function eta(st){const{error}=await sb.rpc("ticket_eta",{p_id:C.qid,p_stat
 
 async function cancelT(){if(!confirm("تلغي الحجز؟"))return;const{error}=await sb.rpc("cancel_my_appt",{p_id:C.qid});error?toast(error.message):go("book")}
 
+// ---- الدفع قبل التقييم: كاش أو فودافون كاش (يدوي: الزبون يحوّل ويكتب رقم العملية، والكاشير يتأكد ويقفل الفاتورة) ----
+C.paySkip=C.paySkip||{};
+async function payGate(id){if(C.paySkip[id])return false;let b=null,cl=null;
+  try{const r=await sb.rpc("ticket_bill",{p_id:id});b=r.data}catch(e){}
+  if(!b||b.paid||!(+b.total>0))return false;
+  try{const r=await sb.rpc("my_pay_claim",{p_appt:id});cl=r.data}catch(e){}
+  if(cl&&cl.status=="paid")return false;
+  C.PY={id,total:+b.total,cl,vf:!!(C.cfg.vodafone_cash_number),open:cl&&cl.status=="pending"?1:0};drawPay();return true}
+function drawPay(){const Y=C.PY,vf=C.cfg.vodafone_cash_number;let h=`<h1 style="text-align:center">حساب تذكرتك</h1><div class="box" style="text-align:center"><div class="m">المطلوب</div><b style="font-size:30px">${fm(Y.total)}</b></div>`;
+  if(Y.cl&&Y.cl.status=="pending")h+=`<div class="box" style="margin-top:10px"><b>📲 بلّغنا الكاشير بتحويلك</b><div class="m">رقم العملية: <b dir="ltr">${esc(Y.cl.ref)}</b> · ${fm(Y.cl.amount)}<br>الكاشير هيتأكد من وصول الفلوس ويقفل حسابك. مش محتاج تستنى هنا.</div></div>`;
+  else{if(Y.cl&&Y.cl.status=="rejected")h+=`<div class="box" style="margin-top:10px;border-color:var(--red,#c0392b)"><b>الكاشير ماقدرش يتأكد من التحويل</b><div class="m">راجع رقم العملية أو ادفع كاش للكاشير.</div></div>`;
+    h+=`<h2>هتدفع إزاي؟</h2><button class="btn" style="width:100%;margin:6px 0" onclick="payCash()">💵 كاش للكاشير</button>`;
+    if(Y.vf)h+=`<button class="btn g" style="width:100%;margin:6px 0" onclick="C.PY.open=1;drawPay()">📲 فودافون كاش</button>`;
+    if(Y.open&&Y.vf)h+=`<div class="box" style="margin-top:8px"><div class="m">1) حوّل ${fm(Y.total)} على الرقم ده من تطبيق فودافون كاش:</div><div style="text-align:center;margin:8px 0"><b dir="ltr" style="font-size:24px">${esc(vf)}</b> <button class="btn s g" onclick="payCopy()">نسخ</button></div><div class="m">2) اكتب رقم العملية من رسالة التأكيد:</div><input id="py_r" placeholder="رقم العملية" dir="ltr" style="margin:6px 0"><button class="btn" style="width:100%" onclick="paySend()">حوّلت — ابعت للكاشير</button><div class="m" style="margin-top:6px">الفلوس بتتحوّل من موبايلك أنت، والحساب بيتقفل بعد ما الكاشير يتأكد من وصولها.</div></div>`}
+  h+=`<button class="btn s g" style="width:100%;margin-top:12px" onclick="payNext()">كمّل للتقييم ←</button>`;put(h)}
+function payCash(){toast("ادفع للكاشير كاش 💵");payNext()}
+function payNext(){C.paySkip[C.PY.id]=1;rateView2(C.PY.id)}
+function payCopy(){const v=String(C.cfg.vodafone_cash_number||"");try{navigator.clipboard.writeText(v).then(()=>toast("اتنسخ ✓"))}catch(e){prompt("انسخ:",v)}}
+async function paySend(){const r=($("py_r").value||"").trim();if(r.length<4)return toast("اكتب رقم العملية من الرسالة");const{data,error}=await sb.rpc("submit_pay_claim",{p_appt:C.PY.id,p_ref:r});if(error)return toast(/submit_pay_claim|PGRST202|42883/.test(error.code+" "+error.message)?"الخدمة دي لسه مش متفعّلة":error.message);C.PY.cl=data;toast("اتبعت للكاشير ✓");drawPay()}
 function rateView2(id){C.R2={id,b:0,s:0,p:0,tg:[],note:""};drawR2()}
 
 const stars=(k,v)=>`<div class="stars" style="text-align:center">${[1,2,3,4,5].map(i=>`<button class="${v>=i?"on":""}" aria-label="${i}" onclick="C.R2.${k}=${i};drawR2()">★</button>`).join("")}</div>`;
