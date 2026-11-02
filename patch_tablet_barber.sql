@@ -3,14 +3,21 @@
 -- آمن للتشغيل أكتر من مرة.
 
 do $$
-declare d text; o text := $o$if not (can_use_pos() or has_perm('manage_appts') or is_mgr()) then raise exception 'غير مصرح'; end if;$o$; n text;
+declare d text; n text;
+  -- الصيغة في قاعدة الإنتاج (فيها p15_can_touch: الحلاق يلمس تذكرته)
+  o1 text := $o$or is_mgr() or p15_can_touch(p_id))$o$;
+  r1 text := $o$or is_mgr() or (p11_cfg_bool('barber_can_start', true) and p15_can_touch(p_id)))$o$;
+  -- الصيغة الأقدم
+  o2 text := $o$if not (can_use_pos() or has_perm('manage_appts') or is_mgr()) then raise exception 'غير مصرح'; end if;$o$;
+  r2 text := $o$if not (can_use_pos() or has_perm('manage_appts') or is_mgr()
+          or (p11_cfg_bool('barber_can_start', true) and has_perm('view_own_schedule')
+              and exists (select 1 from appointments x where x.id = p_id and x.barber_id = auth.uid()))) then raise exception 'غير مصرح'; end if;$o$;
 begin
   select pg_get_functiondef('public.start_service(bigint)'::regprocedure) into d;
   if position('barber_can_start' in d) > 0 then return; end if;   -- اتطبّق قبل كده
-  if position(o in d) = 0 then raise exception 'start_service مختلفة عن المتوقع، ابعتلي الرسالة دي'; end if;
-  n := replace(d, o, $n$if not (can_use_pos() or has_perm('manage_appts') or is_mgr()
-          or (p11_cfg_bool('barber_can_start', true) and has_perm('view_own_schedule')
-              and exists (select 1 from appointments x where x.id = p_id and x.barber_id = auth.uid()))) then raise exception 'غير مصرح'; end if;$n$);
+  if position(o1 in d) > 0 then n := replace(d, o1, r1);
+  elsif position(o2 in d) > 0 then n := replace(d, o2, r2);
+  else raise exception 'start_service مختلفة عن المتوقع، ابعتلي الرسالة دي'; end if;
   execute n;
 end $$;
 
