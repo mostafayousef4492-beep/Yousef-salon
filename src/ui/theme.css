@@ -155,7 +155,7 @@ p.m.empty{border-color:var(--line);background:transparent}
   body:not(.m-customer) .hdr-theme{display:none}
   body:not(.m-customer) .bell{inset-inline-end:auto;inset-inline-start:24px;top:10px}
   body:not(.m-customer) #app{--app-w:1180px;max-width:var(--app-w);padding:0 36px 64px;margin-inline:0;margin-right:calc(var(--side-w) + max(0px,(100vw - var(--side-w) - var(--app-w))/2));margin-left:auto}
-  body:not(.m-customer) #app[data-tab="team"],body:not(.m-customer) #app[data-tab="ann"],body:not(.m-customer) #app[data-tab="set"],body:not(.m-customer) #app[data-tab="ctl"],body:not(.m-customer) #app[data-tab="fin"],body:not(.m-customer) #app[data-tab="me"],body:not(.m-customer) #app[data-tab="svc"],body:not(.m-customer) #app[data-tab="stock"],body:not(.m-customer) #app[data-tab="lb"]{--app-w:920px}
+  body:not(.m-customer) #app[data-tab="team"],body:not(.m-customer) #app[data-tab="ann"],body:not(.m-customer) #app[data-tab="set"],body:not(.m-customer) #app[data-tab="ctl"],body:not(.m-customer) #app[data-tab="ctl_rules"],body:not(.m-customer) #app[data-tab="fin"],body:not(.m-customer) #app[data-tab="me"],body:not(.m-customer) #app[data-tab="svc"],body:not(.m-customer) #app[data-tab="stock"],body:not(.m-customer) #app[data-tab="lb"]{--app-w:920px}
   body:not(.m-customer) nav{position:fixed;inset:0 0 0 auto;left:auto;right:0;top:0;bottom:0;width:var(--side-w);max-width:none;margin:0;border-radius:0;border:0;border-inline-start:1px solid var(--line2);
     flex-direction:column;flex-wrap:nowrap;gap:4px;padding:22px 14px 20px;overflow-y:auto;background:var(--side);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
   body:not(.m-customer) nav .nav-brand{display:flex;align-items:center;gap:12px;padding:4px 8px 22px}
