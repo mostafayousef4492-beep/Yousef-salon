@@ -26,6 +26,13 @@ if(inv)C.lastWa={phone:ph,name:nm,no:inv.no,text:waInvText(inv,nm)}}catch(e){}}
 
 function waLastCard(){const w=C.lastWa;if(!w)return"";return `<div class="box" style="margin:10px 0"><div class="m" style="margin-bottom:8px">فاتورة #${w.no} اتدفعت${w.name?" — "+esc(w.name):""}</div><div class="chips" style="align-items:center">${waBtn(w.phone,1,w.text)}<button class="btn s g" onclick="C.lastWa=null;V.pos()">إخفاء</button></div></div>`}
 
+/* ===== رسائل واتساب حسب الغرض (من شاشة العميل) ===== */
+function waPtsMsg(name,pts){return `أهلاً ${name||""} 👋\nرصيدك في ${waSalon()} دلوقتي *${pts||0} نقطة* 🎁\nتقدر تستبدلهم بمكافآت من تطبيقنا:\n${location.origin}/`}
+function waBdayMsg(name){const p=+(C.cfg&&C.cfg.birthday_points)||50;return `كل سنة وانت طيب يا ${name||"غالي"} 🎂🎉\nهدية عيد ميلادك من ${waSalon()}: *${p} نقطة* مستنياك.\nافتح التطبيق واستلمها (متاحة من 3 أيام قبل عيد ميلادك لحد 7 أيام بعده):\n${location.origin}/`}
+function waKit(x,inv){const n=waNum(x.phone);if(!n)return"";
+const L=(lbl,txt,id)=>`<a ${id?`id="${id}" `:""}class="btn s g" style="text-decoration:none" href="https://wa.me/${n}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${lbl}</a>`;
+const iv=inv?{...inv,no:inv.no}:null;
+return `<div class="box" style="margin-top:10px;width:100%"><div class="m" style="margin-bottom:8px">رسالة واتساب جاهزة للعميل</div><div class="chips">${L("📲 تحميل التطبيق",waAppMsg(x.name))}${L("🎁 نقاطه",waPtsMsg(x.name,x.points))}${L("🎂 هدية عيد ميلاده",waBdayMsg(x.name),"wa-bd")}${iv?L("🧾 آخر فاتورة",waInvText(iv,x.name)):""}</div></div>`}
 /* ===== تذكرة الحجز + رابط متابعة الدور (واتساب) ===== */
 function waTicketMsg(name,no,code,barber,id,ph){
   const url=location.origin+"/book?t="+encodeURIComponent(id)+"&p="+encodeURIComponent(ph);
