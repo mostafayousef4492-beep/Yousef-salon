@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>شاشة الصنايعي</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0D12;--card:#161a22;--fg:#f4f1ea;--gold:#c9a24a;--mut:#9aa0ab;--ok:#2ea66b;--red:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 18px;gap:16px}
+h1{font:700 40px/1.1 Amiri,serif;margin:0;color:var(--gold);text-align:center}
+#app{width:min(720px,100%);display:flex;flex-direction:column;gap:14px}
+.box{background:var(--card);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.m{color:var(--mut);font-size:18px}
+.big{font-size:34px;font-weight:700}
+input{font:600 24px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:14px;border:2px solid #2a2f3a;background:#0f1218;color:var(--fg);direction:ltr;text-align:center}
+.btn{font:700 26px "IBM Plex Sans Arabic",system-ui;padding:18px;border:0;border-radius:16px;background:var(--gold);color:#1b1710;cursor:pointer}
+.btn.g{background:#2a2f3a;color:var(--fg)}.btn.ok{background:var(--ok);color:#fff}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px}.row .btn{flex:1}
+.tag{display:inline-block;padding:2px 10px;border-radius:10px;background:#2a2f3a;font-size:16px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:14px 22px;border-radius:12px;font-size:20px;z-index:9}
+.bar{display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+<h1 id="bn">شاشة الصنايعي</h1>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script>
+// تابلت الصنايعي: دخول بكود الموظف وكلمة السر (من غير ما الجلسة تتحفظ على التابلت) + خروج تلقائي بعد دقيقة من غير لمس.
+// بينادي ويأكد الحضور ويبدأ الخدمة وينهيها على تذكرة الصنايعي نفسه بس (الصلاحيات في قاعدة البيانات).
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:false}});
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=n=>Number(Math.round(n||0)).toLocaleString("ar-EG");
+const MAIL="@staff.abu-yousef-salon.com";
+const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)};
+const S={me:null,poll:null,idle:null,bill:{}};
+
+async function init(){
+  const{data}=await sb.from("app_settings").select("*");const r=(data||[]).find(x=>x.key=="salon_name");if(r&&r.value){document.title="شاشة الصنايعي - "+r.value}
+  login()}
+
+function login(){clearInterval(S.poll);clearTimeout(S.idle);S.me=null;
+  $("app").innerHTML=`<div class="box"><div class="m" style="text-align:center">ادخل بكودك عشان تشوف دورك</div><input id="lc" inputmode="numeric" placeholder="كود الموظف" autocomplete="off"><input id="lp" type="password" placeholder="كلمة السر" autocomplete="off" onkeydown="if(event.key=='Enter')go()"><button class="btn" id="lg" onclick="go()">دخول</button></div>`}
+
+async function go(){const x=$("lc").value.trim(),p=$("lp").value;if(!x||!p)return toast("اكتب الكود وكلمة السر");
+  $("lg").disabled=true;const email=x.includes("@")?x:x+MAIL;
+  const{error}=await sb.auth.signInWithPassword({email,password:p});
+  if(error){$("lg").disabled=false;return toast("الكود أو كلمة السر غلط")}
+  const{data:{user}}=await sb.auth.getUser();const{data:pr}=await sb.from("profiles").select("id,full_name,role").eq("id",user.id).maybeSingle();
+  if(!pr||pr.role!="barber"){await sb.auth.signOut();login();return toast("الشاشة دي للصنايعية بس")}
+  S.me=pr;touch();load();S.poll=setInterval(load,5000)}
+
+function touch(){clearTimeout(S.idle);S.idle=setTimeout(logout,60000)}
+async function logout(){clearInterval(S.poll);await sb.auth.signOut();login()}
+document.addEventListener("pointerdown",()=>{if(S.me)touch()});
+
+async function load(){if(!S.me)return;
+  const{data,error}=await sb.rpc("my_queue");if(error)return toast(error.message);
+  const L=(data||[]).filter(a=>a.status!="no_show"),cur=L.find(a=>a.status=="in_service"),q=L.filter(a=>a.status!="in_service");
+  const nx=q.find(a=>a.status=="checked_in")||q.find(a=>a.called)||q[0];
+  if(cur&&!S.bill[cur.id]){try{const{data:b}=await sb.rpc("ticket_bill",{p_id:cur.id});S.bill[cur.id]=b||{}}catch(e){}}
+  draw(cur,nx,q)}
+
+function draw(cur,nx,q){const cd=a=>esc(a.ticket_code||"#"+a.ticket_no);
+  $("app").innerHTML=`<div class="bar"><b class="big">${esc(S.me.full_name)}</b><button class="btn g" style="font-size:18px;padding:10px 16px" onclick="logout()">خروج</button></div>
+<div class="box"><div class="m">على الكرسي دلوقتي</div>${cur?`<div class="big">${esc(cur.customer_name||"عميل")} <span class="tag">${cd(cur)}</span></div><div class="m">${esc(cur.services||"")}</div>${S.bill[cur.id]&&S.bill[cur.id].total!=null?`<div class="m">الحساب: <b>${nf(S.bill[cur.id].total)} ج</b></div>`:""}<button class="btn ok" onclick="act('finish_ticket',${cur.id})">خلّصت الخدمة</button>`:`<div class="m">مفيش حد على الكرسي</div>`}</div>
+<div class="box"><div class="m">العميل الجاي${q.length>1?" · و"+nf(q.length-1)+" كمان مستنيين":""}</div>${nx?`<div class="big">${esc(nx.customer_name||"عميل")} <span class="tag">${cd(nx)}</span></div><div class="m">${esc(nx.services||"")} · ${nx.status=="checked_in"?"حاضر وبينتظر":nx.called?"اتنادى"+(nx.call_count>1?" ×"+nx.call_count:"")+(nx.eta=="on_way"?" (في الطريق)":""):"لسه ما اتنادش"}</div>
+<div class="row">${nx.status=="upcoming"?`<button class="btn" onclick="act('call_ticket',${nx.id})">${nx.called?"إعادة نداء":"نادِ عليه"}</button>`:""}${nx.status=="upcoming"&&nx.called?`<button class="btn g" onclick="act('confirm_arrival',${nx.id})">وصل</button>`:""}${nx.status=="checked_in"?`<button class="btn ok" ${cur?"disabled":""} onclick="act('start_service',${nx.id})">ابدأ الخدمة</button>`:""}</div>${cur&&nx.status=="checked_in"?`<div class="m">خلّص اللي على الكرسي الأول</div>`:""}`:`<div class="m">مفيش حد في الانتظار</div>`}</div>`}
+
+async function act(fn,id){touch();const{error}=await sb.rpc(fn,{p_id:id});if(error)return toast(error.message);if(fn=="finish_ticket")delete S.bill[id];load()}
+init();
+</script>
+</body>
+</html>
