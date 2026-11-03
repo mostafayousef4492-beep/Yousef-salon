@@ -54,4 +54,6 @@ async function invAttach(id,cid,nm){
 
 // ---- تعديل المبلغ المدفوع الفعلي (لو العميل دفع أكتر من الحساب) ----
 async function invPaid(id,total,cur){const v=prompt("المطلوب "+fm(total)+"\nاكتب المبلغ المدفوع الفعلي (لازم يساوي أو يزيد عن المطلوب):",cur);if(v===null)return;const n=+v;if(!(n>=total))return toast("المبلغ لازم يكون "+fm(total)+" أو أكتر");
-  const{error}=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n});if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف patch_paid_amount.sql في Supabase الأول":error.message);toast("اتسجل المبلغ ✓");dsInvOne(id)}
+  let r=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n});
+  if(!r.error&&r.data&&r.data.needs_force){if(!confirm("الفاتورة دي من يوم "+r.data.day+" وهو مقفول في الخزنة.\nلو عدّلت المدفوع، متوقع الدرج لليوم ده هيتحسب من جديد (والمبلغ المعدود هيفضل زي ما هو).\nتكمّل؟"))return;r=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n,p_force:true})}
+  if(r.error)return toast(/Could not find the function/i.test(r.error.message||"")?"شغّل ملف patch_paid_amount.sql في Supabase الأول":r.error.message);toast(r.data&&r.data.refreshed_day?"اتسجل المبلغ ✓ وقفلة اليوم اتحدّثت":"اتسجل المبلغ ✓");dsInvOne(id)}
