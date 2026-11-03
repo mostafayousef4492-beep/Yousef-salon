@@ -45,3 +45,9 @@ function cdLedger(i){const l=(C.lgs||[])[i];if(!l)return;
   dsOpen("تفاصيل الحركة",`<div class="box"><div style="text-align:center"><b style="font-size:28px;color:${l.points>0?"var(--ok)":"var(--red)"}">${l.points>0?"+":""}${l.points}</b> <span class="m">نقطة</span></div>${cdRow("النوع",esc((l.reason=="adjust"&&l.note&&l.note.trim())||RSN[l.reason]||l.reason))}${cdRow("التاريخ",new Date(l.created_at).toLocaleString("ar-EG"))}${l.note&&l.reason!="adjust"?cdRow("ملاحظة",esc(l.note)):""}</div>`)}
 
 function cdCoupon(code,name){dsOpen("كوبونك",`<div class="box" style="text-align:center"><div class="m">${esc(name)}</div><b style="font-family:var(--display);font-size:38px;letter-spacing:5px;color:var(--gold2)">${esc(code)}</b></div><div class="m" style="margin-top:8px">قدّم الكود ده للكاشير وقت الحساب.</div>`)}
+
+// ---- هيكل تحميل (بدل شاشة فاضية) + تنبيه عدم وجود نت ----
+const CD_SK=`<div class="sk-wrap" aria-busy="true"><div class="sk" style="height:28px;width:55%"></div><div class="sk" style="height:96px;margin-top:14px"></div><div class="sk" style="height:64px;margin-top:10px"></div><div class="sk" style="height:64px;margin-top:10px"></div></div>`;
+["hm","mine","menu","loy"].forEach(k=>{const o=V[k];if(typeof o!="function")return;V[k]=function(){try{if(!document.querySelector("#app .sk-wrap")&&typeof put=="function")put(CD_SK)}catch(e){}return o.apply(this,arguments)}});
+function cdNet(){let b=$("cd_off");if(navigator.onLine){if(b)b.remove();return}if(b)return;b=document.createElement("div");b.id="cd_off";b.className="cd-off";b.setAttribute("role","status");b.textContent="مفيش اتصال بالنت — بعض الحاجات مش هتشتغل لحد ما يرجع";document.body.appendChild(b)}
+window.addEventListener("online",cdNet);window.addEventListener("offline",cdNet);cdNet();
