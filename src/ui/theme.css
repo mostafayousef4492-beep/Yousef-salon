@@ -245,3 +245,9 @@ p.m.empty{border-color:var(--line);background:transparent}
 .premium-cta{background:linear-gradient(120deg,var(--gold-soft),transparent)}
 .barber-option{transition:border-color .15s,transform .1s}
 .barber-option:active{transform:scale(.99)}
+
+/* هيكل التحميل وتنبيه النت (تطبيق العميل) */
+.sk{background:linear-gradient(90deg,var(--card,#161a22) 25%,rgba(255,255,255,.07) 50%,var(--card,#161a22) 75%);background-size:200% 100%;border-radius:14px;animation:sk 1.2s linear infinite}
+@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.cd-off{position:fixed;top:0;left:0;right:0;z-index:99;background:#8a5a00;color:#fff;text-align:center;padding:8px 12px;font-size:13px}
