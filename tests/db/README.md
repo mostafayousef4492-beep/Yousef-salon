@@ -3,7 +3,7 @@
 
 1. شغّل `export_schema.sql` على الإنتاج (قراءة فقط) واحفظ قيمة العمود j في `schema.json` جنب `build.py`.
 2. `python3 build.py` بيطلّع `schema.sql`. أنشئ قاعدة Postgres محلية وشغّل بالترتيب: `pre.sql` ثم `schema.sql` ثم `grants.sql`.
-3. شغّل `../../patch_queue_v2.sql` على القاعدة المحلية.
+3. شغّل `../../sql/patch_queue_v2.sql` على القاعدة المحلية.
 4. `seed.sql` ثم `t_queue.sql` — لازم يطلع `ALL QUEUE TESTS PASSED`.
 5. `conc.sh` اختبار التزامن (12 حجز متوازي + 6 محاولات لنفس العميل). اسم القاعدة جواه salon_test.
 
