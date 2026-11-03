@@ -139,7 +139,7 @@ const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq(
 
 
 // ---- الباقات في الكاشير: الخصم بيتحسب على السيرفر من تذكرة الحجز؛ هنا للعرض وتطبيق/إلغاء باقة على التذكرة ----
-async function posBnLoad(){const P=C.P;if(!P||!P.appt){if(P){P.bn=null;P.bnOn=false}return}
+async function posBnLoad(){const P=C.P;await posClaimLoad();if(!P||!P.appt){if(P){P.bn=null;P.bnOn=false}return}
   try{await BN.load(sb);const{data}=await sb.rpc("ticket_bundle",{p_id:P.appt});P.bn=data||null}catch(e){P.bn=null}
   posBnOn()}
 function posBnOn(){const P=C.P;P.bnOn=!!(P.bn&&(P.bn.service_ids||[]).length&&P.bn.service_ids.every(i=>P.s.includes(i)))}
@@ -153,9 +153,13 @@ async function posBnSet(id){const P=C.P;if(!P||!P.appt)return;const{error}=await
 // ---- الدفع الإلكتروني: فودافون كاش / إنستا باي (بتتسجّل كمحفظة + قناة + رقم العملية) ----
 const EPCH=[["vodafone_cash","فودافون كاش"],["instapay","إنستا باي"],["other_wallet","محفظة تانية"]];
 
-function posEp(P){if(P.pay!="wallet")return"";
+async function posClaimLoad(){const P=C.P;if(!P||!P.appt){if(P)P.claim=null;return}try{const{data}=await sb.rpc("pay_claim_for",{p_appt:P.appt});P.claim=data||null}catch(e){P.claim=null}}
+function posClaim(P){const c=P.claim;if(!c)return"";return`<div class="box" style="margin:8px 0;border-color:var(--gold)"><b>📲 الزبون بلّغ إنه حوّل فودافون كاش</b><div class="m">رقم العملية: <b dir="ltr">${esc(c.ref)}</b> · المبلغ: <b>${fm(c.amount)}</b><br>اتأكد من رسالة الفلوس على موبايل المحل قبل ما تقفل. لو مش وصلت اضغط رفض.</div><div class="row" style="margin-top:6px"><button class="btn s" onclick="posClaimUse()">استخدم الرقم ده</button><button class="btn s g" onclick="posClaimRej()">رفض</button></div></div>`}
+function posClaimUse(){const P=C.P;if(!P||!P.claim)return;P.pay="wallet";P.ch="vodafone_cash";P.ref=P.claim.ref;drawPos()}
+async function posClaimRej(){const P=C.P;if(!P||!P.claim)return;if(!confirm("رفض طلب التحويل ده؟"))return;const{error}=await sb.rpc("reject_pay_claim",{p_id:P.claim.id});if(error)return toast(error.message);P.claim=null;drawPos()}
+function posEp(P){if(P.pay!="wallet")return posClaim(P);
   const info=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:P.ch=="instapay"?C.cfg.instapay_address:"",need=P.ch=="vodafone_cash"||P.ch=="instapay";
-  return`<div class="box" style="margin:8px 0"><div class="chips">${EPCH.map(x=>`<button class="chip ${P.ch==x[0]?"sel":""}" onclick="C.P.ch='${x[0]}';C.P.ref='';drawPos()">${x[1]}</button>`).join("")}</div>${!P.ch?`<div class="m">اختار القناة اللي العميل هيدفع بيها</div>`:""}
+  return posClaim(P)+`<div class="box" style="margin:8px 0"><div class="chips">${EPCH.map(x=>`<button class="chip ${P.ch==x[0]?"sel":""}" onclick="C.P.ch='${x[0]}';C.P.ref='';drawPos()">${x[1]}</button>`).join("")}</div>${!P.ch?`<div class="m">اختار القناة اللي العميل هيدفع بيها</div>`:""}
 ${need?`<div class="m" style="margin-top:6px">${info?`حوّل على: <b dir="ltr" style="font-size:1.2em">${esc(info)}</b> <button class="btn s g" onclick="epCopy()">نسخ</button>`:`ضيف ${P.ch=="vodafone_cash"?"رقم فودافون كاش":"عنوان إنستا باي"} من الإعدادات ← الكاشير`}<br>المطلوب: <b>${fm(P.req)}</b></div><input id="ep_r" placeholder="رقم العملية من رسالة التأكيد (مطلوب)" value="${esc(P.ref||"")}" oninput="C.P.ref=this.value" style="margin-top:6px"><div class="m">اتأكد إن الرسالة وصلت على موبايل المحل وإن المبلغ مطابق قبل ما تقفل الفاتورة.</div>`:""}</div>`}
 
 function epCopy(){const P=C.P,v=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:C.cfg.instapay_address;try{navigator.clipboard.writeText(String(v||"")).then(()=>toast("اتنسخ ✓"))}catch(e){prompt("انسخ:",v)}}
