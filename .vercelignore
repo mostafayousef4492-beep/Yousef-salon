@@ -3,7 +3,9 @@
 /tests
 /index.ts
 /README.md
-/changes.diff
+/BRANCHES.md
 /*.mjs
-/patch_*.sql
-/cashier_ops.sql
+/sql/*
+/*.sql
+/*.diff
+/*.zip
