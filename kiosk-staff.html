@@ -44,13 +44,15 @@ const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const waNum=ph=>{let d=String(ph||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g,"");if(!d)return"";if(d.startsWith("00"))d=d.slice(2);if(/^01\d{9}$/.test(d))return"20"+d.slice(1);if(/^1\d{9}$/.test(d))return"20"+d;return d.length>=10?d:""};
 let S={step:"code",code:"",pin:"",tickets:[],present:false,salon:"الصالون",busy:false},idle,poll;
 const say=(t,c)=>{$("msg").textContent=t||"";$("msg").className=c||""};
-function bump(){clearTimeout(idle);if(S.step=="panel")idle=setTimeout(()=>logout("اتقفلت الشاشة لعدم الاستخدام"),90000)}
+function bump(){clearTimeout(idle);if(S.step=="panel"||S.step=="team")idle=setTimeout(()=>logout("اتقفلت الشاشة لعدم الاستخدام"),90000)}
 ["pointerdown","keydown"].forEach(e=>addEventListener(e,bump,{passive:true}));
 async function q(action,id,reason){return (await sb.rpc("kiosk_q",{p_token:ls("kiosk_token"),p_code:S.code,p_pin:S.pin,p_action:action,p_id:id||null,p_reason:reason||null})).data}
+async function team(){return (await sb.rpc("kiosk_team",{p_token:ls("kiosk_token"),p_code:S.code,p_pin:S.pin})).data}
 async function att(a){return (await sb.rpc("kiosk_att",{p_token:ls("kiosk_token"),p_code:S.code,p_pin:S.pin,p_action:a})).data}
-function logout(m){clearInterval(poll);S={...S,step:"code",code:"",pin:"",tickets:[],busy:false};$("who").textContent="";$("att").style.display=$("lock").style.display="none";say(m||"");draw()}
+function logout(m){clearInterval(poll);S={...S,step:"code",code:"",pin:"",tickets:[],team:null,sel:null,busy:false};$("who").textContent="";$("att").style.display=$("lock").style.display="none";say(m||"");draw()}
 function draw(){
   if(!ls("kiosk_token")){$("app").innerHTML='<p class="c m" style="font-size:20px">الجهاز لسه مش مسجّل. افتح «حضور الموظفين» واكتب كود الجهاز مرة واحدة.</p><p class="c"><a class="wa" href="/kiosk-att">فتح حضور الموظفين</a></p>';return}
+  if(S.step=="team")return S.sel?drawP():drawT();
   if(S.step=="panel")return drawP();
   const v=S.step=="code"?S.code:"•".repeat(S.pin.length);
   if(!$("msg").textContent)say(S.step=="code"?"اكتب كودك":"اكتب الـ PIN");
@@ -63,25 +65,34 @@ async function key(k){if(S.busy)return;const f=S.step=="code"?"code":"pin";
 async function enter(){S.busy=true;say("لحظة...");
   try{const d=await q("list");S.busy=false;
     if(!d||!d.ok){if(d&&d.device===false)localStorage.removeItem("kiosk_token");S.code=S.pin="";S.step="code";say(d?d.msg:"مفيش اتصال","bad");return draw()}
-    S.step="panel";S.tickets=d.tickets;$("who").textContent=d.name;$("att").style.display=$("lock").style.display="";say("");await attState();drawP();bump();poll=setInterval(refresh,8000)
+    S.step="panel";S.tickets=d.tickets;S.team=null;S.sel=null;$("who").textContent=d.name;$("att").style.display=$("lock").style.display="";say("");await attState();
+    // مدير/كاشير: كروت كل الموظفين (لو الدالة kiosk_team اتفعّلت)
+    try{const tm=await team();if(tm&&tm.ok){S.team=tm.staff;S.step="team"}}catch(e){}
+    draw();bump();poll=setInterval(refresh,8000)
   }catch(e){S.busy=false;say("مفيش اتصال","bad")}}
 async function attState(){const a=await att("status");S.present=!!(a&&a.ok&&a.present);$("att").textContent=S.present?"تسجيل انصراف":"تسجيل حضور";$("att").className=S.present?"red":"grn"}
 async function attToggle(){if(S.busy)return;S.busy=true;const a=await att(S.present?"out":"in");S.busy=false;say(a&&a.msg||"تعذّر التسجيل",a&&a.ok?"ok":"bad");await attState()}
-async function refresh(){if(S.busy||S.step!="panel")return;try{const d=await q("list");if(!d||!d.ok)return logout(d&&d.msg||"");S.tickets=d.tickets;drawP()}catch(e){}}
+async function loadTeam(){const tm=await team();if(!tm||!tm.ok)return false;S.team=tm.staff;if(S.sel&&S.sel!="all"&&!S.team.find(x=>x.id==S.sel))S.sel=null;return true}
+function tix(){if(S.sel=="all")return S.tickets;const m=(S.team||[]).find(x=>x.id==S.sel);return m?m.tickets:[]}
+async function refresh(){if(S.busy)return;if(S.step=="team"){try{if(!await loadTeam())return logout("");if(S.sel=="all"){const d=await q("list");if(d&&d.ok)S.tickets=d.tickets}draw()}catch(e){}return}if(S.step!="panel")return;try{const d=await q("list");if(!d||!d.ok)return logout(d&&d.msg||"");S.tickets=d.tickets;drawP()}catch(e){}}
 async function act(id,a){if(S.busy)return;let reason;if(a=="skip"){reason=prompt("سبب التخطّي؟");if(!reason||reason.trim().length<2)return}
   S.busy=true;try{const d=await q(a,id,reason);S.busy=false;if(!d)return say("مفيش اتصال","bad");if(!d.ok){say(d.msg,"bad");if(d.device===false||/PIN|محاولات/.test(d.msg))return logout(d.msg);return}
-    S.tickets=d.tickets;say({call:"اتندهت ✓",arrive:"اتسجّل حضوره ✓",start:"بدأت الخدمة ✓",finish:"انتهت الخدمة ✓ — الدفع من الكاشير",skip:"اتخطّت"}[a],"ok");drawP()}catch(e){S.busy=false;say("مفيش اتصال","bad")}}
+    S.tickets=d.tickets;if(S.step=="team")await loadTeam();say({call:"اتندهت ✓",arrive:"اتسجّل حضوره ✓",start:"بدأت الخدمة ✓",finish:"انتهت الخدمة ✓ — الدفع من الكاشير",skip:"اتخطّت"}[a],"ok");drawP()}catch(e){S.busy=false;say("مفيش اتصال","bad")}}
 function wa(t,kind){const n=waNum(t.cphone);if(!n)return"";const nm=t.cname||"",b=t.barber||"الحلاق",cd=t.code?` (رقم ${t.code})`:"";
   const M={now:`أهلاً ${nm} 👋\nدورك دلوقتي عند ${b}${cd}. اتفضل على الكرسي.`,soon:`أهلاً ${nm} 👋\nقرّبنا على دورك عند ${b}${cd}. من فضلك خليك قريب من الصالون.`,thx:`شكرًا يا ${nm} على زيارتك ${S.salon} 🙏\nننتظرك تاني.`}[kind];
   const L={now:"واتساب: دورك جه",soon:"واتساب: قرّب دورك",thx:"واتساب: شكرًا"}[kind];
   return `<a class="wa" target="_blank" rel="noopener" href="https://wa.me/${n}?text=${encodeURIComponent(M)}">${L}</a>`}
+const RLB={barber:"حلاق",assistant:"مساعد",cashier:"كاشير",manager:"مدير"};
+function drawT(){const L=S.team||[],n=m=>(m.tickets||[]).length;
+  $("app").innerHTML=`<div class="card" onclick="S.sel='all';draw()" style="cursor:pointer"><div class="h"><b>كل الزبائن</b><span class="tag">${S.tickets.length} زبون</span></div><div class="m">كل التذاكر في الطابور</div></div>`+L.map(m=>`<div class="card" style="cursor:pointer" onclick="S.sel='${esc(m.id)}';draw()"><div class="h"><b>${esc(m.name)}</b><span class="m">${RLB[m.role]||esc(m.role)}</span><span class="tag ${n(m)?"checked_in":""}">${n(m)} زبون</span></div><div class="m">${m.present?"🟢 حاضر":"⚪ مش مسجّل حضور"}${n(m)?" · "+(m.tickets.filter(t=>t.status=="in_service").length?"على الكرسي ✂️ · ":"")+"مستني "+m.tickets.filter(t=>t.status!="in_service").length:""}</div></div>`).join("")}
 const ST={upcoming:"في الانتظار",checked_in:"حضر",in_service:"على الكرسي"};
-function drawP(){const T=S.tickets;
-  $("app").innerHTML=T.length?T.map(t=>{const b=[];
+function drawP(){const T=S.step=="team"?tix():S.tickets,sm=S.step=="team"?(S.sel=="all"?null:(S.team||[]).find(x=>x.id==S.sel)):null;
+  const hd=S.step=="team"?`<div class="card" style="display:flex;align-items:center;gap:10px"><button onclick="S.sel=null;draw()">← كل الموظفين</button><b>${esc(sm?sm.name:"كل الزبائن")}</b><span class="m">${T.length} زبون</span></div>`:"";
+  $("app").innerHTML=hd+(T.length?T.map(t=>{const b=[];
     if(t.status=="upcoming"){b.push(`<button class="gold" onclick="act(${t.id},'call')">${t.called?"استدعاء تاني":"استدعاء"}</button>`);if(t.called)b.push(`<button onclick="act(${t.id},'arrive')">حضر</button>`);b.push(`<button class="red" onclick="act(${t.id},'skip')">تخطّي</button>`);b.push(wa(t,"now"),wa(t,"soon"))}
     else if(t.status=="checked_in"){b.push(`<button class="grn" onclick="act(${t.id},'start')">ابدأ الخدمة</button>`,`<button onclick="act(${t.id},'call')">استدعاء تاني</button>`,wa(t,"now"))}
     else if(t.status=="in_service"){b.push(`<button class="grn" onclick="act(${t.id},'finish')">انتهت</button>`)}
-    return `<div class="card"><div class="h"><b dir="ltr">${esc(t.code||"#"+t.id)}</b><b>${esc(t.cname||"زبون")}</b><span class="tag ${t.status}">${ST[t.status]||t.status}</span></div><div class="m">${esc(t.barber||"-")}${t.services?" · "+esc(t.services):""}${t.calls?" · اتندهت "+t.calls+" مرة":""}</div><div class="btns">${b.join("")}</div></div>`}).join(""):'<p class="c m" style="font-size:22px;padding:50px 0">مفيش تذاكر في الطابور دلوقتي</p>'}
+    return `<div class="card"><div class="h"><b dir="ltr">${esc(t.code||"#"+t.id)}</b><b>${esc(t.cname||"زبون")}</b><span class="tag ${t.status}">${ST[t.status]||t.status}</span></div><div class="m">${esc(t.barber||"-")}${t.services?" · "+esc(t.services):""}${t.calls?" · اتندهت "+t.calls+" مرة":""}</div><div class="btns">${b.join("")}</div></div>`}).join(""):'<p class="c m" style="font-size:22px;padding:50px 0">مفيش تذاكر في الطابور دلوقتي</p>')}
 (async()=>{try{const{data}=await sb.from("app_settings").select("*").eq("key","salon_name");if(data&&data[0])S.salon=String(data[0].value).replace(/^"|"$/g,"")}catch(e){}})();
 draw();
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
