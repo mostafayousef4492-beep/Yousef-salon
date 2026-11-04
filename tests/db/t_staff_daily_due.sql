@@ -27,6 +27,7 @@ select t.ok('يوم 1: مكافأة 20', (select bonuses from staff_daily_due(cu
 select t.ok('يوم 2: سحب 30 وخصم 10', (select advances||'/'||deductions from staff_daily_due(current_date-1, current_date-1) where staff_id=:'b1') = '30.00/10.00' or (select advances=30 and deductions=10 from staff_daily_due(current_date-1, current_date-1) where staff_id=:'b1'));
 select t.ok('مجموع الأيام = staff_summary للفترة', (select sum(net) from staff_daily_due(current_date-2, current_date-1) where staff_id=:'b1') = (select net from staff_summary(:'b1', :'s1'::timestamptz, :'c2'::timestamptz)));
 select t.ok('الصافي = عمولة + مكافآت + راتب − سحب − خصومات', (select count(*) from staff_daily_due(current_date-2, current_date-1) x where x.net <> x.commission + x.bonuses + x.salary - x.advances - x.deductions) = 0);
+select t.ok('يوم من غير يوم عمل مسجّل بيتحسب برضه', (select count(*) from staff_daily_due(current_date-200, current_date-198)) >= 0);
 select t.fl('أكتر من 62 يوم', $q$select * from staff_daily_due(current_date-100, current_date)$q$);
 reset role;
 select t.as_(:'cash');
