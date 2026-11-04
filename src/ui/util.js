@@ -13,13 +13,16 @@ const bizBase=()=>new Date(bizToday()+"T12:00:00");
 const bizFrom=()=>{if(C.biz&&C.biz.open&&C.biz.window_from)return new Date(C.biz.window_from);const d=new Date();d.setHours(0,0,0,0);return d};
 async function bizLoad(force){if(!force&&Date.now()-_bizAt<15000)return;try{const{data}=await sb.rpc("business_day_state");if(data){C.biz=data;_bizAt=Date.now()}}catch(e){}bizStrip()}
 // شريط تنبيه ثابت لما اليوم المفتوح أقدم من النهارده: كل حاجة بتتسجل على اليوم ده
-function bizStrip(){try{let el=document.getElementById("bzstrip");const b=C.biz;if(typeof me==="undefined"||!me||me.role==="customer"||!b||!b.open){if(el)el.remove();return}
-  const hrs=b.opened_at?(Date.now()-new Date(b.opened_at).getTime())/36e5:0,old=!b.backdated&&hrs>18;
-  if(!b.backdated&&!old){if(el)el.remove();return}
-  if(!el){el=document.createElement("div");el.id="bzstrip";el.style.cssText="position:sticky;top:0;z-index:70;color:#fff;font:700 13px system-ui;padding:8px 12px;text-align:center";document.body.insertBefore(el,document.body.firstChild)}
-  el.style.background=b.backdated?"#b45309":"#b91c1c";
-  const msg=b.backdated?"⚠ شغّال على يوم "+b.day+" — النهارده الحقيقي "+(b.natural||b.calendar)+" · كل حاجة بتتسجل على يوم "+b.day:"⚠ يوم "+b.day+" مفتوح بقاله "+Math.floor(hrs)+" ساعة — اقفله بجرد الدرج وافتح يوم جديد";
-  el.textContent=msg+" ";const bt=document.createElement("button");bt.textContent="قفل اليوم";bt.style.cssText="margin-inline-start:8px;border:0;border-radius:8px;padding:4px 10px;font:700 12px system-ui;cursor:pointer";bt.onclick=()=>bizClose();el.appendChild(bt)}catch(e){}}
+function bizStrip(){try{let el=document.getElementById("bzstrip");const b=C.biz;if(typeof me==="undefined"||!me||me.role==="customer"||!b){if(el)el.remove();return}
+  const hrs=b.open&&b.opened_at?(Date.now()-new Date(b.opened_at).getTime())/36e5:0,old=b.open&&!b.backdated&&hrs>18,adm=typeof isAdm=="function"&&isAdm(me);
+  if(!el){el=document.createElement("div");el.id="bzstrip";document.body.insertBefore(el,document.body.firstChild)}
+  const warn=!b.open||b.backdated||old;
+  el.style.cssText="position:sticky;top:0;z-index:70;color:#fff;font:700 "+(warn?13:12)+"px system-ui;padding:"+(warn?8:5)+"px 12px;text-align:center;background:"+(!b.open||old?"#b91c1c":b.backdated?"#b45309":"#14532d");
+  const msg=!b.open?"🔴 مفيش يوم عمل مفتوح — الدرج والدور مش بيتحسبوا على يوم":!b.backdated&&!old?"🟢 يوم العمل: "+b.day+" — كل حاجة بتتسجل عليه":b.backdated?"⚠ شغّال على يوم "+b.day+" — النهارده الحقيقي "+(b.natural||b.calendar)+" · كل حاجة بتتسجل على يوم "+b.day:"⚠ يوم "+b.day+" مفتوح بقاله "+Math.floor(hrs)+" ساعة — اقفله بجرد الدرج وافتح يوم جديد";
+  el.textContent=msg+" ";if(!adm&&b.open&&!warn)return;const bt=document.createElement("button");bt.textContent=b.open?"قفل اليوم":"فتح يوم";bt.style.cssText="margin-inline-start:8px;border:0;border-radius:8px;padding:4px 10px;font:700 12px system-ui;cursor:pointer";bt.onclick=()=>b.open?bizClose():bizOpen();if(adm||b.open)el.appendChild(bt)}catch(e){}}
+// تلميح تحت أي خانة تاريخ: الحركة هتتسجل على أنهي يوم عمل
+function bizDateHint(i,o){const v=$(i)&&$(i).value,n=$(o),b=C.biz;if(!n)return;if(!v){n.textContent="";return}
+  n.innerHTML=b&&b.open&&v==b.day?`<span style="color:var(--ok)">✓ هيتسجّل على يوم العمل المفتوح (${esc(v)})</span>`:`<b style="color:#b45309">⚠ ${esc(v)} مختلف عن يوم العمل المفتوح ${b&&b.open?esc(b.day):"(مفيش يوم مفتوح)"} — لو اليوم ده اتقفل، لقطة إقفاله هتتحدّث</b>`}
 async function bizKeyer(){const f=t=>ymd(new Date(t));try{const{data}=await sb.rpc("business_days_list");if(!Array.isArray(data)||!data.length)return f;const R=[];let lc=null;data.forEach(r=>{const st=lc||new Date(Math.min(new Date(r.opened_at),new Date(r.day+"T00:00")));const en=r.closed_at?new Date(r.closed_at):null;R.push({day:r.day,st,en});if(en&&(!lc||en>lc))lc=en});return t=>{const d=new Date(t);for(const r of R)if(d>=r.st&&(!r.en||d<r.en))return r.day;return f(t)}}catch(e){return f}}
 async function bizOpen(){if(C.biz&&C.biz.open)return toast("فيه يوم مفتوح ("+C.biz.day+") — اقفله الأول");const cal=(C.biz&&C.biz.calendar)||ymd(new Date());let min="";
   try{const{data}=await sb.rpc("business_days_list");if(Array.isArray(data)&&data.length){const d=new Date(data[data.length-1].day+"T12:00:00");d.setDate(d.getDate()+1);min=ymd(d)}}catch(e){}
