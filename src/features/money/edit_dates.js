@@ -23,3 +23,14 @@ async function edDo(kind,id,cur,force,val,ts){
   try{svcClose&&svcClose()}catch(e){}
   try{if(kind=="invoice")V.inv();else if(kind=="staff_tx"&&C.reload)C.reload();else if(typeof repLoad=="function")repLoad()}catch(e){}
 }
+
+// نقل حركة (ضخ/سحب، مصروف، حركة موظف) ليوم عمل تاني — لقطة إقفال اليومين بتتحدّث تلقائي (للمالك)
+async function entryMove(kind,id,after){
+  const{data}=await sb.rpc("business_days_list");const L=(Array.isArray(data)?data:[]).map(x=>x.day).reverse();
+  if(!L.length)return toast("مفيش أيام عمل مسجّلة");
+  C.emv={kind,id,after};
+  dsOpen("نقل الحركة ليوم تاني",`<div class="m" style="margin-bottom:8px">اختار يوم العمل اللي الحركة دي بتاعته. لقطة إقفال اليوم القديم والجديد بتتحدّث لوحدها (العدّ الفعلي ما بيتغيّرش) وبيتسجّل التغيير في سجل المحذوفات.</div><select id="emv_d">${L.map(d=>`<option value="${d}">${d}${C.biz&&C.biz.open&&C.biz.day==d?" (اليوم المفتوح)":""}</option>`).join("")}</select><button class="btn" style="width:100%;margin-top:8px" onclick="entryMoveGo()">نقل</button>`)}
+async function entryMoveGo(){const e=C.emv,d=$("emv_d")&&$("emv_d").value;if(!e||!d)return;if(!confirm("تنقل الحركة دي ليوم "+d+"؟\nإقفال اليوم القديم واليوم "+d+" هيتحدّث (المتوقع بس)."))return;
+  const{error}=await sb.rpc("move_entry_day",{p_kind:e.kind,p_id:e.id,p_day:d});
+  if(error)return toast(error.code=="PGRST202"?"شغّل patch_day_workflow.sql في Supabase الأول":error.message);
+  toast("اتنقلت ✓ وإقفال اليومين اتحدّث");try{svcClose()}catch(x){}await bizLoad(true);try{e.after&&e.after()}catch(x){}}
