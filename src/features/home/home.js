@@ -55,11 +55,11 @@ async function cfForm(t){
     top=`<select id="cf_c">${(C.xcats.length?C.xcats:["إيجار","كهرباء ومياه","صيانة","تسويق","أخرى"]).map(c=>`<option>${esc(c)}</option>`).join("")}</select><select id="cf_p">${paySrc("drawer")}</select>`}
   if(t=="adv"){const{data}=await sb.from("profiles").select("id,full_name").neq("role","customer").order("full_name");
     top=`<select id="cf_s"><option value="">اختار الموظف</option>${(data||[]).map(x=>`<option value="${x.id}">${esc(x.full_name)}</option>`).join("")}</select>`}
-  dsOpen(T,`<div class="box">${top}<input id="cf_a" type="number" inputmode="decimal" placeholder="المبلغ"><input id="cf_n" placeholder="ملاحظة (اختياري)">${t=="out"||t=="adv"?`<label class="m" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="cf_pv" style="width:auto"> السحب ده من فلوس أيام فاتت / الشهر القديم (ميظهرش في حركة النهاردة)</label>`:""}${t=="exp"?`<input id="cf_d" type="date" value="${bizToday()}" max="${bizToday()}">`:""}<button class="btn" id="cf_go" style="width:100%" onclick="cfSave('${t}')">حفظ</button></div>`,{back:0})}
+  dsOpen(T,`<div class="box">${top}<input id="cf_a" type="number" inputmode="decimal" placeholder="المبلغ"><input id="cf_n" placeholder="ملاحظة (اختياري)">${t=="out"||t=="adv"?`<label class="m" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="cf_pv" style="width:auto"> السحب ده من فلوس أيام فاتت / الشهر القديم (ميظهرش في حركة النهاردة)</label>`:""}${t=="exp"||t=="inject"||t=="out"?`<div class="m" style="margin-top:6px">التاريخ (تقدر تختار يوم فات)</div><input id="cf_d" type="date" value="${bizToday()}" max="${bizToday()}">`:""}<button class="btn" id="cf_go" style="width:100%" onclick="cfSave('${t}')">حفظ</button></div>`,{back:0})}
 
 async function cfSave(t){
   const a=parseFloat($("cf_a").value),n=($("cf_n").value||"").trim();if(!(a>0))return toast("اكتب المبلغ");
-  const day=bizToday();let r;
+  const day=($("cf_d")&&$("cf_d").value)||bizToday();let r;
   if(t=="inject")r=await sb.from("cash_moves").insert({day,kind:"deposit",amount:a,note:"ضخ من صاحب المحل"+(n?" — "+n:"")});
   else if(t=="out")r=await sb.from("cash_moves").insert({day,kind:"withdraw",amount:a,note:n||null,...($("cf_pv")&&$("cf_pv").checked?{prev_day:true}:{})});
   else if(t=="exp")r=await sb.from("expenses").insert({category:$("cf_c").value,amount:a,note:n,spent_on:$("cf_d").value||day,paid_from:$("cf_p").value});
