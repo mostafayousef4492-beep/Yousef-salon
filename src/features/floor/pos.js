@@ -9,7 +9,7 @@ put(`<div class="ch-bar"><button class="btn s g" onclick="chBack()">‹ الكر
 <div class="pos-grid">
 <section class="box pos-cust"><h3 class="sec">العميل</h3>${cb}${P.vs?.length?`<select onchange="C.P.rid=this.value;chSave()"><option value="">بدون كوبون ولاء</option>${P.vs.map(v=>`<option value="${v.id}" ${P.rid==v.id?"selected":""}>${esc(v.loyalty_rewards.name)} (${v.code})</option>`).join("")}</select>`:""}<h3 class="sec">الحلاق</h3><select onchange="C.P.bid=this.value;chSave()"><option value="">اختار الحلاق</option>${P.br.map(c=>`<option value="${c.id}" ${P.bid==c.id?"selected":""}>${esc(c.full_name)}</option>`).join("")}</select>
 ${P.as.length&&P.s.length?`<h3 class="sec">المساعد (اختياري)</h3>${P.s.map(id=>{const v=P.sv.find(x=>x.id==id);return `<div class="m" style="margin-top:6px">${esc(v.name)}</div><select onchange="P_a(${id},this.value)"><option value="">بدون مساعد</option>${P.as.map(a=>`<option value="${a.id}" ${P.sa[id]==a.id?"selected":""}>${esc(a.full_name)} (${+a.commission_pct}%)</option>`).join("")}</select>`}).join("")}`:""}</section>
-<section class="box pos-items"><h3 class="sec">الخدمات</h3><div class="pos-tiles">${SG.render(P.sv,P.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="P_s(${x.id})"><b>${esc(sh?SG.label(x):x.name)}</b><span class="m">${fm(x.price)}</span></button>`)}</div><h3 class="sec">المنتجات</h3><div class="chips pos-tiles">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div>${P.cm&&P.cm.length?`<h3 class="sec">☕ كوفي كورنر <span class="m">(حسابه منفصل، مش داخل في العمولة ولا الخصم)</span></h3><div class="chips pos-tiles">${P.cm.map(x=>{const c=(P.cf||[]).find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.track&&x.stock<=0?"disabled":""} onclick="P_cf(${x.id},1)"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div>`:""}</section>
+<section class="box pos-items">${posBnTiles(P)}<h3 class="sec">الخدمات</h3><div class="pos-tiles">${SG.render(P.sv,P.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="P_s(${x.id})"><b>${esc(sh?SG.label(x):x.name)}</b><span class="m">${fm(x.price)}</span></button>`)}</div><h3 class="sec">المنتجات</h3><div class="chips pos-tiles">${P.pr.map(x=>{const c=P.p.find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.stock<=0?"disabled":""} onclick="P_p(${x.id})"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div>${P.cm&&P.cm.length?`<h3 class="sec">☕ كوفي كورنر <span class="m">(حسابه منفصل، مش داخل في العمولة ولا الخصم)</span></h3><div class="chips pos-tiles">${P.cm.map(x=>{const c=(P.cf||[]).find(y=>y.id==x.id);return `<button class="chip ${c?"sel":""}" ${x.track&&x.stock<=0?"disabled":""} onclick="P_cf(${x.id},1)"><b>${esc(x.name)}${c?" ×"+c.q:""}</b><span class="m">${fm(x.price)}</span></button>`}).join("")}</div>`:""}</section>
 <section class="box pos-bill"><h3 class="sec">الفاتورة</h3><div class="pos-lines">${lines||(cfT?"":`<p class="m">اختار خدمة أو منتج عشان يتضاف هنا.</p>`)}</div>${cfT?`<div class="pos-lines" style="border-top:1px dashed var(--line);margin-top:6px;padding-top:6px"><div class="m">☕ كوفي كورنر (منفصل)</div>${P.cf.map(c=>{const v=P.cm.find(x=>x.id==c.id)||{name:"?",price:0};return `<div class="pos-line"><span>${esc(v.name)} ×${c.q} <button class="chip" style="min-height:28px;padding:0 10px" onclick="P_cf(${c.id},-1)">−</button></span><b>${fm(v.price*c.q)}</b></div>`}).join("")}</div>`:""}
 <div class="chips">${discOpts().map(x=>`<button class="chip ${P.disc==x&&!P.dfx?"sel":""}" onclick="pickDisc(${x})">خصم ${x}%${x>discLim()?" 🔒":""}</button>`).join("")}${fixOpts().map(x=>`<button class="chip ${P.dfx==x?"sel":""}" onclick="pickFix(${x})">خصم ${x} ج${fxPct(x,sub)>discLim()?" 🔒":""}</button>`).join("")}</div>
 <div class="chips">${payBtns}</div>${posEp(P)}
@@ -139,7 +139,7 @@ const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq(
 
 
 // ---- الباقات في الكاشير: الخصم بيتحسب على السيرفر من تذكرة الحجز؛ هنا للعرض وتطبيق/إلغاء باقة على التذكرة ----
-async function posBnLoad(){const P=C.P;await posClaimLoad();if(!P||!P.appt){if(P){P.bn=null;P.bnOn=false}return}
+async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){P.bn=null;P.bnOn=false}return}
   try{await BN.load(sb);const{data}=await sb.rpc("ticket_bundle",{p_id:P.appt});P.bn=data||null}catch(e){P.bn=null}
   posBnOn()}
 function posBnOn(){const P=C.P;P.bnOn=!!(P.bn&&(P.bn.service_ids||[]).length&&P.bn.service_ids.every(i=>P.s.includes(i)))}
@@ -170,3 +170,15 @@ async function epCheck(P){if(!P.ch)return"اختار قناة الدفع (فود
   const{data,error}=await sb.rpc("epay_ref_used",{p_channel:P.ch,p_ref:r});
   if(error)return/epay_ref_used|PGRST202|42883/.test(error.code+" "+error.message)?"شغّل patch_epay_channels.sql في Supabase الأول":error.message;
   return data?"رقم العملية ده اتسجّل قبل كده على فاتورة تانية":""}
+
+// الباقات كأزرار في الكاشير: الضغط بيضيف خدماتها ويطبّق سعر الباقة، والضغط تاني بيشيلها
+function posBnTiles(P){if(!BN.L||!BN.L.length)return"";
+  return`<h3 class="sec">الباقات <span class="m">(سعر أوفر من الخدمات لوحدها)</span></h3><div class="chips pos-tiles">${BN.L.map(b=>{const on=!!(P.bn&&P.bn.id==b.id&&P.bnOn);return`<button class="chip ${on?"sel":""}" onclick="P_bn(${b.id})"><b>🎁 ${esc(b.name)}</b><span class="m">${fm(b.price)}${+b.saving?" · وفّر "+fm(b.saving):""}</span></button>`}).join("")}</div>`}
+async function P_bn(id){const P=C.P,b=BN.get(id);if(!P||!b)return;const ids=BN.ids(b);
+  if(ids.some(i=>!P.sv.some(x=>x.id==i)))return toast("الباقة فيها خدمة مش متاحة دلوقتي");
+  const on=!!(P.bn&&P.bn.id==id&&P.bnOn);
+  if(on){P.s=P.s.filter(x=>!ids.includes(x));ids.forEach(i=>delete P.sa[i])}else P.s=[...new Set([...P.s,...ids])];
+  await chSaveNow();
+  if(P.appt){const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:on?null:id});if(error)toast(error.message)}
+  else if(!on)toast("الباقة بتتطبق على تذكرة حجز بس — خدماتها اتضافت بسعرها العادي");
+  await posBnLoad();drawPos()}
