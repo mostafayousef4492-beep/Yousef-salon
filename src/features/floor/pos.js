@@ -49,7 +49,8 @@ if(r.status=="paying"){if(!confirm("الفاتورة دي معلّقة وبتت�
 const[R,{data:br},{data:asx},cr]=await Promise.all([chLoadRefs(),sb.from("profiles").select("id,full_name").eq("role","barber"),sb.from("profiles").select("id,full_name,commission_pct").eq("role","assistant"),r.customer_id?sb.from("customers").select("id,name,phone,points,visits").eq("id",r.customer_id).maybeSingle():Promise.resolve({data:null})]);
 C.P={chair:n,sv:R.sv,pr:R.pr,cm:R.cm||[],cf:(Array.isArray(r.cafe)?r.cafe:[]).filter(i=>(R.cm||[]).some(x=>x.id==i.id)),cu:[],br:br||[],as:asx||[],sa:r.assistants||{},s:(r.services||[]).filter(id=>R.sv.some(x=>x.id==id)),p:(r.products||[]).filter(i=>R.pr.some(x=>x.id==i.id)),cid:r.customer_id?String(r.customer_id):"",cust:cr.data||null,bid:r.barber_id||"",appt:r.appointment_id||null,disc:+r.discount_pct||0,dfx:+r.discount_fixed||0,pay:r.payment_method||"cash",rid:r.redemption_id?String(r.redemption_id):"",vs:[]};
 if(C.P.appt){try{const{data:ap}=await sb.from("appointments").select("is_urgent,urgent_state").eq("id",C.P.appt).maybeSingle();if(ap&&ap.is_urgent&&ap.urgent_state=="approved")C.P.ur=Math.max(+C.cfg.urgent_multiplier||2,1)}catch(e){}
-  await posBnLoad()}
+  }
+await posBnLoad();
 C.chEdit=1;clearInterval(C.poll);C.P.cid?loadV():drawPos()}
 
 let chT=0;
