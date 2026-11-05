@@ -24,7 +24,7 @@ sb.from("staff_transactions").select("*").eq("staff_id",id).gte("created_at",f).
 sb.from("reviews").select("id,rating,tags,note,created_at").eq("barber_id",id).order("created_at",{ascending:false}).limit(20),
 sb.rpc("staff_schedule",{p_staff:id}),sb.from("attendance").select("*").eq("staff_id",id).gte("check_in",f).lt("check_in",t).order("check_in",{ascending:false}),sb.from("attendance").select("id,check_in").eq("staff_id",id).is("check_out",null).limit(1),sb.from("staff_shifts").select("*").eq("staff_id",id),sb.from("staff_leaves").select("*").eq("staff_id",id).gte("to_date",new Date().toISOString().slice(0,10)).order("from_date")]);
 if(e1)return $("panel").innerHTML=`<p class="m">${esc(e1.message)}</p>`;
-const s=sm?.[0]||{};C.pn={id,owner,f,t,s,tx:tx||[],al:al||[]};if(!owner&&$("mehero"))meHero();const avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
+const s=sm?.[0]||{};C.pn={id,owner,f,t,s,tx:tx||[],al:al||[]};if(!owner&&$("mehero"))meHero();if(!owner&&me.role=="barber"&&$("mecuts"))meCuts();const avg=rv?.length?(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1):"-";
 const S=owner?{f:1,s:1,r:1}:{f:can("view_own_finance"),s:can("view_own_schedule"),r:can("view_own_reviews")};const card=(l,v,c,a)=>`<div class="box kpi"${a?` role="button" tabindex="0" onclick="${a}" style="cursor:pointer"`:""}><div class="kpi-l">${l}</div><div class="kpi-v" style="color:${c||"inherit"}">${v}</div>${a?`<div class="m" style="font-size:11px">اضغط للتفاصيل</div>`:""}</div>`;
 const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const attOn=owner||can("use_attendance");
@@ -52,7 +52,7 @@ function delTx(id){return ownerDel("staff_transactions",id,()=>C.reload(),"حذ�
 
 async function myS(id,st){const{error}=await sb.rpc("set_my_appt_status",{p_id:id,p_status:st});error?toast(error.message):C.reload()}
 
-V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="bnow"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber")barberNow();panel(me.id,false)};
+V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="bnow"></div><div id="mecuts"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber")barberNow();panel(me.id,false)};
 
 // ===== كارت الترحيب في شاشة الموظف (عرض فقط — بيقرا اللي متحمّل أصلًا من شاشتي) =====
 function meHero(){const el=$("mehero");if(!el)return;
@@ -116,3 +116,12 @@ function spArgs(o){return{p_staff:C.spId==me.id?null:C.spId,...o}}
 function spPick(){const i=document.createElement("input");i.type="file";i.accept="image/*";i.onchange=async()=>{const f=i.files&&i.files[0];if(!f)return;try{toast("بجهّز الصورة...");const d=await shrinkImage(f);const{error}=await sb.rpc("set_staff_profile",spArgs({p_avatar:d}));if(error)return toast(error.message);toast("اتغيّرت الصورة ✓");spLoad(C.spId,C.pn&&C.pn.owner)}catch(e){toast(e.message||"فشل رفع الصورة")}};i.click()}
 async function spRm(){const{error}=await sb.rpc("set_staff_profile",spArgs({p_remove_avatar:true}));if(error)return toast(error.message);spLoad(C.spId,C.pn&&C.pn.owner)}
 async function spBday(){const v=$("sp_b").value;const{error}=await sb.rpc("set_staff_profile",spArgs(v?{p_birthday:v}:{p_clear_birthday:true}));error?toast(error.message):toast("اتحفظ ✓")}
+
+// ===== زباين الحلاق في الفترة المختارة: العميل، الخدمات، المبلغ، العمولة =====
+async function meCuts(){const el=$("mecuts");if(!el)return;const[f,t]=rangeOf(C.rg);
+  const{data,error}=await sb.rpc("staff_cuts_list",{p_staff:me.id,p_from:f,p_to:t});if(!$("mecuts"))return;
+  if(error)return el.innerHTML=/staff_cuts_list|PGRST202|42883/.test((error.code||"")+" "+(error.message||""))?"":`<p class="m">${esc(error.message)}</p>`;
+  const L=data||[];if(!L.length)return el.innerHTML=`<div class="box" style="margin-top:8px"><div class="cc-l">زباينك في الفترة</div><div class="m">لسه مفيش فواتير في الفترة دي.</div></div>`;
+  const hm=d=>new Date(d).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),dd=d=>new Date(d).toLocaleDateString("ar-EG",{day:"numeric",month:"numeric"}),multi=(f&&t)?(new Date(t)-new Date(f))>864e5*1.5:false;
+  const tot=L.reduce((a,x)=>a+(+x.total||0),0),com=L.reduce((a,x)=>a+(+x.commission||0),0),hasT=L.some(x=>x.total!=null),hasC=L.some(x=>x.commission!=null);
+  el.innerHTML=`<div class="box" style="margin-top:8px"><div class="cc-l">زباينك في الفترة (${L.length})</div>${L.slice(0,40).map(x=>`<div class="row"><div><b>${esc(x.customer)}</b><div class="m">${multi?dd(x.at)+" · ":""}${hm(x.at)} · ${esc(x.services||"—")}</div></div><div style="text-align:left">${x.total!=null?`<b>${fm(x.total)}</b>`:""}${x.commission!=null?`<div class="m">عمولتك ${fm(x.commission)}</div>`:""}</div></div>`).join("")}${L.length>40?`<div class="m">وفيه ${L.length-40} فاتورة أقدم.</div>`:""}${hasT||hasC?`<div class="tot f" style="margin-top:6px"><span>الإجمالي</span><span>${hasT?fm(tot):""}${hasC?" · عمولة "+fm(com):""}</span></div>`:""}</div>`}
