@@ -43,12 +43,13 @@ w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="shee
 <label class="m" for="sf-ds">وصف قصير (اختياري)</label><input id="sf-ds" value="${esc(x.description||"")}" autocomplete="off">
 <label class="svc-sw"><input id="sf-a" type="checkbox" ${x.active?"checked":""}><span>شغّالة — ظاهرة للعملاء وفي الكاشير</span></label>
 <label class="svc-sw"><input id="sf-rd" type="checkbox" ${x.redeemable?"checked":""}><span>العميل يقدر يشتريها بنقاط الولاء</span></label>
+<input id="sf-rp" type="number" min="1" inputmode="numeric" placeholder="عدد النقاط اللي تتستبدل بيها (فاضي = حسب السعر)" value="${x.redeem_points||""}">
 <button class="btn" id="sf-s" style="width:100%" onclick="svcSave()">${id?"حفظ التعديل":"إضافة الخدمة"}</button></div>`;
 document.body.appendChild(w);setTimeout(()=>$("sf-n").focus(),60)}
 
 async function svcSave(){const n=$("sf-n").value.trim(),p=parseFloat($("sf-p").value),d=Math.round(+$("sf-d").value)||30;
 if(!n)return toast("اكتب اسم الخدمة");if(!(p>=0))return toast("اكتب سعر صحيح");
-const o={name:n,price:p,duration_min:d,category:$("sf-c").value.trim()||"قصات",description:$("sf-ds").value.trim()||null,active:$("sf-a").checked,redeemable:$("sf-rd").checked};
+const o={name:n,price:p,duration_min:d,category:$("sf-c").value.trim()||"قصات",description:$("sf-ds").value.trim()||null,active:$("sf-a").checked,redeemable:$("sf-rd").checked,redeem_points:$("sf-rp")&&$("sf-rp").value?Math.max(1,Math.round(+$("sf-rp").value)):null};
 const b=$("sf-s");b.disabled=true;
 const{error}=C.svc.e?await sb.from("services").update(o).eq("id",C.svc.e):await sb.from("services").insert(o);
 b.disabled=false;if(error)return toast(error.message);svcClose();toast("تم الحفظ ✓");V.svc()}
