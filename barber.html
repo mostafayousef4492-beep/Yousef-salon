@@ -20,6 +20,7 @@ input{font:600 24px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:
 .btn{font:700 26px "IBM Plex Sans Arabic",system-ui;padding:18px;border:0;border-radius:16px;background:var(--gold);color:#1b1710;cursor:pointer}
 .btn.g{background:#2a2f3a;color:var(--fg)}.btn.ok{background:var(--ok);color:#fff}
 .btn:disabled{opacity:.45}
+.btn.wa{background:#128C7E;color:#fff;text-decoration:none;text-align:center;font-size:22px}
 .row{display:flex;gap:10px}.row .btn{flex:1}
 .tag{display:inline-block;padding:2px 10px;border-radius:10px;background:#2a2f3a;font-size:16px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:14px 22px;border-radius:12px;font-size:20px;z-index:9}
@@ -40,10 +41,15 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const nf=n=>Number(Math.round(n||0)).toLocaleString("ar-EG");
 const MAIL="@staff.abu-yousef-salon.com";
 const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)};
-const S={me:null,poll:null,idle:null,bill:{}};
+const S={me:null,poll:null,idle:null,bill:{},ph:{},salon:"الصالون"};
+const waNum=ph=>{let d=String(ph||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g,"");if(!d)return"";if(d.startsWith("00"))d=d.slice(2);if(/^01\d{9}$/.test(d))return"20"+d.slice(1);if(/^1\d{9}$/.test(d))return"20"+d;return d.length>=10?d:""};
+function wa(a,kind){const n=waNum(S.ph[a.id]);if(!n)return"";const nm=a.customer_name||"",b=S.me.full_name,cd=a.ticket_code?` (رقم ${a.ticket_code})`:"";
+  const M={now:`أهلاً ${nm} 👋\nدورك دلوقتي عند ${b}${cd}. اتفضل على الكرسي.`,soon:`أهلاً ${nm} 👋\nقرّبنا على دورك عند ${b}${cd}. من فضلك خليك قريب من الصالون.`,thx:`شكرًا يا ${nm} على زيارتك ${S.salon} 🙏\nننتظرك تاني.`}[kind];
+  const L={now:"واتساب: دورك جه",soon:"واتساب: قرّب دورك",thx:"واتساب: شكرًا"}[kind];
+  return `<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${n}?text=${encodeURIComponent(M)}">${L}</a>`}
 
 async function init(){
-  const{data}=await sb.from("app_settings").select("*");const r=(data||[]).find(x=>x.key=="salon_name");if(r&&r.value){document.title="شاشة الصنايعي - "+r.value}
+  const{data}=await sb.from("app_settings").select("*");const r=(data||[]).find(x=>x.key=="salon_name");if(r&&r.value){S.salon=String(r.value).replace(/^"|"$/g,'');document.title="شاشة الصنايعي - "+r.value}
   login()}
 
 function login(){clearInterval(S.poll);clearTimeout(S.idle);S.me=null;
@@ -65,14 +71,15 @@ async function load(){if(!S.me)return;
   const{data,error}=await sb.rpc("my_queue");if(error)return toast(error.message);
   const L=(data||[]).filter(a=>a.status!="no_show"),cur=L.find(a=>a.status=="in_service"),q=L.filter(a=>a.status!="in_service");
   const nx=q.find(a=>a.status=="checked_in")||q.find(a=>a.called)||q[0];
+  try{const{data:p}=await sb.rpc("my_queue_phones");S.ph={};(p||[]).forEach(x=>S.ph[x.id]=x.phone)}catch(e){}
   if(cur&&!S.bill[cur.id]){try{const{data:b}=await sb.rpc("ticket_bill",{p_id:cur.id});S.bill[cur.id]=b||{}}catch(e){}}
   draw(cur,nx,q)}
 
 function draw(cur,nx,q){const cd=a=>esc(a.ticket_code||"#"+a.ticket_no);
   $("app").innerHTML=`<div class="bar"><b class="big">${esc(S.me.full_name)}</b><button class="btn g" style="font-size:18px;padding:10px 16px" onclick="logout()">خروج</button></div>
-<div class="box"><div class="m">على الكرسي دلوقتي</div>${cur?`<div class="big">${esc(cur.customer_name||"عميل")} <span class="tag">${cd(cur)}</span></div><div class="m">${esc(cur.services||"")}</div>${S.bill[cur.id]&&S.bill[cur.id].total!=null?`<div class="m">الحساب: <b>${nf(S.bill[cur.id].total)} ج</b></div>`:""}<button class="btn ok" onclick="act('finish_ticket',${cur.id})">خلّصت الخدمة</button>`:`<div class="m">مفيش حد على الكرسي</div>`}</div>
+<div class="box"><div class="m">على الكرسي دلوقتي</div>${cur?`<div class="big">${esc(cur.customer_name||"عميل")} <span class="tag">${cd(cur)}</span></div><div class="m">${esc(cur.services||"")}</div>${S.bill[cur.id]&&S.bill[cur.id].total!=null?`<div class="m">الحساب: <b>${nf(S.bill[cur.id].total)} ج</b></div>`:""}<button class="btn ok" onclick="act('finish_ticket',${cur.id})">خلّصت الخدمة</button><div class="row">${wa(cur,"thx")}</div>`:`<div class="m">مفيش حد على الكرسي</div>`}</div>
 <div class="box"><div class="m">العميل الجاي${q.length>1?" · و"+nf(q.length-1)+" كمان مستنيين":""}</div>${nx?`<div class="big">${esc(nx.customer_name||"عميل")} <span class="tag">${cd(nx)}</span></div><div class="m">${esc(nx.services||"")} · ${nx.status=="checked_in"?"حاضر وبينتظر":nx.called?"اتنادى"+(nx.call_count>1?" ×"+nx.call_count:"")+(nx.eta=="on_way"?" (في الطريق)":""):"لسه ما اتنادش"}</div>
-<div class="row">${nx.status=="upcoming"?`<button class="btn" onclick="act('call_ticket',${nx.id})">${nx.called?"إعادة نداء":"نادِ عليه"}</button>`:""}${nx.status=="upcoming"&&nx.called?`<button class="btn g" onclick="act('confirm_arrival',${nx.id})">وصل</button>`:""}${nx.status=="checked_in"?`<button class="btn ok" ${cur?"disabled":""} onclick="act('start_service',${nx.id})">ابدأ الخدمة</button>`:""}</div>${cur&&nx.status=="checked_in"?`<div class="m">خلّص اللي على الكرسي الأول</div>`:""}`:`<div class="m">مفيش حد في الانتظار</div>`}</div>`}
+<div class="row">${nx.status=="upcoming"?`<button class="btn" onclick="act('call_ticket',${nx.id})">${nx.called?"إعادة نداء":"نادِ عليه"}</button>`:""}${nx.status=="upcoming"&&nx.called?`<button class="btn g" onclick="act('confirm_arrival',${nx.id})">وصل</button>`:""}${nx.status=="checked_in"?`<button class="btn ok" ${cur?"disabled":""} onclick="act('start_service',${nx.id})">ابدأ الخدمة</button>`:""}</div><div class="row">${wa(nx,"now")}${nx.status=="upcoming"?wa(nx,"soon"):""}</div>${cur&&nx.status=="checked_in"?`<div class="m">خلّص اللي على الكرسي الأول</div>`:""}`:`<div class="m">مفيش حد في الانتظار</div>`}</div>`}
 
 async function act(fn,id){touch();const{error}=await sb.rpc(fn,{p_id:id});if(error)return toast(error.message);if(fn=="finish_ticket")delete S.bill[id];load()}
 init();
