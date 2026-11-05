@@ -90,7 +90,7 @@ const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"})
 if(le||!lk||!lk.length){P.paying=0;return toast("الفاتورة دي بتتدفع من جهاز تاني أو اتقفلت")}
 posBnOn();const items=[...P.s.map(id=>({type:"service",id,qty:1,assistant:(P.sa||{})[id]||null})),...P.p.map(x=>({type:"product",id:x.id,qty:x.q}))];
 const ckA={p_customer:P.cid?+P.cid:null,p_barber:P.bid||null,p_items:items,p_discount_pct:P.bnOn?0:(P.disc||0),p_discount_fixed:P.bnOn?0:(P.dfx||0),p_method:P.pay,p_appointment:P.appt,p_redemption:P.rid?+P.rid:null,p_request:P.rqid||null},cfc=(P.cf||[]).map(x=>({id:x.id,qty:x.q}));
-const{data,error}=cfc.length?await sb.rpc("pos_checkout_cafe",{...ckA,p_cafe:cfc}):await sb.rpc("pos_checkout",ckA);
+const wb=!P.appt&&P.bnOn&&P.bn?P.bn.id:null;let{data,error}=wb?await sb.rpc("pos_checkout_b",{...ckA,p_bundle:wb,p_cafe:cfc.length?cfc:null}):cfc.length?await sb.rpc("pos_checkout_cafe",{...ckA,p_cafe:cfc}):await sb.rpc("pos_checkout",ckA);if(wb&&error&&/pos_checkout_b|PGRST202/.test((error.code||"")+" "+(error.message||"")))error={message:"شغّل patch_walkin_bundles.sql في Supabase الأول"};
 if(error){P.paying=0;await sb.from("open_invoices").update({status:"open"}).eq("chair",ch);return toast(error.message)}
 let pm="";if(P.pay=="wallet"&&P.ch){const r3=await sb.rpc("invoice_set_payment",{p_invoice:data,p_channel:P.ch,p_ref:P.ref||null});if(r3.error)pm+=" (تنبيه: قناة الدفع ماتسجلتش: "+r3.error.message+")"}
 if(P.paid&&P.paid>P.req+(P.cft||0)+0.004){const r2=await sb.rpc("invoice_set_paid",{p_invoice:data,p_paid:P.paid-(P.cft||0)});pm+=r2.error?" (تنبيه: المبلغ الفعلي ماتسجلش: "+r2.error.message+")":" · مدفوع "+fm(P.paid)}
@@ -139,15 +139,15 @@ const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq(
 
 
 // ---- الباقات في الكاشير: الخصم بيتحسب على السيرفر من تذكرة الحجز؛ هنا للعرض وتطبيق/إلغاء باقة على التذكرة ----
-async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){P.bn=null;P.bnOn=false}return}
+async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){const w=P.wbn&&BN.get(P.wbn);P.bn=w?{id:w.id,name:w.name,price:+w.price,service_ids:BN.ids(w)}:null;P.bnOn=false;if(P.bn)posBnOn()}return}
   try{await BN.load(sb);const{data}=await sb.rpc("ticket_bundle",{p_id:P.appt});P.bn=data||null}catch(e){P.bn=null}
   posBnOn()}
 function posBnOn(){const P=C.P;P.bnOn=!!(P.bn&&(P.bn.service_ids||[]).length&&P.bn.service_ids.every(i=>P.s.includes(i)))}
-function posBn(P){if(!P.appt)return"";
+function posBn(P){
   const cand=(BN.L||[]).filter(b=>(!P.bn||b.id!=P.bn.id)&&BN.ids(b).every(i=>P.s.includes(i)));
   return(P.bn?`<div class="m" style="margin:6px 0">${P.bnOn?"🎁 باقة «"+esc(P.bn.name)+"» مطبّقة (مفيش خصم يدوي معاها)":"باقة «"+esc(P.bn.name)+"» على التذكرة بس خدماتها مش كلها في الفاتورة"} <button class="btn s g" onclick="posBnSet(null)">إلغاء الباقة</button></div>`:"")
    +cand.map(b=>`<button class="btn s g" style="margin:4px 0;width:100%" onclick="posBnSet(${b.id})">🎁 طبّق باقة ${esc(b.name)} · وفّر ${fm(b.saving)}</button>`).join("")}
-async function posBnSet(id){const P=C.P;if(!P||!P.appt)return;const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:id});if(error)return toast(error.message);await posBnLoad();drawPos()}
+async function posBnSet(id){const P=C.P;if(!P)return;if(!P.appt){P.wbn=id;await posBnLoad();return drawPos()}const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:id});if(error)return toast(error.message);await posBnLoad();drawPos()}
 
 
 // ---- الدفع الإلكتروني: فودافون كاش / إنستا باي (بتتسجّل كمحفظة + قناة + رقم العملية) ----
@@ -180,5 +180,5 @@ async function P_bn(id){const P=C.P,b=BN.get(id);if(!P||!b)return;const ids=BN.i
   if(on){P.s=P.s.filter(x=>!ids.includes(x));ids.forEach(i=>delete P.sa[i])}else P.s=[...new Set([...P.s,...ids])];
   await chSaveNow();
   if(P.appt){const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:on?null:id});if(error)toast(error.message)}
-  else if(!on)toast("الباقة بتتطبق على تذكرة حجز بس — خدماتها اتضافت بسعرها العادي");
+  else P.wbn=on?null:id;
   await posBnLoad();drawPos()}
