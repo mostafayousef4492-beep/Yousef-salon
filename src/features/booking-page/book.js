@@ -31,7 +31,7 @@ async function start(){
 
 function draw(){const b=C.b,days=bkDays();
   put(`<h1>احجز دورك</h1><p class="m" style="margin:0 0 4px">من غير تسجيل ولا تحميل تطبيق — اختار وخد رقم دورك.</p>
-${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red,#d9534f)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2>${SG.render(C.sv,b.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgS(${x.id})">${BN.star(b,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(b,C.sv,fm)}
+${+C.cfg.outside_fee>0?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0"><button class="chip ${b.out?"":"sel"}" style="justify-content:center;min-height:44px" onclick="C.b.out=0;draw()"><b>🏪 داخل المحل</b></button><button class="chip ${b.out?"sel":""}" style="justify-content:center;min-height:44px" onclick="C.b.out=1;draw()"><b>🏠 خارج المحل</b><span class="m">+ ${fm(+C.cfg.outside_fee)}</span></button></div>`:""}${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.length?"var(--mute)":"var(--red,#d9534f)"}">${b.s.length?"✓ اخترت "+b.s.length:"(لازم تختار خدمة واحدة على الأقل)"}</span></h2>${SG.render(C.sv,b.s,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgS(${x.id})">${BN.star(b,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(b,C.sv,fm)}
 <h2>اليوم</h2><div class="chips">${days.map(x=>`<button class="chip ${b.day==x.i?"sel":""}" ${x.off?"disabled":""} onclick="C.b.day=${x.i};C.b.period=null;C.b.barber=undefined;draw()">${x.l}</button>`).join("")}</div>
 <h2>الفترة</h2><div class="chips">${PERIODS.map(p=>`<button class="chip ${b.period==p[0]?"sel":""}" ${b.day==0&&new Date().getHours()>=p[3]?"disabled":""} onclick="C.b.period='${p[0]}';C.b.barber=undefined;draw()">${p[1]} <span class="m">${p[2]}</span></button>`).join("")}</div>
 <div id="bl"></div>
@@ -40,7 +40,7 @@ ${BN.html(b,"tgB",fm)}<h2>الخدمات <span class="m" style="color:${b.s.leng
   if(b.period)loadBarbers();upd()}
 function tgS(id){const b=C.b;b.s=SG.tog(b.s,id,C.sv);BN.sync(b);draw()}
 function tgB(id){BN.pick(C.b,id);draw()}
-function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=BN.calc(b,C.sv).total,dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
+function upd(){const b=C.b,sv=C.sv.filter(x=>b.s.includes(x.id)),tot=BN.calc(b,C.sv).total+(b.out&&+C.cfg.outside_fee>0?+C.cfg.outside_fee:0),dur=sv.reduce((a,x)=>a+(x.duration_min||0),0),btn=$("cbtn");if(!btn)return;
   btn.disabled=!(b.s.length&&b.period&&b.barber!==undefined)||!!C.busy;
   btn.textContent=!b.s.length?"اختار الخدمة الأول":b.s.length?`تأكيد وخد رقم دورك · ${fm(tot)}${dur?" · ~"+dur+" دقيقة":""}`:"تأكيد وخد رقم دورك"}
 function barberLoad(x){const n=+x.waiting||0;return (n?`<b style="color:var(--gold,#c9a24a)">معاه ${n} ${n==1?"زبون":n==2?"زبونين":"زباين"}</b>`:`<b style="color:var(--ok,#6fe3a4)">فاضي دلوقتي</b>`)+` · ~${x.est_min||0} دقيقة`}
@@ -67,6 +67,7 @@ async function bookNow(){if(C.busy)return;const b=C.b,d=bkDays()[b.day],n=(C.f.n
     return toast(isNetErr(r.error)?"الحجز لم يتأكد — النت واقف. جرّب تاني (مش هيتكرر).":(r.error?.code=="23505"?"حد حجز قبلك، جرّب تاني":(r.error?.message||"الحجز لم يتأكد، جرّب تاني")))}
   C.f.p=ph;store.set("salon_book_info",{n,p:ph});store.set("salon_book_last",{id:t.id,p:ph});
   if(b.bd&&!existing&&!(await BN.attach(sb,b,t.id,ph)))toast("اتحجز دورك، بس الباقة ماتسجّلتش — قول للكاشير");
+  if(b.out&&!existing&&+C.cfg.outside_fee>0){const{error:oe}=await sb.rpc("set_ticket_outside",{p_id:t.id,p_outside:true,p_phone:ph});if(oe)toast("اتحجز دورك، بس «خارج المحل» ماتسجّلتش — قول للكاشير")}
   toast(existing?"عندك حجز نشط بالفعل — ده دورك":"تم الحجز ✓ ده رقم دورك");showTicket()}
 
 // ===== تذكرة الدور (بتتحدّث لوحدها كل 8 ثواني) =====
