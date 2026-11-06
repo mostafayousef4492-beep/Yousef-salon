@@ -195,3 +195,24 @@ begin
     and x.n <= v_th
   on conflict (appointment_id, kind) do nothing;
 end $$;
+
+-- أسامي اللي قبلك: نفس منطق p11_ahead (كل الفترات، بوقت الحجز) فالعدد والأسامي متطابقين
+create or replace function public.p23_queue_names(p_id bigint) returns jsonb
+language sql stable security definer set search_path to 'public' as $$
+  select case when coalesce((select value::text from app_settings where key = 'queue_show_names'), 'true') = 'false' then '[]'::jsonb
+  else coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'code', coalesce(a.ticket_code, '#' || a.ticket_no),
+             'name', btrim(split_part(btrim(coalesce(c.name, 'عميل')), ' ', 1)
+                     || coalesce(' ' || nullif(left(btrim(split_part(btrim(coalesce(c.name, '')), ' ', 2)), 1), '') || '.', '')),
+             'status', a.status::text)
+           order by a.sort_at, a.id)
+    from appointments m
+    join appointments a on a.id <> m.id and a.day = m.day
+     and (a.sort_at, a.id) < (m.sort_at, m.id)
+     and a.status::text in ('upcoming','checked_in','in_service')
+     and (m.barber_id is null or a.barber_id is null or a.barber_id = m.barber_id)
+    left join customers c on c.id = a.customer_id
+    where m.id = p_id), '[]'::jsonb) end
+$$;
+revoke all on function public.p23_queue_names(bigint) from public, anon, authenticated;
