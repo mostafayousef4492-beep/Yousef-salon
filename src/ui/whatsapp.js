@@ -29,7 +29,7 @@ function waLastCard(){const w=C.lastWa;if(!w)return"";return `<div class="box" s
 /* ===== رسائل واتساب حسب الغرض (من شاشة العميل) ===== */
 function waPtsMsg(name,pts){return `أهلاً ${name||""} 👋\nرصيدك في ${waSalon()} دلوقتي *${pts||0} نقطة* 🎁\nتقدر تستبدلهم بمكافآت من تطبيقنا:\n${location.origin}/`}
 function waBdayMsg(name){const p=+(C.cfg&&C.cfg.birthday_points)||50;return `كل سنة وانت طيب يا ${name||"غالي"} 🎂🎉\nهدية عيد ميلادك من ${waSalon()}: *${p} نقطة* مستنياك.\nافتح التطبيق واستلمها (متاحة من 3 أيام قبل عيد ميلادك لحد 7 أيام بعده):\n${location.origin}/`}
-function waKit(x,inv){const n=waNum(x.phone);if(!n)return"";
+function waKit(x,inv){const n=waNum(x.phone);if(!n)return `<div class="box" style="margin-top:10px;width:100%"><div class="m">📵 مفيش رقم موبايل للعميل ده، فرسايل الواتساب مش متاحة. اربط رقم من زرار «ربط برقم موبايل» تحت.</div></div>`;
 const L=(lbl,txt,id)=>`<a ${id?`id="${id}" `:""}class="btn s g" style="text-decoration:none" href="https://wa.me/${n}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${lbl}</a>`;
 const iv=inv?{...inv,no:inv.no}:null;
 return `<div class="box" style="margin-top:10px;width:100%"><div class="m" style="margin-bottom:8px">رسالة واتساب جاهزة للعميل</div><div class="chips">${L("📲 تحميل التطبيق",waAppMsg(x.name))}${L("🎁 نقاطه",waPtsMsg(x.name,x.points))}${L("🎂 هدية عيد ميلاده",waBdayMsg(x.name),"wa-bd")}${iv?L("🧾 آخر فاتورة",waInvText(iv,x.name)):""}</div></div>`}
