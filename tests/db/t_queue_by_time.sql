@@ -21,6 +21,8 @@ select t.ok('الحجز اللي بعده قدامه 4', p11_ahead(:after_id) = 
 select t.ok('queue_core بتقول نفس الرقم', (p11_queue_core(:late_id)->>'ahead')::int = 3);
 select t.ok('وقت الانتظار المتوقع > 0', (p11_queue_core(:late_id)->>'est_wait_min')::int > 0);
 select t.ok('public_ticket بترجّع 3', (select ahead from public_ticket(:late_id, '01000000001')) = 3);
+select t.ok('الأسامي = العدد (3) وكلها أسامي المسا', jsonb_array_length(p23_queue_names(:late_id)) = 3);
+select t.ok('الاسم أول كلمة بس + حرف', (p23_queue_names(:late_id)->0->>'name') like 'x1%');
 -- التخطّي بيشتغل عبر الفترات: التذكرة 3 مسا تعدّي اللي بعدها (العصر)
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 select skip_move((select id from appointments where barber_id=:'b1' and ticket_no=3 and period='evening' and day=current_date), 'one');
