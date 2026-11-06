@@ -12,7 +12,7 @@ begin
      or exists (select 1 from customers c where c.id = a.customer_id and (c.user_id = auth.uid()
                 or (p_phone is not null and c.phone = regexp_replace(p_phone, '\D', '', 'g'))));
   if not ok then raise exception 'غير مصرح'; end if;
-  if a.status::text not in ('upcoming', 'checked_in') then raise exception 'مينفعش تغيّر الخدمات دلوقتي'; end if;
+  if a.status::text not in ('upcoming', 'checked_in') and not (staff and a.status::text = 'in_service') then raise exception 'مينفعش تغيّر الخدمات دلوقتي'; end if;
   if not exists (select 1 from services s where s.id = any(p_services) and s.active) then raise exception 'الخدمات مش متاحة'; end if;
   delete from appointment_services where appointment_id = p_id;
   insert into appointment_services(appointment_id, service_id)
