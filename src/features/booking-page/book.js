@@ -86,6 +86,7 @@ function drawT(s,quiet){C.qid=s.id;const st=s.status,steps=[["مستني دور�
 ${arrivalBox(s)}
 ${namesBox(s.names)}
 ${s.near_turn&&!s.called&&st=="upcoming"?`<div class="box" style="margin:10px 0;border-color:var(--gold2)"><b>اقترب دورك</b><div class="m">جهّز نفسك وتعالى الصالون</div></div>`:""}
+${(st=="upcoming"||st=="checked_in")?(s.services?`<div style="margin-top:10px"><button class="btn g" style="width:100%" onclick="pickSv()">تعديل الخدمات</button></div>`:`<div class="box" style="margin:10px 0;border-color:var(--red)"><b>اختار الخدمات اللي هتعملها</b><div class="m">عشان الصنايعي والكاشير يعرفوا حسابك</div><button class="btn" style="width:100%;margin-top:8px" onclick="pickSv()">اختار الخدمات</button></div>`):""}
 <div class="row" style="margin-top:10px"><span>${esc(s.services)}</span><b>${fm(s.bill&&s.bill.total!=null?s.bill.total:s.total)}</b></div>${s.bill&&s.bill.urgent_fee>0?`<div class="m">شامل رسوم الدخول المستعجل ${fm(s.bill.urgent_fee)}</div>`:""}${s.bundle?`<div class="box" style="margin:10px 0;border-color:var(--gold2)"><b>🎁 ${esc(s.bundle.name)}</b><div style="display:flex;justify-content:space-between;padding-top:6px"><span>خصم الباقة</span><b>− ${fm(s.bundle.saving)}</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>حسابك بعد الباقة</b><b>${fm(s.bundle.price)}</b></div></div>`:""}
 ${s.called&&st=="upcoming"?`<div class="box" style="margin:10px 0;border-color:var(--red)"><b>🔔 اتنادى عليك!</b><div class="chips" style="margin-top:8px"><button class="btn" ${s.eta=="on_way"?"disabled":""} onclick="eta('on_way')">أنا في الطريق</button><button class="btn" style="background:var(--ok)" onclick="eta('arrived')">وصلت</button></div></div>`:""}
 <div style="margin:12px 0">${steps.map(x=>`<div style="padding:3px 0;${x[1]?"":"opacity:.4"}">${x[1]?"✓":"○"} ${x[0]}</div>`).join("")}</div>
@@ -102,3 +103,17 @@ async function doChangeB(id){const L=store.get("salon_book_last");if(!L||C.busy)
 async function cancelT(){if(!confirm("تلغي الحجز؟"))return;const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_cancel",{p_id:L.id,p_phone:L.p});
   if(error)return toast(error.message);clearInterval(C.poll);store.del("salon_book_last");toast("اتلغى الحجز");start()}
 init();
+
+
+// اختيار/تعديل خدمات التذكرة من لينك الحجز (للحجز اللي الصالون عمله من غير خدمات)
+async function pickSv(){const L=store.get("salon_book_last");if(!L)return;clearInterval(C.poll);
+  if(!C.sv||!C.sv.length){const{data}=await sb.from("services").select("*").eq("active",true).order("id");C.sv=data||[]}
+  if(!C.ts){const{data:t}=await sb.rpc("public_ticket",{p_id:L.id,p_phone:L.p});const nm=String(t&&t[0]&&t[0].services||"").split(" + ");C.ts=C.sv.filter(x=>nm.includes(x.name)).map(x=>x.id)}
+  drawPick()}
+function drawPick(){const sel=C.ts||[],tot=C.sv.filter(x=>sel.includes(x.id)).reduce((a,x)=>a+(+x.price||0),0);
+  put(`<h1>اختار خدماتك</h1><div class="box"><h2 style="margin-top:0">الخدمات ${sel.length?`<span class="m">✓ اخترت ${sel.length} · ${fm(tot)}</span>`:""}</h2>${SG.render(C.sv,sel,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="tgTs(${x.id})">${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}<button class="btn" id="svb" style="width:100%;margin-top:12px" ${sel.length?"":"disabled"} onclick="saveSv()">تأكيد الخدمات</button><button class="btn g" style="width:100%;margin-top:8px" onclick="C.ts=null;showTicket()">رجوع</button></div>`)}
+function tgTs(id){C.ts=SG.tog(C.ts||[],id,C.sv);drawPick()}
+async function saveSv(){const L=store.get("salon_book_last");if(!L||!(C.ts||[]).length||C.busy)return;C.busy=true;
+  const{error}=await sb.rpc("set_ticket_services",{p_id:L.id,p_services:C.ts,p_phone:L.p});C.busy=false;
+  if(error)return toast(/Could not find the function/i.test(error.message||"")?"الخدمة دي لسه مش متفعّلة — كلّم الصالون":error.message);
+  C.ts=null;toast("اتسجّلت خدماتك ✓");showTicket()}
