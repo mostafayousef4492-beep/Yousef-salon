@@ -38,8 +38,7 @@ begin
   if not (q->>'ok')::boolean then raise exception 'محتاج على الأقل % نقطة عشان تستبدل (عندك %)', q->>'min', c.points; end if;
   v_use := (q->>'use')::int; v_disc := (q->>'discount')::numeric;
   v_name := 'استبدال نقاط: ' || s.name || ' — خصم ' || trim(trailing '.' from trim(trailing '0' from v_disc::text)) || ' ج';
-  v_rw := nextval('loyalty_svc_seq');
-  insert into loyalty_rewards(id, name, cost, kind, value, service_id, active) values (v_rw, v_name, v_use, 'amount', v_disc, s.id, false);
+  insert into loyalty_rewards(name, cost, kind, value, service_id, active) values (v_name, v_use, 'amount', v_disc, s.id, false) returning id into v_rw;
   perform add_points(c.id, -v_use, 'redeem', null, v_name);
   v_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
   insert into loyalty_redemptions(customer_id, reward_id, code) values (c.id, v_rw, v_code);
