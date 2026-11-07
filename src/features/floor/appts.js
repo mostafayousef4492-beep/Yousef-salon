@@ -55,7 +55,7 @@ async function homeCall(id){const{error}=await sb.rpc("call_ticket",{p_id:id});e
 
 async function tk(f,id){const{error}=await sb.rpc(f,{p_id:id});error?toast(error.message):(tab=="appts"?go("appts"):C.reload())}
 
-async function loadV(){const P=C.P,keep=P.rid;P.rid="";P.vs=[];if(P.cid&&C.cfg.ff_loyalty!==false){const{data}=await sb.from("loyalty_redemptions").select("id,code,loyalty_rewards(name,kind,value,service_id)").eq("customer_id",P.cid).eq("status","active");P.vs=data||[];if(keep&&P.vs.some(v=>String(v.id)==String(keep)))P.rid=String(keep)}drawPos()}
+async function loadV(){const P=C.P,keep=P.rid;P.rid="";P.vs=[];if(P.cid&&C.cfg.ff_loyalty!==false){const{data}=await sb.from("loyalty_redemptions").select("id,code,loyalty_rewards(name,kind,value,service_id)").eq("customer_id",P.cid).eq("status","active");P.vs=data||[];if(keep&&P.vs.some(v=>String(v.id)==String(keep)))P.rid=String(keep)}P.dbt=[];if(P.cid){try{const r=await sb.rpc("debts_list",{p_customer:+P.cid});P.dbt=r.data||[]}catch(e){}}drawPos()}
 
 const getPos=()=>new Promise(r=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>r({lat:p.coords.latitude,lng:p.coords.longitude}),()=>r({}),{enableHighAccuracy:true,timeout:12000,maximumAge:0}):r({}));
 
