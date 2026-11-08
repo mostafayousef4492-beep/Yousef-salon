@@ -25,23 +25,19 @@ select t.ok('flat: مفيش خصم ساعات', (select deduction = 0 and ded_tx
 select t.ok('flat: مفيش حركات خصم/تسوية', (select count(*) from staff_transactions where staff_id = :'b1' and (note like 'تسوية ساعات%' or note like 'تأخير %ساعة%')) = 0);
 select t.ok('flat: الخصم صفر (اليومية كاملة)', (select net_day = 100 from assistant_day_pay where staff_id = :'b1' and day = :'d'));
 
--- att: خصم ساعة (8.33) زي الأول
+-- باقي الطرق: برضه مفيش خصم ساعات ولا تسوية (آلية واحدة: خصم الدقيقة)
 update late_rule set method = 'att' where staff_id = :'b1';
 select p12_recalc_day(:'b1', :'d'::date);
-select t.ok('att: خصم ساعة كاملة 8.33', (select deduct_hours = 1 and deduction = 8.33 from assistant_day_pay where staff_id = :'b1' and day = :'d'));
 select adw_sync(:'b1', :'d'::date);
-select t.ok('att: مفيش تسوية بالساعات (adj)', (select count(*) from staff_transactions where staff_id = :'b1' and note like 'تسوية ساعات%') = 0);
-
--- adj: تسوية 3.92 وماتخصمش الساعات
+select t.ok('att: مفيش خصم ساعات', (select deduction = 0 and deduct_hours = 0 from assistant_day_pay where staff_id = :'b1' and day = :'d'));
 update late_rule set method = 'adj' where staff_id = :'b1';
 select p12_recalc_day(:'b1', :'d'::date);
-select t.ok('adj: خصم الساعات اتشال', (select deduction = 0 from assistant_day_pay where staff_id = :'b1' and day = :'d'));
 select adw_sync(:'b1', :'d'::date);
-select t.ok('adj: تسوية 3.92', (select amount from staff_transactions where staff_id = :'b1' and note like 'تسوية ساعات%') = 3.92);
-
--- none
-update late_rule set method = 'none' where staff_id = :'b1';
-select p12_recalc_day(:'b1', :'d'::date);
-select t.ok('none: مفيش خصم ساعات', (select deduction = 0 from assistant_day_pay where staff_id = :'b1' and day = :'d'));
+select t.ok('adj: مفيش تسوية ولا خصم', (select count(*) from staff_transactions where staff_id = :'b1' and (note like 'تسوية ساعات%' or note like 'تأخير %ساعة%')) = 0);
+-- اليومية بتنزل أول حضور
+delete from assistant_day_wage where staff_id = :'b1'; delete from staff_transactions where staff_id = :'b1';
+select adw_sync(:'b1', :'d'::date);
+select t.ok('اليومية 100 اتسجلت أول حضور', (select count(*) from staff_transactions where staff_id = :'b1' and kind = 'bonus' and amount = 100 and note like 'أجر يوم%') = 1);
+select t.ok('ومفيش تسوية بعدها', (select count(*) from staff_transactions where staff_id = :'b1' and note like 'تسوية%') = 0);
 rollback;
 \echo LM DONE
