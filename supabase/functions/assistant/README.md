@@ -42,3 +42,8 @@
 - **الخصوصية:** تليفونات العملاء **مابترجعش** من أي دالة (بس `has_phone`). اسم العميل/الموظف بيروح للنموذج لأن المدير سأل عنه بالاسم.
 - **الإعداد:** `ai_mode()` بترجع `owner|manager|null` والواجهة بتفتح المساعد المناسب. المالك يقدر يقفل مساعد المدير بـ `assistant_manager_enabled = false` في `app_settings`. الحد اليومي نفس `assistant_limit_admin` (60).
 - **صيانة الدليل:** لو غيّرت شاشة في التطبيق، حدّث `guide.ts` (اختبار `tests/assistant_manager.test.mjs` بيفحص إن كل موضوع ليه خطوات وبيتلاقي).
+
+## مفاتيح التفعيل (الإعدادات ← المساعد الذكي) — `sql/patch_ai_toggles.sql`
+- `assistant_enabled`: يقفل المساعد للكل. `assistant_analytics_enabled`: مساعد التحليل للمالك (لو false المالك يشتغل بمساعد التشغيل بس). `assistant_manager_enabled`: مساعد المدير. كلهم افتراضي شغّال لو مفيش قيمة.
+- حدود الأسئلة اليومية: `assistant_limit_admin` (60) / `assistant_limit_staff` (40) / `assistant_limit_customer` (20).
+- القفل بيتفرض من القاعدة (`ai_admin_ok`/`ai_mgr_ok`/`assistant_hit`) مش من الواجهة بس. الدالة الخلفية بتاخد `ai_mode()` وبتدي النموذج أدوات التحليل بس لو `owner`.

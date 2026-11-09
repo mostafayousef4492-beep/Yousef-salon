@@ -115,3 +115,22 @@ await T("حلقة الدردشة: المدير بيسأل «إزاي أقفل ا
   const r = await chat({ ...mgr, sb }, [{ role: "user", content: "إزاي أقفل اليوم" }], llm);
   assert.equal(r.reply, "1. دوس قفل اليوم"); assert.match(seen, /close_day/); assert.match(seen, /الدرج وقفل اليوم/);
 });
+await T("المالك لما التحليل مقفول (analytics=false): أدوات التشغيل بس والبرومبت من غير تحليل، والأداة مرفوضة", async () => {
+  const n = toolsFor(true, "owner", false).map((t) => t.name);
+  for (const x of OPS) assert.ok(n.includes(x), x);
+  for (const x of ANALYTICS) assert.ok(!n.includes(x), x);
+  const sb = mockSb();
+  assert.match((await runTool({ ...own, sb, analytics: false }, "overview", {})).result.error, /غير متاحة/);
+  assert.equal(sb.calls.length, 0);
+  const p = systemPrompt({ ...own, analytics: false });
+  assert.ok(!/overview/.test(p));
+  assert.match(p, /how_to/);
+  assert.ok(toolsFor(true, "owner").some((t) => t.name === "overview"));
+  assert.match((await runTool({ ...own, sb, analytics: true }, "how_to", { question: "قفل اليوم" })).result.topics[0].id, /close_day/);
+});
+await T("analytics=false: حلقة الدردشة بتدي النموذج أدوات التشغيل بس", async () => {
+  let seen = null;
+  const llm = async (_s, _m, tools) => { seen = tools.map((t) => t.name); return { stop_reason: "end_turn", content: [{ type: "text", text: "تمام" }] }; };
+  await chat({ ...own, sb: mockSb(), analytics: false }, [{ role: "user", content: "ازاي اقفل اليوم" }], llm);
+  assert.ok(seen.includes("how_to") && !seen.includes("overview"));
+});
