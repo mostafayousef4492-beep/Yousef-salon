@@ -46,9 +46,9 @@ Deno.serve(async (req) => {
   const role: string = hit.data.role || "customer";
   const staff = staffRoles.includes(role);
   if (role === "owner" || role === "manager") {
-    const ok = await sb.rpc("ai_admin_ok");
-    if (ok.error && /ai_admin_ok|PGRST202|42883/.test(JSON.stringify(ok.error))) return json({ reply: "مساعد الإدارة محتاج تحديث قاعدة البيانات (patch_admin_assistant.sql).", off: true });
-    if (!ok.data) return json({ reply: "مساعد الإدارة مش مفعّل لحسابك. المالك يقدر يفعّله من الإعدادات.", off: true });
+    const ok = await sb.rpc("ai_mode");
+    if (ok.error && /ai_mode|PGRST202|42883/.test(JSON.stringify(ok.error))) return json({ reply: "مساعد الإدارة محتاج تحديث قاعدة البيانات (patch_manager_assistant.sql).", off: true });
+    if (!ok.data) return json({ reply: "مساعد الإدارة مش مفعّل لحسابك. المالك يقدر يفعّله (assistant_manager_enabled).", off: true });
   }
 
   let name = "", custId: number | undefined, phone: string | undefined;
