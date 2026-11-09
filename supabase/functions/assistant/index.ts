@@ -1,8 +1,10 @@
 // مساعد صالون أبو يوسف — Supabase Edge Function
 // بتتنادى من التطبيق بـ JWT المستخدم. بتشتغل بصلاحياته هو (مش service role) فمفيش تسريب بيانات بين المستخدمين.
-// أسرار مطلوبة: ANTHROPIC_API_KEY  — اختياري: ASSISTANT_MODEL (الافتراضي claude-sonnet-5-5)
+// أسرار: GEMINI_API_KEY (Gemini) أو ANTHROPIC_API_KEY (Claude). ASSISTANT_PROVIDER=gemini|anthropic لو الاتنين موجودين.
+// نموذج اختياري: GEMINI_MODEL (الافتراضي gemini-2.5-flash) أو ASSISTANT_MODEL (الافتراضي claude-sonnet-5-5).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { chat, type Ctx } from "./core.ts";
+import { makeLlm } from "./llm.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,8 +19,8 @@ Deno.serve(async (req) => {
   const auth = req.headers.get("Authorization") || "";
   const jwt = auth.replace(/^Bearer\s+/i, "");
   if (!jwt) return json({ error: "auth" }, 401);
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) return json({ reply: "المساعد لسه مش متفعّل (مفتاح الذكاء الاصطناعي ناقص).", off: true });
+  const { llm, provider, model } = makeLlm((k) => Deno.env.get(k));
+  if (!llm) return json({ reply: "المساعد لسه مش متفعّل (مفتاح الذكاء الاصطناعي ناقص).", off: true });
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false, autoRefreshToken: false },
@@ -57,22 +59,11 @@ Deno.serve(async (req) => {
   try { const t = await sb.from("app_settings").select("value").eq("key", "timezone").maybeSingle(); const v = String(t.data?.value ?? "").replace(/"/g, ""); if (v) tz = v; } catch { /* */ }
 
   const ctx: Ctx = { sb, uid, staff, role, name, tz, now: new Date(), custId, phone };
-  const model = Deno.env.get("ASSISTANT_MODEL") || "claude-sonnet-5-5";
-  const llm = async (system: string, messages: any[], tools: any[]) => {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: 1200, system, messages, tools }),
-    });
-    if (!r.ok) { console.error("anthropic", r.status, (await r.text()).slice(0, 300)); throw new Error("llm " + r.status); }
-    return await r.json();
-  };
-
   try {
     const out = await chat(ctx, history, llm);
     return json({ reply: out.reply, proposal: out.proposal, left: hit.data.left });
   } catch (e) {
-    console.error("assistant", String((e as Error)?.message || e));
+    console.error("assistant", provider, model, String((e as Error)?.message || e));
     return json({ reply: "حصلت مشكلة مؤقتة في المساعد. جرّب تاني كمان شوية 🙏", error: true });
   }
 });
