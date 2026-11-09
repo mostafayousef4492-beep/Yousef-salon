@@ -4,9 +4,12 @@
 if(window.__ai)return;window.__ai=1;
 const MODE=window.SALON_MODE||"customer";
 const CUS=MODE=="customer",ADM=MODE=="admin";
-const SUG=ADM?["إيراد الشهر ده كام؟","إيه أكتر الخدمات طلبًا الشهر ده؟","مين أعلى حلاق في المبيعات؟","المصروفات زادت عن الشهر اللي فات؟","قارن الشهر ده باللي فات"]:CUS?["مين الحلاقين الموجودين دلوقتي؟","عندي كام نقطة؟","دوري فاضل عليه كام؟","عايز أحجز حلاقة"]:["راتبي كام لحد دلوقتي؟","حضوري الشهر ده","آخر تقييماتي","السحوبات اللي عليا"];
-const TITLE=ADM?"محلل الإدارة":CUS?"مساعد أبو يوسف":"مساعد الفريق",SUB=ADM?"اسأل عن الإيراد والخدمات والحلاقين والمصروفات وقارن الفترات":CUS?"اسألني عن دورك ونقاطك واحجز بسهولة":"اسألني عن راتبك وحضورك وتقييماتك";
-const S={open:false,busy:false,msgs:[],uid:null,dv:null};
+const SUG_OWN=["إيراد الشهر ده كام؟","إيه أكتر الخدمات طلبًا الشهر ده؟","مين أعلى حلاق في المبيعات؟","المصروفات زادت عن الشهر اللي فات؟","قارن الشهر ده باللي فات"],SUG_MGR=["إزاي أضيف موظف؟","إزاي أقفل اليوم؟","محمود سحب كام الشهر ده؟","عايز أعرف عن عميل","إزاي أسجل مصروف؟"];
+const SUG0=CUS?["مين الحلاقين الموجودين دلوقتي؟","عندي كام نقطة؟","دوري فاضل عليه كام؟","عايز أحجز حلاقة"]:["راتبي كام لحد دلوقتي؟","حضوري الشهر ده","آخر تقييماتي","السحوبات اللي عليا"];
+const mgrMode=()=>ADM&&S.mode=="manager";const SUG=()=>ADM?(mgrMode()?SUG_MGR:SUG_OWN):SUG0;
+const TITLE0=CUS?"مساعد أبو يوسف":"مساعد الفريق",SUB0=CUS?"اسألني عن دورك ونقاطك واحجز بسهولة":"اسألني عن راتبك وحضورك وتقييماتك";
+const TITLE=()=>ADM?(mgrMode()?"مساعد المدير":"محلل الإدارة"):TITLE0,SUB=()=>ADM?(mgrMode()?"اسأل عن خطوات التطبيق وأرقام الموظفين وبيانات العملاء":"اسأل عن الإيراد والخدمات والحلاقين والمصروفات وقارن الفترات"):SUB0;
+const S={open:false,busy:false,msgs:[],uid:null,dv:null,mode:null};
 const E=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $a=id=>document.getElementById(id);
 
@@ -78,8 +81,8 @@ return `<div class="ai-card"><h4>🗓️ ملخص الحجز</h4>
 ${done?`<div class="ai-done">✓ تم الحجز — شوف دورك في «دوري»</div>`:`<div class="bt"><button class="ai-btn" data-ok="${i}">تأكيد الحجز ✓</button><button class="ai-btn g" data-no="${i}">إلغاء</button></div>`}</div>`}
 
 function draw(){const b=$a("ai-body");if(!b)return;let h="";
-if(!S.msgs.length)h=`<div class="ai-hello"><div class="ai-orb">${ICON}</div><h3>أهلًا ${CUS?"بيك":ADM?"يا ريس":"يا بطل"} 👋</h3><div>${E(SUB)}</div><div class="ai-chips">${SUG.map(s=>`<button class="ai-chip" data-q="${E(s)}">${E(s)}</button>`).join("")}</div></div>`;
-S.msgs.forEach((m,i)=>{if(m.r=="u")h+=`<div class="ai-m u">${E(m.t)}</div>`;else{h+=`<div class="ai-m a">${md(m.t)}</div>`;if(m.p&&!m.x)h+=card(m.p,i,m.d);if(ADM&&m.dr&&m.dr.length)h+=`<div class="ai-dr">${m.dr.map((d,j)=>`<button data-dr="${i}:${j}">🔎 ${E(d.label)}</button>`).join("")}</div>`}});
+if(!S.msgs.length)h=`<div class="ai-hello"><div class="ai-orb">${ICON}</div><h3>أهلًا ${CUS?"بيك":ADM?"يا ريس":"يا بطل"} 👋</h3><div>${E(SUB())}</div><div class="ai-chips">${SUG().map(s=>`<button class="ai-chip" data-q="${E(s)}">${E(s)}</button>`).join("")}</div></div>`;
+S.msgs.forEach((m,i)=>{if(m.r=="u")h+=`<div class="ai-m u">${E(m.t)}</div>`;else{h+=`<div class="ai-m a">${md(m.t)}</div>`;if(m.p&&!m.x)h+=card(m.p,i,m.d);if(ADM&&!mgrMode()&&m.dr&&m.dr.length)h+=`<div class="ai-dr">${m.dr.map((d,j)=>`<button data-dr="${i}:${j}">🔎 ${E(d.label)}</button>`).join("")}</div>`}});
 if(S.busy)h+=`<div class="ai-dots" aria-label="بيكتب"><i></i><i></i><i></i></div>`;
 b.innerHTML=h;b.scrollTop=b.scrollHeight}
 
@@ -109,7 +112,7 @@ m.d=1;S.msgs.push({r:"a",t:"تم حجزك ✓ هتلاقي رقم دورك وا�
 try{if(typeof toast=="function")toast("تم الحجز ✓ ده رقم دورك")}catch(e){}}
 
 function open(){if(S.open)return;S.open=true;load();
-const w=document.createElement("div");w.className="ai-bg";w.id="ai-bg";w.innerHTML=`<div class="ai-sheet" role="dialog" aria-modal="true" aria-label="${E(TITLE)}"><div class="ai-h"><div class="ai-orb">${ICON}</div><div><b>${E(TITLE)}</b><span>${E(SUB)}</span></div><button class="ai-x" aria-label="إغلاق" id="ai-x">✕</button></div><div class="ai-body" id="ai-body" aria-live="polite"></div><div class="ai-foot">${ADM?"للقراءة والتحليل بس — الأرقام من تقارير الصالون، راجع المهم":"المساعد ممكن يغلط — راجع المهم مع الصالون"}</div><form class="ai-f" id="ai-f"><textarea id="ai-in" rows="1" maxlength="600" placeholder="اكتب سؤالك هنا..." aria-label="اكتب سؤالك"></textarea><button class="ai-send" id="ai-snd" type="submit" aria-label="إرسال">${SEND}</button></form></div>`;
+const w=document.createElement("div");w.className="ai-bg";w.id="ai-bg";w.innerHTML=`<div class="ai-sheet" role="dialog" aria-modal="true" aria-label="${E(TITLE())}"><div class="ai-h"><div class="ai-orb">${ICON}</div><div><b>${E(TITLE())}</b><span>${E(SUB())}</span></div><button class="ai-x" aria-label="إغلاق" id="ai-x">✕</button></div><div class="ai-body" id="ai-body" aria-live="polite"></div><div class="ai-foot">${ADM?(mgrMode()?"للقراءة والشرح بس — مابينفّذش حاجة بدالك":"للقراءة والتحليل بس — الأرقام من تقارير الصالون، راجع المهم"):"المساعد ممكن يغلط — راجع المهم مع الصالون"}</div><form class="ai-f" id="ai-f"><textarea id="ai-in" rows="1" maxlength="600" placeholder="اكتب سؤالك هنا..." aria-label="اكتب سؤالك"></textarea><button class="ai-send" id="ai-snd" type="submit" aria-label="إرسال">${SEND}</button></form></div>`;
 document.body.appendChild(w);draw();
 w.addEventListener("click",e=>{if(e.target===w)return close();const t=e.target.closest("button");if(!t)return;if(t.id=="ai-x")return close();if(t.dataset.q)return send(t.dataset.q);if(t.dataset.back)return draw();if(t.dataset.dr){const[a,c]=t.dataset.dr.split(":");return showDrill(+a,+c)}if(t.dataset.ok!=null)return confirmBook(+t.dataset.ok);if(t.dataset.no!=null){const m=S.msgs[+t.dataset.no];if(m){m.x=1;S.msgs.push({r:"a",t:"تمام، لغيت الحجز ده. تحب نعدّل حاجة (اليوم أو الفترة أو الخدمات)؟"});draw();save()}}});
 $a("ai-f").addEventListener("submit",e=>{e.preventDefault();send($a("ai-in").value)});
@@ -119,8 +122,8 @@ document.addEventListener("keydown",esc);setTimeout(()=>inp.focus(),250)}
 function esc(e){if(e.key=="Escape")close()}
 function close(){const w=$a("ai-bg");if(w)w.remove();S.open=false;document.removeEventListener("keydown",esc)}
 
-function fab(on){let b=$a("ai-fab");if(!b){const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);b=document.createElement("button");b.id="ai-fab";b.className="ai-fab";b.setAttribute("aria-label",TITLE);b.innerHTML=ICON;b.onclick=open;document.body.appendChild(b)}b.classList.toggle("on",!!on)}
-async function allowed(){if(!ADM)return true;try{const{data,error}=await sb.rpc("ai_admin_ok");return !error&&data===true}catch(e){return false}}
+function fab(on){let b=$a("ai-fab");if(!b){const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);b=document.createElement("button");b.id="ai-fab";b.className="ai-fab";b.setAttribute("aria-label",TITLE());b.innerHTML=ICON;b.onclick=open;document.body.appendChild(b)}b.classList.toggle("on",!!on)}
+async function allowed(){if(!ADM)return true;try{const{data,error}=await sb.rpc("ai_mode");if(error&&/ai_mode|PGRST202|42883/.test(JSON.stringify(error))){const o=await sb.rpc("ai_admin_ok");S.mode=!o.error&&o.data===true?"owner":null;return !!S.mode}S.mode=(!error&&(data=="owner"||data=="manager"))?data:null;return !!S.mode}catch(e){S.mode=null;return false}}
 async function init(){try{const{data:{session}}=await sb.auth.getSession();S.uid=session&&session.user&&session.user.id;fab(!!S.uid&&await allowed());
 sb.auth.onAuthStateChange((ev,s)=>{const u=s&&s.user&&s.user.id;if(u!==S.uid){S.uid=u||null;S.msgs=[];if(!u)close()}if(!u)return fab(false);allowed().then(ok=>fab(ok))})}catch(e){}}
 if(typeof sb!="undefined")init();else window.addEventListener("load",()=>{if(typeof sb!="undefined")init()});

@@ -45,10 +45,12 @@ Deno.serve(async (req) => {
   const staffRoles = ["owner", "manager", "cashier", "barber", "assistant"];
   const role: string = hit.data.role || "customer";
   const staff = staffRoles.includes(role);
+  let analytics = true;
   if (role === "owner" || role === "manager") {
-    const ok = await sb.rpc("ai_admin_ok");
-    if (ok.error && /ai_admin_ok|PGRST202|42883/.test(JSON.stringify(ok.error))) return json({ reply: "مساعد الإدارة محتاج تحديث قاعدة البيانات (patch_admin_assistant.sql).", off: true });
-    if (!ok.data) return json({ reply: "مساعد الإدارة مش مفعّل لحسابك. المالك يقدر يفعّله من الإعدادات.", off: true });
+    const ok = await sb.rpc("ai_mode");
+    if (ok.error && /ai_mode|PGRST202|42883/.test(JSON.stringify(ok.error))) return json({ reply: "مساعد الإدارة محتاج تحديث قاعدة البيانات (patch_manager_assistant.sql).", off: true });
+    if (!ok.data) return json({ reply: "مساعد الإدارة مش مفعّل لحسابك. المالك يقدر يفعّله من الإعدادات ← المساعد الذكي.", off: true });
+    analytics = ok.data === "owner";
   }
 
   let name = "", custId: number | undefined, phone: string | undefined;
@@ -63,7 +65,7 @@ Deno.serve(async (req) => {
   let tz = "Africa/Cairo";
   try { const t = await sb.from("app_settings").select("value").eq("key", "timezone").maybeSingle(); const v = String(t.data?.value ?? "").replace(/"/g, ""); if (v) tz = v; } catch { /* */ }
 
-  const ctx: Ctx = { sb, uid, staff, role, name, tz, now: new Date(), custId, phone };
+  const ctx: Ctx = { sb, uid, staff, role, name, tz, now: new Date(), custId, phone, analytics };
   try {
     const out = await chat(ctx, history, llm);
     return json({ reply: out.reply, proposal: out.proposal, drills: out.drills, left: hit.data.left });
