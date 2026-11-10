@@ -1,0 +1,23 @@
+# نشر دالة المساعد (Supabase Edge Function) — يدوي فقط: Actions ← Deploy assistant function ← Run workflow
+# السر المطلوب في GitHub ← Settings ← Secrets and variables ← Actions: SUPABASE_ACCESS_TOKEN (من حسابك في Supabase).
+# مفاتيح الذكاء الاصطناعي (GEMINI_API_KEY) بتتحط في Supabase Secrets مش هنا.
+name: Deploy assistant function
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: vjesigpmaddlhupbymoy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Check token exists
+        run: test -n "$SUPABASE_ACCESS_TOKEN" || (echo "SUPABASE_ACCESS_TOKEN secret is missing" && exit 1)
+      - name: Deploy
+        run: supabase functions deploy assistant --project-ref "$PROJECT_REF" --use-api
