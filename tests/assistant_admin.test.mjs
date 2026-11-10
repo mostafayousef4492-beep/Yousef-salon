@@ -2,6 +2,7 @@
 // تشغيل: node --experimental-strip-types --no-warnings tests/assistant_admin.test.mjs
 import assert from "node:assert/strict";
 import { chat, runTool, toolsFor, systemPrompt, dedupeDrills } from "../supabase/functions/assistant/core.ts";
+import { ACTION_NAMES } from "../supabase/functions/assistant/actions.ts";
 
 const T = (n, f) => Promise.resolve().then(f).then(() => console.log("PASS:", n), (e) => { console.log("FAIL:", n, e.message); process.exitCode = 1; });
 
@@ -26,7 +27,7 @@ const OV = (rev, n, exp, prof) => ({ revenue: rev, invoices: n, avg_invoice: n ?
 await T("الأدوات: كلها قراءة فقط (مفيش اسم بيدل على تعديل/إرسال)", () => {
   const names = toolsFor(true, "owner").map((t) => t.name);
   assert.ok(names.includes("overview") && names.includes("compare_periods") && names.includes("list_invoices"));
-  for (const n of names) assert.ok(!/(create|delete|update|insert|send|write|close|pay|book|set_|remove|edit)/i.test(n), n);
+  for (const n of names.filter((x) => !ACTION_NAMES.includes(x))) assert.ok(!/(create|delete|update|insert|send|write|close|pay|book|set_|remove|edit)/i.test(n), n);
 });
 await T("الحلاق/الكاشير/العميل مالهمش أدوات الإدارة، ومفيش نداء للقاعدة", async () => {
   for (const [staff, role] of [[true, "barber"], [true, "cashier"], [false, "customer"], [true, "assistant"]]) {
@@ -105,7 +106,7 @@ await T("dedupeDrills: بيشيل المكرر والتواريخ الغلط و�
 await T("البرومبت: للإدارة بيلزم الفترة/المصدر/الطريقة ومفيش «بيانات المستخدم بس»", () => {
   const p = systemPrompt({ ...adm });
   assert.match(p, /الفترة/); assert.match(p, /المصدر/); assert.match(p, /مش كافية/); assert.ok(!/مسموحلك بس بيانات المستخدم/.test(p));
-  assert.match(p, /للقراءة والتحليل بس/);
+  assert.match(p, /بتحلل وبتنفّذ بدل المالك/);
 });
 await T("حلقة الدردشة: الإدارة بتشغّل أدوات، وبترجع drills، ومفيش drill/ISO في اللي بيروح للنموذج", async () => {
   const sb = mockSb({ rpcs: { ai_overview: OV(1000, 10, 200, 500) } });
