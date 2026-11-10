@@ -20,4 +20,4 @@ jobs:
       - name: Check token exists
         run: test -n "$SUPABASE_ACCESS_TOKEN" || (echo "SUPABASE_ACCESS_TOKEN secret is missing" && exit 1)
       - name: Deploy
-        run: supabase functions deploy assistant --project-ref "$PROJECT_REF" --use-api
+        run: supabase functions deploy assistant --project-ref "$PROJECT_REF" --use-api --yes
