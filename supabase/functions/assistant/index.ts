@@ -4,6 +4,7 @@
 // نموذج اختياري: GEMINI_MODEL (الافتراضي gemini-2.5-flash) أو ASSISTANT_MODEL (الافتراضي claude-sonnet-5-5).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { chat, type Ctx } from "./core.ts";
+import { executeAction } from "./actions.ts";
 import { makeLlm } from "./llm.ts";
 
 const CORS = {
@@ -20,7 +21,6 @@ Deno.serve(async (req) => {
   const jwt = auth.replace(/^Bearer\s+/i, "");
   if (!jwt) return json({ error: "auth" }, 401);
   const { llm, provider, model } = makeLlm((k) => Deno.env.get(k));
-  if (!llm) return json({ reply: "المساعد لسه مش متفعّل (مفتاح الذكاء الاصطناعي ناقص).", off: true });
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: `Bearer ${jwt}` } }, auth: { persistSession: false, autoRefreshToken: false },
@@ -65,10 +65,28 @@ Deno.serve(async (req) => {
   let tz = "Africa/Cairo";
   try { const t = await sb.from("app_settings").select("value").eq("key", "timezone").maybeSingle(); const v = String(t.data?.value ?? "").replace(/"/g, ""); if (v) tz = v; } catch { /* */ }
 
-  const ctx: Ctx = { sb, uid, staff, role, name, tz, now: new Date(), custId, phone, analytics };
+  // إنشاء حساب موظف: عميل مؤقت منفصل عشان جلسة المدير ماتتبدّلش (زي التطبيق)
+  const signUp = async (email: string, password: string, fullName: string) => {
+    const tmp = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false, autoRefreshToken: false } });
+    const r = await tmp.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+    if (r.error) return { error: /already|registered/i.test(r.error.message) ? "الكود ده مسجل قبل كده، اختار كود تاني" : r.error.message };
+    // لو الإيميل موجود، supabase بيرجّع user من غير identities
+    if (!r.data.user || (r.data.user.identities && r.data.user.identities.length === 0)) return { error: "الكود ده مسجل قبل كده، اختار كود تاني" };
+    return { id: r.data.user.id };
+  };
+  const ctx: Ctx = { sb, uid, staff, role, name, tz, now: new Date(), custId, phone, analytics, signUp };
+
+  // تنفيذ عملية بعد ما المدير داس «تأكيد» في الكارت — مسار منفصل ماينفعش النموذج يوصله
+  if (body?.execute) {
+    if (role !== "owner" && role !== "manager") return json({ ok: false, message: "غير مصرح" }, 403);
+    const ex = body.execute;
+    const out = await executeAction(ctx, String(ex.action || ""), ex.params, ex.extra);
+    return json({ ok: out.ok, message: out.message });
+  }
+  if (!llm) return json({ reply: "المساعد لسه مش متفعّل (مفتاح الذكاء الاصطناعي ناقص).", off: true });
   try {
     const out = await chat(ctx, history, llm);
-    return json({ reply: out.reply, proposal: out.proposal, drills: out.drills, left: hit.data.left });
+    return json({ reply: out.reply, proposal: out.proposal, drills: out.drills, confirms: out.confirms, left: hit.data.left });
   } catch (e) {
     console.error("assistant", provider, model, String((e as Error)?.message || e));
     return json({ reply: "حصلت مشكلة مؤقتة في المساعد. جرّب تاني كمان شوية 🙏", error: true });

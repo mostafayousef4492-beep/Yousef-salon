@@ -2,6 +2,7 @@
 // تشغيل: node --experimental-strip-types --no-warnings tests/assistant_manager.test.mjs
 import assert from "node:assert/strict";
 import { chat, runTool, toolsFor, systemPrompt } from "../supabase/functions/assistant/core.ts";
+import { ACTION_NAMES } from "../supabase/functions/assistant/actions.ts";
 import { GUIDE, findTopics } from "../supabase/functions/assistant/guide.ts";
 
 const T = (n, f) => Promise.resolve().then(f).then(() => console.log("PASS:", n), (e) => { console.log("FAIL:", n, e.message); process.exitCode = 1; });
@@ -28,7 +29,7 @@ await T("المالك: التحليل + التشغيل", () => {
   for (const x of [...ANALYTICS, ...OPS]) assert.ok(n.includes(x), x);
 });
 await T("كل الأدوات قراءة فقط (مفيش اسم بيدل على كتابة/إرسال)", () => {
-  for (const t of toolsFor(true, "manager")) assert.ok(!/(create|delete|update|insert|send|write|close|pay_|book|set_|remove|edit|add_)/i.test(t.name), t.name);
+  for (const t of toolsFor(true, "manager").filter((x) => !ACTION_NAMES.includes(x.name))) assert.ok(!/(create|delete|update|insert|send|write|close|pay_|book|set_|remove|edit|add_)/i.test(t.name), t.name);
 });
 await T("المدير مايقدرش يشغّل أداة تحليل (مفيش نداء قاعدة)", async () => {
   const sb = mockSb();
@@ -100,7 +101,7 @@ await T("كل نداءات القاعدة من أدوات المدير ai_* بس
 });
 await T("برومبت المدير: للقراءة والشرح، ممنوع التنفيذ، مفيش تليفونات، وبيلزم الدليل", () => {
   const p = systemPrompt({ ...mgr });
-  assert.match(p, /how_to/); assert.match(p, /مابتنفّذش/); assert.match(p, /تليفونات العملاء مش متاحة/); assert.match(p, /ماتخترعش أزرار/); assert.ok(!/overview/.test(p));
+  assert.match(p, /how_to/); assert.match(p, /بتنفّذ بدل المدير/); assert.match(p, /تليفونات العملاء مش متاحة/); assert.match(p, /ماتخترعش أزرار/); assert.ok(!/overview/.test(p));
   assert.ok(!/مسموحلك بس بيانات المستخدم/.test(p));
 });
 await T("حلقة الدردشة: المدير بيسأل «إزاي أقفل اليوم» → how_to → رد بالخطوات", async () => {
