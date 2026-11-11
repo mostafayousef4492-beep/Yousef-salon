@@ -156,26 +156,27 @@ const DRK=["cash_sales","moves_in","exp_cash","adv_cash","moves_out","sal_cash",
 // الدرج: الرقم الأساسي = آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده (drawerTruth)،
 // وتحته حركة كل شهر لوحده (دخل/طلع) من أول حركة مسجلة. الحركة بتاعة الشهور للمتابعة، والرصيد من القفل.
 async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
-  const T=await drawerTruth(to);if(!T)return null;
   const first=async(t,c,x)=>{try{let q=sb.from(t).select(c).order(c,{ascending:true}).limit(1);if(x)q=x(q);const{data}=await q;return data&&data[0]&&data[0][c]?String(data[0][c]):null}catch(e){return null}};
   const[a,au]=await Promise.all([Promise.all([first("invoices","created_at",q=>q.eq("payment_method","cash")),first("cash_moves","day"),first("expenses","spent_on",q=>q.eq("paid_from","drawer")),first("salary_payments","paid_on",q=>q.eq("paid_from","drawer")),first("staff_transactions","created_at",q=>q.eq("kind","advance")),first("purchases","bought_on")]),sb.rpc("drawer_audit",{p_limit:30})]);
   const ds=a.filter(Boolean).map(v=>v.length>10?ymd(new Date(v)):v.slice(0,10)).sort();
   let from=ds[0];if(!from){const d0=new Date(today);d0.setDate(d0.getDate()-365);from=ymd(d0)}
   const M=[];let y=+from.slice(0,4),m=+from.slice(5,7)-1;const ey=today.getFullYear(),em=today.getMonth();
   while((y<ey||(y==ey&&m<=em))&&M.length<120){const s=new Date(y,m,1),e=new Date(y,m+1,0);M.push({key:ymd(s).slice(0,7),label:s.toLocaleDateString("ar-EG",{month:"long",year:"numeric"}),from:ymd(s),to:ymd(e)>to?to:ymd(e)});m++;if(m>11){m=0;y++}}
-  const R=await Promise.all(M.map(x=>sb.rpc("drawer_range",{p_from:x.from,p_to:x.to})));
+  const pe=new Date(C.rr[1]);pe.setDate(pe.getDate()-1);const pf=ymd(C.rr[0]),pt=ymd(pe);
+  const[R,PR]=await Promise.all([Promise.all(M.map(x=>sb.rpc("drawer_range",{p_from:x.from,p_to:x.to}))),sb.rpc("drawer_range",{p_from:pf,p_to:pt})]);
+  if(PR.error||!PR.data)return null;
   if(R.some(r=>r.error||!r.data))return null;
   const fill=(x,f)=>{const n=k=>+f[k]||0;x.f=f;x.tin=DR_IN.reduce((t,k)=>t+n(k),0);x.tout=DR_OUT.reduce((t,k)=>t+n(k),0);x.net=Math.round((x.tin-x.tout)*100)/100;return x};
   M.forEach((x,i)=>fill(x,R[i].data));
-  const since=fill({label:"كل الحركات",from:T.from,to:T.to},T.f||{});
-  return{f:{expected_cash:T.total},T,since,months:M,from,to,last:T.lc,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}
+  const since=fill({label:"الفترة المختارة",from:pf,to:pt},PR.data);
+  return{f:{expected_cash:since.net},since,months:M,from,to,pf,pt,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}
 async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
   const e=$("rpf");if(!e)return;if(error)return e.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"التقرير الشامل لسه ما اتفعّلش (شغّل patch_full_report.sql في Supabase).":esc(error.message)}</p>`;
   C.fr=f;C.fdr=dr;fullDraw()}
 const fullCost=()=>(+C.fr.cogs||0)+(+C.fr.expenses||0)+(+C.fr.staff_cost||0);
 function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.f.expected_cash!=null?+C.fdr.f.expected_cash:null;
-  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("الدرج دلوقتي (المتوقع)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
+  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("حركة الدرج (الفترة)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
 <div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
@@ -210,15 +211,13 @@ async function fullNoBarber(){const[a,b]=C.rr;
   dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
 
 // تفاصيل الدرج: الرصيد المعدود في آخر قفل + دخل وطلع بعده = الموجود المتوقع. وكل بند بيفتح حركاته من الداتابيز بنفس حسابه بالظبط.
-function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const T=D.T,S=D.since,tot=T.total,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse(),au=D.audit||[];
+function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
-  dsOpen("الدرج دلوقتي · "+fm(tot),`<div class="m" style="margin-bottom:6px">الموجود المتوقع = كل كاش دخل − كل كاش طلع من أول حركة مسجلة، من غير قفل اليوم ولا رصيد أول اليوم. اضغط على أي سطر تشوف حركاته.</div>
+  dsOpen("حركة الدرج · "+fm(S.net),`<div class="m" style="margin-bottom:6px">حركة الفترة المختارة لوحدها (${esc(S.from)} ← ${esc(S.to)}): كل كاش دخل − كل كاش طلع جواها، من غير رصيد من قبلها ولا قفل اليوم. اضغط على أي سطر تشوف حركاته.</div>
 ${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
 ${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
-<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span>${fm(tot)}</span></div>
-<div class="m" style="margin-top:6px">الفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>${T.closeTotal!=null&&Math.abs(T.closeTotal-tot)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-tot)}</b><div class="m">لو الحساب بدأ من الكاش المعدود في آخر قفل (${esc(T.lc)}: ${fm(T.counted)}) الرقم هيبقى ${fm(T.closeTotal)}. الفرق معناه إن الكاش المعدود في القفلات مختلف عن اللي الحركات بتقوله، راجع القفلات.</div></div>`:""}
-${au.length?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">⚠ أيام اتقفلت وبعد كده حركاتها اتغيّرت</b><div class="m">الرصيد المعدود في القفل اتحسب قبل التغيير. راجع الأيام دي (الرقم = التغيير في صافي اليوم بعد القفل):</div>${au.map(x=>`<div style="display:flex;justify-content:space-between;padding:3px 0"><span>${esc(x.day)}</span><b style="color:var(--red)">${fm(x.changed)}</b></div>`).join("")}</div>`:""}
-<h2>حركة كل شهر (دخل − طلع)</h2><div class="m" style="margin-bottom:4px">مجموع صافي الشهور = الموجود فوق.</div>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}`,{list:1})}
+<div class="tot" style="${tr}"><span>صافي حركة الفترة</span><span>${fm(S.net)}</span></div>
+<h2>حركة كل شهر لوحده</h2>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}`,{list:1})}
 const fullPer=i=>{const D=C.fdr;return D?(i<0?D.since:D.months[i]):null};
 function fullDrwMonth(i){const m=fullPer(i);if(!m)return;const f=m.f||{},n=k=>+f[k]||0;
   const IN=[["مبيعات كاش",n("cash_sales"),`fullDrw('sales',${i})`],["إيداع في الدرج",n("moves_in"),`fullDrw('in',${i})`]],
