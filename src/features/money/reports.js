@@ -193,6 +193,9 @@ function fullExp(){const f=C.fr,B=[];
   if(+f.cogs)B.push(["تكلفة المنتجات المباعة",f.cogs,null]);
   (f.expense_cats||[]).forEach((x,i)=>B.push([esc(x.c)+` <span class="m">· ${num(x.n)}</span>`,x.t,`fullCat(${i})`]));
   dsOpen("المصاريف · "+fm(fullCost()),`<div class="m" style="margin-bottom:6px">كل بند اضغط عليه تشوف تفاصيله</div>`+(B.length?B.map(x=>fRow(x[0],fm(x[1]),x[2])).join(""):`<p class="m">مفيش مصاريف في الفترة دي.</p>`)+`<div class="tot" style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:8px;padding-top:8px;font-weight:800"><span>الإجمالي</span><span>${fm(fullCost())}</span></div>`,{list:1})}
+// مستحقات الموظفين: كارت لكل موظف باقيله كام (رصيد حسابه)، وبالضغط كشف حسابه. مبتتخصمش من الدرج غير لما تتصرف فعلًا.
+function fullDues(){const f=C.fr,L=(f&&f.staff||[]).filter(x=>+x.balance>0).sort((a,b)=>b.balance-a.balance),tot=L.reduce((t,x)=>t+(+x.balance),0);
+  dsOpen("مستحقات الموظفين · "+fm(tot),`<div class="m" style="margin-bottom:6px">باقيله = رصيد حساب الموظف (اللي المحل مطالب يدفعه له). التزام بس، مش بيتخصم من الدرج غير لما يتصرف. اضغط على أي موظف تشوف كشف حسابه.</div>`+(L.map(x=>fRow(esc(x.name)+` <span class="m">· ${RL[x.role]||""}</span>`,fm(x.balance),`fullStaff('${x.id}','e')`)).join("")||`<p class="m">مفيش مستحقات.</p>`),{back:1})}
 function fullBand(k){const f=C.fr,T={commission:"عمولات الصنايعية",salary:"الرواتب",bonus:"المكافآت وأجر اليوم",deduction:"الخصومات"}[k],L=(f.staff||[]).filter(x=>+x[k]).sort((a,b)=>Math.abs(b[k])-Math.abs(a[k]));
   dsOpen(T,L.length?L.map(x=>fRow(esc(x.name)+` <span class="m">· ${RL[x.role]||""}</span>`,fm(k=="deduction"?-x[k]:x[k]),`fullStaff('${x.id}','e')`)).join(""):`<p class="m">مفيش.</p>`,{back:1})}
 async function fullCat(i){const f=C.fr,x=(f.expense_cats||[])[i],[a,b]=C.rr;if(!x)return;
@@ -224,7 +227,7 @@ function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الد�
   dsOpen("الموجود في الدرج · "+fm(val),`<div class="m" style="margin-bottom:6px">${head} اضغط على أي سطر تشوف حركاته.</div>
 ${balRows2}${fRow("+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow("− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
 <div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>
-<h2>مستحقات الموظفين (مش من الدرج)</h2><div class="m" style="margin-bottom:4px">فلوس المحل مطالب يدفعها للموظفين (عمولات ومرتبات ومكافآت لسه ما اتصرفتش). دي التزام بس، مبتتخصمش من الدرج غير لما تتصرف فعلًا.</div>${fRow("إجمالي المستحق لسه",fm(dues))}
+<h2>مستحقات الموظفين (مش من الدرج)</h2><div class="m" style="margin-bottom:4px">فلوس المحل مطالب يدفعها للموظفين (عمولات ومرتبات ومكافآت لسه ما اتصرفتش). دي التزام بس، مبتتخصمش من الدرج غير لما تتصرف فعلًا.</div>${fRow("إجمالي المستحق لسه",fm(dues),"fullDues()")}
 <h2>حركة الدرج في الفترة (دخل وطلع فعلًا)</h2><div class="m" style="margin-bottom:6px">${esc(S.from)} ← ${esc(S.to)}. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت.</div>
 ${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
 <div class="tot" style="${tr}"><span>صافي حركة الفترة</span><span style="color:${S.net<0?"var(--red)":"inherit"}">${fm(S.net)}</span></div>
