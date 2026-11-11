@@ -169,17 +169,17 @@ async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
   if(R.some(r=>r.error||!r.data))return null;
   const fill=(x,f)=>{const n=k=>+f[k]||0;x.f=f;x.tin=DR_IN.reduce((t,k)=>t+n(k),0);x.tout=DR_OUT.reduce((t,k)=>t+n(k),0);x.net=Math.round((x.tin-x.tout)*100)/100;return x};
   M.forEach((x,i)=>fill(x,R[i].data));
-  const own=!!me&&me.role=="owner",aft=!!T.lc;
+  const own=!!me&&me.role=="owner",aft=!own&&!!T.lc;
   const bal=aft?fill({label:"بعد قفل "+T.lc,from:T.afterFrom,to},T.fAfter||{}):fill({label:"كل الحركات",from:T.from,to},T.f||{});
-  const val=T.closeTotal!=null?T.closeTotal:T.total;
+  const val=own?T.total:(T.closeTotal!=null?T.closeTotal:T.total);
   const since=fill({label:"الفترة المختارة",from:pf,to:pt},PR.data);
-  return{f:{expected_cash:since.net},bal,val,T,since,own,months:M,from,to,pf,pt,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}async function fullLoad(){const[a,b]=C.rr;
+  return{f:{expected_cash:val},bal,val,T,since,own,months:M,from,to,pf,pt,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
   const e=$("rpf");if(!e)return;if(error)return e.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"التقرير الشامل لسه ما اتفعّلش (شغّل patch_full_report.sql في Supabase).":esc(error.message)}</p>`;
   C.fr=f;C.fdr=dr;fullDraw()}
 const fullCost=()=>(+C.fr.cogs||0)+(+C.fr.expenses||0)+(+C.fr.staff_cost||0);
 function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.f.expected_cash!=null?+C.fdr.f.expected_cash:null;
-  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("حركة الدرج (الفترة)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
+  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("الموجود في الدرج (متوقع)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
 <div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
@@ -216,16 +216,19 @@ async function fullNoBarber(){const[a,b]=C.rr;
 // تفاصيل الدرج: الرصيد المعدود في آخر قفل + دخل وطلع بعده = الموجود المتوقع. وكل بند بيفتح حركاته من الداتابيز بنفس حسابه بالظبط.
 function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,B=D.bal,T=D.T,own=D.own,val=D.val,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
-  const cmp=own&&T.closeTotal!=null&&Math.abs(T.total-T.closeTotal)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">الحركات بس بتدّي ${fm(T.total)} (فرق ${fm(T.closeTotal-T.total)} عن رصيد القفل)</b><div class="m">الرصيد المعروض هو المعدود في آخر قفل (${esc(T.lc)}: ${fm(T.counted)}) + الحركات بعده. الفرق ده من فروق عدّ اتقبلت في القفلات أو أيام حركاتها اتغيّرت بعد القفل، راجع القفلات.</div></div>`:"";
+  const cmp=own&&T.closeTotal!=null&&Math.abs(T.total-T.closeTotal)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-T.total)}</b><div class="m">الرصيد المعروض من الحركات الفعلية = ${fm(T.total)}. لو حسبناه من آخر رصيد معدود في القفل (${esc(T.lc)}: ${fm(T.counted)}) + الحركات بعده يبقى ${fm(T.closeTotal)}. الفرق من فروق عدّ اتقبلت في القفلات أو أيام حركاتها اتغيّرت بعد القفل، راجع القفلات.</div></div>`:"";
   const atx=T.lcAt?new Date(T.lcAt).toLocaleString("ar-EG",{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"",balRows=fRow(T.lc?("آخر جرد (قفل "+esc(T.lc)+") <span class=\"m\">· "+esc(atx)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
-  dsOpen("حركة الدرج · "+fm(S.net),`<div class="m" style="margin-bottom:6px">حركة الفترة المختارة لوحدها (${esc(S.from)} ← ${esc(S.to)}): كل كاش دخل − كل كاش طلع جواها. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت. اضغط على أي سطر تشوف حركاته.</div>
-${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
-${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
+  const dues=((C.fr&&C.fr.staff)||[]).reduce((t,x)=>t+Math.max(0,+x.balance||0),0),
+    balRows2=own?"":balRows,
+    head=own?"كل كاش دخل − كل كاش طلع من أول حركة، من غير قفل اليوم ولا رصيد أول اليوم. بيتخصم بس اللي اتصرف فعلًا من الدرج.":"آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده. بيتخصم بس اللي اتصرف فعلًا من الدرج.";
+  dsOpen("الموجود في الدرج · "+fm(val),`<div class="m" style="margin-bottom:6px">${head} اضغط على أي سطر تشوف حركاته.</div>
+${balRows2}${fRow(own?"+ دخل الدرج":"+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow(own?"− طلع من الدرج":"− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
+<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>
+<h2>مستحقات الموظفين (مش من الدرج)</h2><div class="m" style="margin-bottom:4px">فلوس المحل مطالب يدفعها للموظفين (عمولات ومرتبات ومكافآت لسه ما اتصرفتش). دي التزام بس، مبتتخصمش من الدرج غير لما تتصرف فعلًا.</div>${fRow("إجمالي المستحق لسه",fm(dues))}
+<h2>حركة الدرج في الفترة (دخل وطلع فعلًا)</h2><div class="m" style="margin-bottom:6px">${esc(S.from)} ← ${esc(S.to)}. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت.</div>
+${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
 <div class="tot" style="${tr}"><span>صافي حركة الفترة</span><span style="color:${S.net<0?"var(--red)":"inherit"}">${fm(S.net)}</span></div>
 <h2>حركة كل شهر لوحده</h2>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}
-<h2>الموجود في الدرج دلوقتي (من القفل)</h2><div class="m" style="margin-bottom:4px">آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده.</div>
-${balRows}${fRow("+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow("− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
-<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>
 <h2>عدّ فعلي دلوقتي</h2><div class="m" style="margin-bottom:6px">اعدّ الدرج واكتب الرقم، هيظهر لك الفرق عن المتوقع (زيادة أو عجز). ده للمقارنة بس، مش بيتسجّل. للتسجيل اعمل «قفل اليوم».</div><input id="drc" type="text" inputmode="decimal" placeholder="اللي عدّيته فعلاً" oninput="drCount()" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font-size:16px"><div id="drcr" style="margin-top:8px"></div>${cmp}`,{list:1})}
 // فرق العدّ الفعلي عن الموجود المتوقع: موجب = زيادة، سالب = عجز
 function drCount(){const D=C.fdr,e=$("drc"),o=$("drcr");if(!D||!e||!o)return;const t=String(e.value||"").trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[٫,]/g,".");if(t===""){o.innerHTML="";return}const n=Number(t);if(!isFinite(n)||n<0){o.innerHTML=`<span class="m">اكتب رقم صحيح</span>`;return}const d=Math.round((n-D.val)*100)/100;o.innerHTML=Math.abs(d)<0.5?`<b style="color:var(--ok)">مظبوط ✓ (المتوقع ${fm(D.val)})</b>`:`<b style="color:${d>0?"var(--ok)":"var(--red)"}">${d>0?"زيادة":"عجز"} ${fm(Math.abs(d))}</b><div class="m">المتوقع ${fm(D.val)} · المعدود ${fm(n)}</div>`}
