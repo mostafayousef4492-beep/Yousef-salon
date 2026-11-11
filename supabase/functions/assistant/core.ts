@@ -18,6 +18,8 @@ export type Ctx = {
 
 import { ADMIN_TOOLS, ADMIN_HANDLERS, adminPrompt } from "./admin.ts";
 import { OPS_TOOLS, OPS_HANDLERS, opsPrompt } from "./ops.ts";
+import { INSIGHT_TOOLS, INSIGHT_HANDLERS } from "./insights.ts";
+import { GUIDE, findTopics } from "./guide.ts";
 import { ACTION_TOOLS, ACTION_NAMES, toolAction, EXEC_RULES } from "./actions.ts";
 
 export type Llm = (system: string, messages: any[], tools: any[]) => Promise<any>;
@@ -282,6 +284,63 @@ async function toolAnnouncements(ctx: Ctx) {
   return { announcements: data || [] };
 }
 
+
+// ---------- أدوات إضافية: الموظف والعميل ----------
+async function toolMyDay(ctx: Ctx) {
+  const r = rangeFor("today", undefined, undefined, ctx.now, ctx.tz);
+  const sm = await ctx.sb.rpc("staff_summary", { p_staff: ctx.uid, p_from: r.fromISO, p_to: r.toISO });
+  if (sm.error) throw new Error(sm.error.message);
+  const x = (Array.isArray(sm.data) ? sm.data[0] : sm.data) || {};
+  let waiting: number | null = null;
+  if (ctx.role === "barber") { try { const q = await ctx.sb.rpc("my_queue", { p_barber: ctx.uid, p_day: r.fromDay }); waiting = (q.data || []).filter((t: any) => ["upcoming", "checked_in"].includes(t.status)).length; } catch { /* */ } }
+  return {
+    day: r.fromDay, source: "ملخص حسابك لليوم (نفس شاشة حسابي)", method: "مبيعات وعمولة النهارده من فواتيرك. القيم null معناها مش مسموحلك تشوفها.",
+    data: { sales_today: x.sales, cuts_today: x.cuts, commission_today: x.commission, waiting_in_queue: waiting },
+    note: ctx.role === "barber" ? "لو عايز تعرف تقدمك في التارجتات اسأل عنها." : undefined,
+  };
+}
+const STAFF_HOWTO_TOPICS = ["partial_pay", "attendance", "add_customer"];
+async function toolStaffHowTo(_ctx: Ctx, a: any) {
+  // لو أقرب موضوع للسؤال مش من مواضيع الكاشير يبقى مفيش إجابة (مانرجّعش موضوع تاني قريب بالغلط)
+  const top = a?.topic_id ? [] : findTopics(String(a?.question || ""));
+  const found = top.length && !STAFF_HOWTO_TOPICS.includes(top[0].id) ? [] : findTopics(String(a?.question || ""), STAFF_HOWTO_TOPICS.includes(a?.topic_id) ? a.topic_id : undefined).filter((t) => STAFF_HOWTO_TOPICS.includes(t.id));
+  if (!found.length) return { found: false, note: "مفيش عندي خطوات مؤكدة للموضوع ده. قول للموظف يسأل الإدارة وماتخمنش.", available_topics: GUIDE.filter((t) => STAFF_HOWTO_TOPICS.includes(t.id)).map((t) => ({ id: t.id, title: t.title })) };
+  return { found: true, source: "دليل استخدام التطبيق", topics: found.map((t) => ({ title: t.title, steps: t.steps, notes: t.notes || [] })), instruction: "اشرح الخطوات بالترتيب من غير زيادة، وماتخترعش أزرار." };
+}
+
+async function toolSuggestSlot(ctx: Ctx, a: any) {
+  const st = await settings(ctx, ["booking_open", "days_ahead", "weekly_off"]);
+  if (st.booking_open === false || st.booking_open === "false") return { ok: false, error: "الحجز الأونلاين متوقف حاليًا" };
+  const today = localDate(ctx.now, ctx.tz), h = localHour(ctx.now, ctx.tz);
+  const span = Math.min(Math.max(+st.days_ahead || 1, 1), 3);
+  const only = PERIODS[a?.period] ? [a.period] : Object.keys(PERIODS);
+  const jobs: { day: string; period: string }[] = [];
+  for (let i = 0; i < span; i++) {
+    const day = addDays(today, i);
+    if (+st.weekly_off >= 0 && dow(day) === +st.weekly_off) continue;
+    for (const per of only) { if (day === today && h >= PERIODS[per].to && per !== "night") continue; jobs.push({ day, period: per }); }
+  }
+  const res = await Promise.all(jobs.map(async (j) => { const r = await ctx.sb.rpc("available_barbers", { p_day: j.day, p_period: j.period }); return { ...j, list: r.error ? [] : (r.data || []) as any[] }; }));
+  const opts: any[] = [];
+  for (const r of res) for (const b of r.list) opts.push({ day: r.day, period: r.period, period_label: PERIODS[r.period].label, barber_id: b.id, barber_name: b.full_name, waiting: Number(b.waiting ?? 0), est_min: Number(b.est_min ?? 0) });
+  opts.sort((x, y) => x.est_min - y.est_min || x.waiting - y.waiting || x.day.localeCompare(y.day));
+  const top = opts.slice(0, 4);
+  return { source: "available_barbers لكل يوم/فترة متاحة", method: "الترتيب بأقل وقت انتظار متوقع (est_min) ثم أقل عدد منتظرين، وبعدها الأقرب يوم. الحجز بالفترة مش بساعة بالظبط.", data: { suggestions: top, searched_options: opts.length }, data_gaps: top.length ? [] : ["مفيش حلاقين متاحين في الأيام/الفترات المسموحة."], instruction: "اعرض أفضل خيار أو اتنين باختصار، ولو العميل وافق نادي propose_booking بالخدمات اللي يختارها." };
+}
+
+async function toolLoyaltyProgress(ctx: Ctx) {
+  const acc: any = await toolMyAccount(ctx);
+  if (acc.error) return acc;
+  const pts = Number(acc.points || 0), rewards: any[] = (acc.rewards || []).map((r: any) => ({ name: r.name, cost: Number(r.cost) })).filter((r: any) => r.cost > 0).sort((x: any, y: any) => x.cost - y.cost);
+  const can = rewards.filter((r) => r.cost <= pts), next = rewards.find((r) => r.cost > pts) || null;
+  const ls = acc.loyalty_settings || {}; const every = Number(ls.visit_bonus_every || 0), bonus = Number(ls.visit_bonus_points || 0);
+  return {
+    source: "ملف العميل + مكافآت النقاط + إعدادات الولاء", method: "المتبقي للمكافأة التالية = تكلفتها − نقاطك. زيارات للمكافأة = كل N زيارة من إعدادات الصالون.",
+    data: { points: pts, visits: acc.visits, can_redeem_now: can.slice(-3), next_reward: next ? { ...next, points_missing: next.cost - pts } : null, visits_to_next_visit_bonus: every > 0 ? every - (Number(acc.visits || 0) % every) : null, visit_bonus_points: every > 0 ? bonus : null },
+    data_gaps: rewards.length ? [] : ["مفيش مكافآت نقاط متاحة دلوقتي."],
+  };
+}
+
 // ---------- تعريف الأدوات ----------
 const T_INFO = { name: "salon_info", description: "معلومات الصالون: الاسم، العنوان، التليفون، مواعيد الفتح والقفل، الأجازة الأسبوعية، كام يوم قدام ينفع تحجز، رسوم الخدمة خارج المحل، وتاريخ ووقت النهارده.", input_schema: { type: "object", properties: {} } };
 
@@ -291,12 +350,15 @@ const CUSTOMER_TOOLS = [
   { name: "barbers_now", description: "الحلاقين المتاحين في يوم وفترة معينة، وهل كل واحد سجّل حضوره النهارده، وكام منتظر عنده والوقت المتوقع. من غير مدخلات = النهارده في الفترة الحالية.", input_schema: { type: "object", properties: { day: { type: "string", description: "YYYY-MM-DD" }, period: { type: "string", enum: ["morning", "afternoon", "evening", "night"] } } } },
   { name: "my_account", description: "نقاط العميل وزياراته وكود الإحالة الخاص بيه، وقايمة مكافآت النقاط (الخدمات اللي ينفع يستبدلها).", input_schema: { type: "object", properties: {} } },
   { name: "my_bookings", description: "حجوزات العميل الأخيرة وحالتها، ولو فيه حجز شغال: رقمه وكام واحد قدامه والوقت المتوقع والحلاق.", input_schema: { type: "object", properties: {} } },
+  { name: "suggest_slot", description: "أنسب مواعيد للحجز: أقل وقت انتظار في الأيام المسموحة (بيرجّع أحسن 4 اختيارات: يوم/فترة/حلاق/انتظار). استخدمها لما العميل يقول «أنهي وقت أسرع؟» أو «احجزلي في أقرب وقت». period اختياري.", input_schema: { type: "object", properties: { period: { type: "string", enum: ["morning", "afternoon", "evening", "night"] } } } },
+  { name: "loyalty_progress", description: "تقدم العميل في الولاء: نقاطه، المكافآت اللي يقدر يستبدلها دلوقتي، المتبقي للمكافأة الجاية، وكام زيارة لمكافأة الزيارات.", input_schema: { type: "object", properties: {} } },
   { name: "propose_booking", description: "تجهيز حجز للعميل (مش بيسجّل حاجة). الحجز بالفترة مش بالساعة: morning 6ص–12ظ، afternoon 12ظ–5م، evening 5م–12 منتصف الليل، night بعد منتصف الليل–6ص. لو العميل قال ساعة معينة حوّلها للفترة المناسبة وقوله إن الحجز بالفترة والدور بيتحدد بالترتيب. استخدم id الخدمات من list_services وid الحلاق من barbers_now. بعد ما تنجح، العميل هيشوف زرار تأكيد.", input_schema: { type: "object", properties: { day: { type: "string", description: "YYYY-MM-DD" }, period: { type: "string", enum: ["morning", "afternoon", "evening", "night"] }, barber_id: { type: "string", description: "اختياري. من غيره = أي حلاق متاح" }, service_ids: { type: "array", items: { type: "integer" } } }, required: ["day", "period", "service_ids"] } },
 ];
 
 const STAFF_TOOLS = [
   T_INFO,
   { name: "my_info", description: "بياناتك: الاسم والوظيفة ونسبة العمولة والمرتب الشهري (لو مسموحلك).", input_schema: { type: "object", properties: {} } },
+  { name: "my_day", description: "ملخص يومك النهارده: مبيعاتك وعدد قصاتك وعمولتك لحد دلوقتي، وعدد المنتظرين عندك (للحلاقين).", input_schema: { type: "object", properties: {} } },
   { name: "my_money", description: "فلوسك في فترة: المبيعات، عدد القصات، العمولة، جزء المرتب، المكافآت، السحوبات والسلف، الخصومات، الصافي المستحق، ومعاها قايمة الحركات.", input_schema: { type: "object", properties: RANGE_PROP } },
   { name: "my_attendance", description: "حضورك وانصرافك في فترة: عدد الأيام وإجمالي الساعات ودقايق التأخير وتفاصيل كل يوم.", input_schema: { type: "object", properties: RANGE_PROP } },
   { name: "my_reviews", description: "تقييمات الزبائن ليك (للحلاقين): المتوسط وآخر التقييمات والملاحظات.", input_schema: { type: "object", properties: { limit: { type: "integer" } } } },
@@ -306,20 +368,21 @@ const STAFF_TOOLS = [
   { name: "team_announcements", description: "إعلانات الإدارة للفريق.", input_schema: { type: "object", properties: {} } },
 ];
 
+const STAFF_HOWTO = { name: "how_to", description: "خطوات استخدام التطبيق للكاشير: الدفع الجزئي وسداد الدين، الحضور، إضافة عميل. استخدمها لأي سؤال «إزاي أعمل …».", input_schema: { type: "object", properties: { question: { type: "string" }, topic_id: { type: "string", enum: STAFF_HOWTO_TOPICS } }, required: ["question"] } };
 export const isAdminRole = (role: string) => role === "owner" || role === "manager";
 // المالك: تحليل + تشغيل. المدير: تشغيل بس (دليل خطوات + أرقام موظف + بيانات عميل). غيرهم: أدواتهم الشخصية.
 export function toolsFor(staff: boolean, role = "", analytics = true) {
   if (!staff) return CUSTOMER_TOOLS;
-  if (role === "owner") return analytics ? [T_INFO, ...ADMIN_TOOLS, ...OPS_TOOLS, ...ACTION_TOOLS] : [T_INFO, ...OPS_TOOLS, ...ACTION_TOOLS];
+  if (role === "owner") return analytics ? [T_INFO, ...ADMIN_TOOLS, ...INSIGHT_TOOLS, ...OPS_TOOLS, ...ACTION_TOOLS] : [T_INFO, ...OPS_TOOLS, ...ACTION_TOOLS];
   if (role === "manager") return [T_INFO, ...OPS_TOOLS, ...ACTION_TOOLS];
-  return STAFF_TOOLS;
+  return role === "cashier" ? [...STAFF_TOOLS, STAFF_HOWTO] : STAFF_TOOLS;
 }
 
 const HANDLERS: Record<string, (ctx: Ctx, a: any) => Promise<any>> = {
   salon_info: toolSalonInfo, list_services: toolListServices, barbers_now: toolBarbersNow, my_account: toolMyAccount,
   my_bookings: toolMyBookings, propose_booking: toolProposeBooking,
   my_info: toolMyInfo, my_money: toolMyMoney, my_attendance: toolMyAttendance, my_reviews: toolMyReviews,
-  my_schedule: toolMySchedule, my_queue: toolMyQueue, my_targets: toolMyTargets, team_announcements: toolAnnouncements,
+  my_schedule: toolMySchedule, my_day: toolMyDay, how_to: toolStaffHowTo, suggest_slot: toolSuggestSlot, loyalty_progress: toolLoyaltyProgress, my_queue: toolMyQueue, my_targets: toolMyTargets, team_announcements: toolAnnouncements,
 };
 
 export async function runTool(ctx: Ctx, name: string, input: any): Promise<{ result: any; proposal?: any; drills?: any[]; confirm?: any }> {
@@ -328,7 +391,7 @@ export async function runTool(ctx: Ctx, name: string, input: any): Promise<{ res
     try { const r = await toolAction(ctx, name, input); return { result: r, confirm: r?.confirm_card }; }
     catch (e: any) { return { result: { error: String(e?.message || e).slice(0, 300) } }; }
   }
-  const h = isAdminRole(ctx.role) && ctx.staff ? (name === "salon_info" ? toolSalonInfo : ctx.role === "owner" ? (ADMIN_HANDLERS[name] || OPS_HANDLERS[name]) : OPS_HANDLERS[name]) : HANDLERS[name];
+  const h = isAdminRole(ctx.role) && ctx.staff ? (name === "salon_info" ? toolSalonInfo : ctx.role === "owner" ? (ADMIN_HANDLERS[name] || INSIGHT_HANDLERS[name] || OPS_HANDLERS[name]) : OPS_HANDLERS[name]) : HANDLERS[name];
   if (!allowed || !h) return { result: { error: "أداة غير متاحة" } };
   try {
     const r = await h(ctx, input || {});
@@ -351,9 +414,14 @@ export function systemPrompt(ctx: Ctx): string {
 - لو السؤال بعيد عن شغل الصالون، رد بإيجاز إنك مساعد الصالون وارجع للموضوع.`;
   if (ctx.staff && isAdminRole(ctx.role)) { const b = base.replace(/- مسموحلك بس بيانات[^\n]*\n/, ""); return ctx.role === "owner" && ctx.analytics !== false ? b + adminPrompt(ctx) + "\n" + opsPrompt(ctx, false).split("\n").slice(2).join("\n") + EXEC_RULES : b + opsPrompt(ctx) + EXEC_RULES; }
   if (ctx.staff) {
-    return base + `\nإنت بتخدم موظف في الصالون اسمه ${ctx.name || "—"} (وظيفته: ${ctx.role}). بتجاوبه عن راتبه وعمولته وسحوباته وخصوماته وحضوره وتقييماته ومواعيده وتارجتاته وإعلانات الإدارة ودوره النهارده. لما يسأل عن فلوسه اشرح المكونات (مرتب + عمولة + مكافآت − سلف − خصومات = الصافي). لو الصلاحية مش موجودة قول إن الإدارة مش مفعّلة له عرض ده. إنت ماتقدرش تعدّل أي حاجة، بتجاوب بس.`;
+    return base + `\nإنت بتخدم موظف في الصالون اسمه ${ctx.name || "—"} (وظيفته: ${ctx.role}). بتجاوبه عن راتبه وعمولته وسحوباته وخصوماته وحضوره وتقييماته ومواعيده وتارجتاته وإعلانات الإدارة ودوره النهارده. لما يسأل عن فلوسه اشرح المكونات (مرتب + عمولة + مكافآت − سلف − خصومات = الصافي). لو الصلاحية مش موجودة قول إن الإدارة مش مفعّلة له عرض ده. إنت ماتقدرش تعدّل أي حاجة، بتجاوب بس.
+- «يومي النهارده/عملت كام/عمولتي النهارده» → my_day. «إزاي أسدد دين/أعمل دفع جزئي/أسجل حضور» (للكاشير) → how_to بس، واشرح الخطوات من الدليل من غير ما تخترع أزرار.
+- المبالغ ممكن تتقال بالحروف («ميتين»=200، «ألف ونص»=1500) والتواريخ («امبارح»، «الخميس اللي فات») حوّلها قبل ما تنده الأداة. لو مش متأكد اسأل.`;
   }
-  return base + `\nإنت بتخدم عميل اسمه ${ctx.name || "—"}. بتجاوبه عن الحلاقين (مين حضر النهارده، مين فاضي)، وعن نقاطه ومكافآته، وعن حجوزاته والدور، وعن الخدمات والأسعار. ولو عايز يحجز: اعرف منه الخدمات واليوم والفترة (والحلاق لو يحب)، شغّل propose_booking، واعرض ملخص الحجز، وقوله يدوس «تأكيد الحجز». ماتقولش إن الحجز اتسجل قبل ما يدوس. الحجز في الصالون بالفترة (صبح/عصر/مساء/بعد منتصف الليل) مش بساعة بالظبط، والدور بيتحدد بترتيب الحجز. لو طلب يوم بعيد عن المسموح قوله المتاح فعلًا.`;
+  return base + `\nإنت بتخدم عميل اسمه ${ctx.name || "—"}. بتجاوبه عن الحلاقين (مين حضر النهارده، مين فاضي)، وعن نقاطه ومكافآته، وعن حجوزاته والدور، وعن الخدمات والأسعار. ولو عايز يحجز: اعرف منه الخدمات واليوم والفترة (والحلاق لو يحب)، شغّل propose_booking، واعرض ملخص الحجز، وقوله يدوس «تأكيد الحجز». ماتقولش إن الحجز اتسجل قبل ما يدوس. الحجز في الصالون بالفترة (صبح/عصر/مساء/بعد منتصف الليل) مش بساعة بالظبط، والدور بيتحدد بترتيب الحجز. لو طلب يوم بعيد عن المسموح قوله المتاح فعلًا.
+- «أنهي وقت أسرع/احجزلي في أقرب وقت/مين فاضي» → suggest_slot (بيقارن الانتظار)، وبعدها اعرض أحسن اختيار وانتظر موافقته قبل propose_booking.
+- «كام نقطة ناقصة/أقدر أستبدل إيه/قرّبت على مكافأة» → loyalty_progress. اذكر المتبقي بالرقم من الأداة.
+- المبالغ والمواعيد بالكلام المصري («بكره العصر»، «آخر الليل») حوّلها لفترة الحجز المناسبة، ولو مش واضح اسأل سؤال واحد بس.`;
 }
 
 // أزرار «عرض الفواتير» اللي بترجع للواجهة (بدون تكرار، بحد أقصى 6، وبقيم متحقَّق منها)

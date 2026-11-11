@@ -5,6 +5,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { chat, type Ctx } from "./core.ts";
 import { executeAction } from "./actions.ts";
+import { buildBrief } from "./brief.ts";
 import { makeLlm } from "./llm.ts";
 
 const CORS = {
@@ -82,6 +83,11 @@ Deno.serve(async (req) => {
     const ex = body.execute;
     const out = await executeAction(ctx, String(ex.action || ""), ex.params, ex.extra);
     return json({ ok: out.ok, message: out.message });
+  }
+  // ملخص اليوم الاستباقي: حقائق من القاعدة من غير نموذج
+  if (body?.brief) {
+    if (role !== "owner" && role !== "manager") return json({ ok: false }, 403);
+    try { return json({ ok: true, brief: await buildBrief(ctx) }); } catch { return json({ ok: false }); }
   }
   if (!llm) return json({ reply: "المساعد لسه مش متفعّل (مفتاح الذكاء الاصطناعي ناقص).", off: true });
   try {

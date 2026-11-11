@@ -39,7 +39,7 @@ await T("المدير مايقدرش يشغّل أداة تحليل (مفيش ن
 await T("حلاق/كاشير/مساعد/عميل مالهمش أدوات المدير", async () => {
   for (const [staff, role] of [[true, "barber"], [true, "cashier"], [true, "assistant"], [false, "customer"]]) {
     const sb = mockSb();
-    for (const n of OPS) assert.match((await runTool({ ...mgr, sb, staff, role }, n, { question: "x", staff: "x", name: "x", query: "xx", customer_id: 1 })).result.error, /غير متاحة/);
+    for (const n of OPS.filter((x) => !(x === "how_to" && role === "cashier"))) assert.match((await runTool({ ...mgr, sb, staff, role }, n, { question: "x", staff: "x", name: "x", query: "xx", customer_id: 1 })).result.error, /غير متاحة/);
     assert.equal(sb.calls.length, 0);
   }
 });
