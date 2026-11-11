@@ -71,5 +71,16 @@ function t24v(id,v){const el=$(id);if(!el)return;const s=el.parentNode.querySele
 if(m&&![...s[1].options].some(o=>o.value==m)){const o=new Option(m,m);s[1].add(o);[...s[1].options].sort((a,b)=>a.value-b.value).forEach(x=>s[1].add(x))}
 s[0].value=h||"";s[1].value=m||"00";el.value=v?v.slice(0,5):""}
 
-// رصيد الدرج من الحركات الفعلية بس (كل كاش دخل − كل كاش طلع لحد اليوم ده)، من غير رصيد أول اليوم ولا قفل اليوم
-async function drawerLedger(toDay){try{const d=new Date(toDay+"T00:00");d.setDate(d.getDate()-365);const{data,error}=await sb.rpc("drawer_range",{p_from:ymd(d),p_to:toDay});if(error||!data||data.expected_cash==null)return null;return Math.round((+data.expected_cash-(+data.opening||0))*100)/100}catch(e){return null}}
+// الدرج الفعلي = آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده (مش مجموع الحركات من أول يوم).
+// لو مفيش قفل خالص: بنجمع الحركات (آخر 365 يوم) كحل بديل.
+const drRound=v=>Math.round(v*100)/100;
+async function drawerTruth(toDay){try{
+  const{data:cl,error:ce}=await sb.from("cash_closings").select("day,counted_cash").lte("day",toDay).order("day",{ascending:false}).limit(1);if(ce)return null;
+  const c=cl&&cl[0];
+  if(!c){const d=new Date(toDay+"T00:00");d.setDate(d.getDate()-365);const from=ymd(d),{data,error}=await sb.rpc("drawer_range",{p_from:from,p_to:toDay});if(error||!data||data.expected_cash==null)return null;return{lc:null,base:0,from,to:toDay,f:data,total:drRound(+data.expected_cash-(+data.opening||0))}}
+  const base=+c.counted_cash;
+  if(c.day==toDay)return{lc:c.day,base,from:null,to:toDay,f:null,total:drRound(base)};
+  const d=new Date(c.day+"T00:00");d.setDate(d.getDate()+1);const from=ymd(d),{data,error}=await sb.rpc("drawer_range",{p_from:from,p_to:toDay});
+  if(error||!data||data.expected_cash==null)return null;
+  return{lc:c.day,base,from,to:toDay,f:data,total:drRound(+data.expected_cash)}}catch(e){return null}}
+async function drawerLedger(toDay){const t=await drawerTruth(toDay);return t?t.total:null}
