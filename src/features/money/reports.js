@@ -217,7 +217,7 @@ async function fullNoBarber(){const[a,b]=C.rr;
 function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,B=D.bal,T=D.T,own=D.own,val=D.val,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
   const cmp=own&&T.closeTotal!=null&&Math.abs(T.total-T.closeTotal)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">الحركات بس بتدّي ${fm(T.total)} (فرق ${fm(T.closeTotal-T.total)} عن رصيد القفل)</b><div class="m">الرصيد المعروض هو المعدود في آخر قفل (${esc(T.lc)}: ${fm(T.counted)}) + الحركات بعده. الفرق ده من فروق عدّ اتقبلت في القفلات أو أيام حركاتها اتغيّرت بعد القفل، راجع القفلات.</div></div>`:"";
-  const balRows=fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
+  const atx=T.lcAt?new Date(T.lcAt).toLocaleString("ar-EG",{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"",balRows=fRow(T.lc?("آخر جرد (قفل "+esc(T.lc)+") <span class=\"m\">· "+esc(atx)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
   dsOpen("حركة الدرج · "+fm(S.net),`<div class="m" style="margin-bottom:6px">حركة الفترة المختارة لوحدها (${esc(S.from)} ← ${esc(S.to)}): كل كاش دخل − كل كاش طلع جواها. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت. اضغط على أي سطر تشوف حركاته.</div>
 ${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
 ${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
@@ -225,7 +225,10 @@ ${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
 <h2>حركة كل شهر لوحده</h2>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}
 <h2>الموجود في الدرج دلوقتي (من القفل)</h2><div class="m" style="margin-bottom:4px">آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده.</div>
 ${balRows}${fRow("+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow("− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
-<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>${cmp}`,{list:1})}
+<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>
+<h2>عدّ فعلي دلوقتي</h2><div class="m" style="margin-bottom:6px">اعدّ الدرج واكتب الرقم، هيظهر لك الفرق عن المتوقع (زيادة أو عجز). ده للمقارنة بس، مش بيتسجّل. للتسجيل اعمل «قفل اليوم».</div><input id="drc" type="text" inputmode="decimal" placeholder="اللي عدّيته فعلاً" oninput="drCount()" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font-size:16px"><div id="drcr" style="margin-top:8px"></div>${cmp}`,{list:1})}
+// فرق العدّ الفعلي عن الموجود المتوقع: موجب = زيادة، سالب = عجز
+function drCount(){const D=C.fdr,e=$("drc"),o=$("drcr");if(!D||!e||!o)return;const t=String(e.value||"").trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[٫,]/g,".");if(t===""){o.innerHTML="";return}const n=Number(t);if(!isFinite(n)||n<0){o.innerHTML=`<span class="m">اكتب رقم صحيح</span>`;return}const d=Math.round((n-D.val)*100)/100;o.innerHTML=Math.abs(d)<0.5?`<b style="color:var(--ok)">مظبوط ✓ (المتوقع ${fm(D.val)})</b>`:`<b style="color:${d>0?"var(--ok)":"var(--red)"}">${d>0?"زيادة":"عجز"} ${fm(Math.abs(d))}</b><div class="m">المتوقع ${fm(D.val)} · المعدود ${fm(n)}</div>`}
 const fullPer=i=>{const D=C.fdr;return D?(i==-2?D.bal:i<0?D.since:D.months[i]):null};
 function fullDrwMonth(i){const m=fullPer(i);if(!m)return;const f=m.f||{},n=k=>+f[k]||0;
   const IN=[["مبيعات كاش",n("cash_sales"),`fullDrw('sales',${i})`],["إيداع في الدرج",n("moves_in"),`fullDrw('in',${i})`]],
