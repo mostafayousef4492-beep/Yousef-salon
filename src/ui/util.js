@@ -78,8 +78,8 @@ const drRound=v=>Math.round(v*100)/100;
 async function drawerTruth(toDay){try{
   const d0=new Date(toDay+"T00:00");d0.setDate(d0.getDate()-365);const from=ymd(d0);
   const{data,error}=await sb.rpc("drawer_range",{p_from:from,p_to:toDay});if(error||!data||data.expected_cash==null)return null;
-  const total=drRound(+data.expected_cash-(+data.opening||0));let lc=null,counted=null,closeTotal=null,fAfter=null,afterFrom=null;
-  try{const{data:cl}=await sb.from("cash_closings").select("day,counted_cash").lte("day",toDay).order("day",{ascending:false}).limit(1),c=cl&&cl[0];
-    if(c){lc=c.day;counted=+c.counted_cash;if(c.day==toDay){closeTotal=drRound(counted);fAfter={}}else{const d=new Date(c.day+"T00:00");d.setDate(d.getDate()+1);afterFrom=ymd(d);const{data:r2}=await sb.rpc("drawer_range",{p_from:afterFrom,p_to:toDay});if(r2&&r2.expected_cash!=null){closeTotal=drRound(+r2.expected_cash);fAfter=r2}}}}catch(e){}
-  return{lc,counted,closeTotal,fAfter,afterFrom,base:0,from,to:toDay,f:data,total}}catch(e){return null}}
-async function drawerLedger(toDay){const t=await drawerTruth(toDay);return t?t.total:null}
+  const total=drRound(+data.expected_cash-(+data.opening||0));let lc=null,lcAt=null,counted=null,closeTotal=null,fAfter=null,afterFrom=null;
+  try{const{data:cl}=await sb.from("cash_closings").select("day,counted_cash,created_at").lte("day",toDay).order("day",{ascending:false}).limit(1),c=cl&&cl[0];
+    if(c){lc=c.day;lcAt=c.created_at;counted=+c.counted_cash;if(c.day==toDay){closeTotal=drRound(counted);fAfter={}}else{const d=new Date(c.day+"T00:00");d.setDate(d.getDate()+1);afterFrom=ymd(d);const{data:r2}=await sb.rpc("drawer_range",{p_from:afterFrom,p_to:toDay});if(r2&&r2.expected_cash!=null){closeTotal=drRound(+r2.expected_cash);fAfter=r2}}}}catch(e){}
+  return{lc,lcAt,counted,closeTotal,fAfter,afterFrom,base:0,from,to:toDay,f:data,total}}catch(e){return null}}
+async function drawerLedger(toDay){const t=await drawerTruth(toDay);return t?(t.closeTotal!=null?t.closeTotal:t.total):null}
