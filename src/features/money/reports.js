@@ -163,21 +163,23 @@ async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
   const M=[];let y=+from.slice(0,4),m=+from.slice(5,7)-1;const ey=today.getFullYear(),em=today.getMonth();
   while((y<ey||(y==ey&&m<=em))&&M.length<120){const s=new Date(y,m,1),e=new Date(y,m+1,0);M.push({key:ymd(s).slice(0,7),label:s.toLocaleDateString("ar-EG",{month:"long",year:"numeric"}),from:ymd(s),to:ymd(e)>to?to:ymd(e)});m++;if(m>11){m=0;y++}}
   const T=await drawerTruth(to);if(!T)return null;
-  const R=await Promise.all(M.map(x=>sb.rpc("drawer_range",{p_from:x.from,p_to:x.to})));
+  const pe=new Date(C.rr[1]);pe.setDate(pe.getDate()-1);const pf=ymd(C.rr[0]),pt=ymd(pe);
+  const[R,PR]=await Promise.all([Promise.all(M.map(x=>sb.rpc("drawer_range",{p_from:x.from,p_to:x.to}))),sb.rpc("drawer_range",{p_from:pf,p_to:pt})]);
+  if(PR.error||!PR.data)return null;
   if(R.some(r=>r.error||!r.data))return null;
   const fill=(x,f)=>{const n=k=>+f[k]||0;x.f=f;x.tin=DR_IN.reduce((t,k)=>t+n(k),0);x.tout=DR_OUT.reduce((t,k)=>t+n(k),0);x.net=Math.round((x.tin-x.tout)*100)/100;return x};
   M.forEach((x,i)=>fill(x,R[i].data));
   const own=!!me&&me.role=="owner",aft=!own&&T.lc;
-  const since=aft?fill({label:"بعد قفل "+T.lc,from:T.afterFrom,to},T.fAfter||{}):fill({label:"كل الحركات",from:T.from,to},T.f||{});
+  const bal=aft?fill({label:"بعد قفل "+T.lc,from:T.afterFrom,to},T.fAfter||{}):fill({label:"كل الحركات",from:T.from,to},T.f||{});
   const val=own?T.total:(T.closeTotal!=null?T.closeTotal:T.total);
-  return{f:{expected_cash:val},T,since,own,months:M,from,to,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}
-async function fullLoad(){const[a,b]=C.rr;
+  const since=fill({label:"الفترة المختارة",from:pf,to:pt},PR.data);
+  return{f:{expected_cash:since.net},bal,val,T,since,own,months:M,from,to,pf,pt,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
   const e=$("rpf");if(!e)return;if(error)return e.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"التقرير الشامل لسه ما اتفعّلش (شغّل patch_full_report.sql في Supabase).":esc(error.message)}</p>`;
   C.fr=f;C.fdr=dr;fullDraw()}
 const fullCost=()=>(+C.fr.cogs||0)+(+C.fr.expenses||0)+(+C.fr.staff_cost||0);
 function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.f.expected_cash!=null?+C.fdr.f.expected_cash:null;
-  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc(C.fdr&&C.fdr.own?"الموجود في الدرج (من الحركات)":"الموجود في الدرج (من القفل)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
+  e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("حركة الدرج (الفترة)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
 <div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
@@ -212,17 +214,19 @@ async function fullNoBarber(){const[a,b]=C.rr;
   dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
 
 // تفاصيل الدرج: الرصيد المعدود في آخر قفل + دخل وطلع بعده = الموجود المتوقع. وكل بند بيفتح حركاته من الداتابيز بنفس حسابه بالظبط.
-function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,T=D.T,own=D.own,tot=D.f.expected_cash,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
+function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,B=D.bal,T=D.T,own=D.own,val=D.val,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
-  const head=own?`الموجود المتوقع = كل كاش دخل − كل كاش طلع من أول حركة مسجلة، من غير قفل اليوم ولا رصيد أول اليوم.`:`الموجود المتوقع = آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده.`;
-  const base=own?"":fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
-  const cmp=own&&T.closeTotal!=null&&Math.abs(T.closeTotal-tot)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-tot)}</b><div class="m">حساب القفل (آخر رصيد معدود ${esc(T.lc)}: ${fm(T.counted)} + حركات بعده) = ${fm(T.closeTotal)}. الفرق معناه إن الكاش المعدود في القفلات مختلف عن الحركات، راجع القفلات.</div></div>`:"";
-  dsOpen((own?"الدرج (من الحركات) · ":"الدرج (من القفل) · ")+fm(tot),`<div class="m" style="margin-bottom:6px">${head} اضغط على أي سطر تشوف حركاته.</div>
-${base}${fRow(own?"+ دخل الدرج":"+ دخل بعد القفل",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
-${fRow(own?"− طلع من الدرج":"− طلع بعد القفل",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
-<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span>${fm(tot)}</span></div>${cmp}
-<h2>حركة كل شهر لوحده (دخل − طلع)</h2><div class="m" style="margin-bottom:4px">حركة الشهر مش رصيد، فممكن تطلع بالسالب لو الشهر صرف رواتب وسلف من فلوس شهر فات.</div>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}`,{list:1})}
-const fullPer=i=>{const D=C.fdr;return D?(i<0?D.since:D.months[i]):null};
+  const cmp=own&&T.closeTotal!=null&&Math.abs(T.closeTotal-val)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-val)}</b><div class="m">حساب القفل (آخر رصيد معدود ${esc(T.lc)}: ${fm(T.counted)} + حركات بعده) = ${fm(T.closeTotal)}. الفرق معناه إن الكاش المعدود في القفلات مختلف عن الحركات، راجع القفلات.</div></div>`:"";
+  const balRows=own?"":fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
+  dsOpen("حركة الدرج · "+fm(S.net),`<div class="m" style="margin-bottom:6px">حركة الفترة المختارة لوحدها (${esc(S.from)} ← ${esc(S.to)}): كل كاش دخل − كل كاش طلع جواها. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت. اضغط على أي سطر تشوف حركاته.</div>
+${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
+${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
+<div class="tot" style="${tr}"><span>صافي حركة الفترة</span><span style="color:${S.net<0?"var(--red)":"inherit"}">${fm(S.net)}</span></div>
+<h2>حركة كل شهر لوحده</h2>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}
+<h2>${own?"الموجود في الدرج دلوقتي (من الحركات)":"الموجود في الدرج دلوقتي (من القفل)"}</h2><div class="m" style="margin-bottom:4px">${own?"كل كاش دخل − كل كاش طلع من أول حركة، من غير قفل ولا رصيد أول اليوم.":"آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده."}</div>
+${balRows}${fRow(own?"+ دخل الدرج":"+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow(own?"− طلع من الدرج":"− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
+<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>${cmp}`,{list:1})}
+const fullPer=i=>{const D=C.fdr;return D?(i==-2?D.bal:i<0?D.since:D.months[i]):null};
 function fullDrwMonth(i){const m=fullPer(i);if(!m)return;const f=m.f||{},n=k=>+f[k]||0;
   const IN=[["مبيعات كاش",n("cash_sales"),`fullDrw('sales',${i})`],["إيداع في الدرج",n("moves_in"),`fullDrw('in',${i})`]],
   OUT=[["مصروفات من الدرج",n("exp_cash"),`fullDrw('exp',${i})`],["سحب موظفين (سلف)",n("adv_cash"),`fullDrw('adv',${i})`],["سحب من الدرج",n("moves_out"),`fullDrw('out',${i})`],["رواتب اتصرفت من الدرج",n("sal_cash"),`fullDrw('sal',${i})`],["مشتريات مخزون",n("pur_cash"),`fullDrw('pur',${i})`],["دفعات موردين",n("sup_cash"),`fullDrw('sup',${i})`]],
