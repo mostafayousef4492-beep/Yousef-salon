@@ -234,7 +234,12 @@ async function fullDrw(k,i){const m=fullPer(i);if(!m||!m.from)return;const T=FTT
   const{data,error}=await sb.rpc("drawer_rows",{p_from:m.from,p_to:m.to,p_kind:k});
   if(error)return dsOpen(T,dsEmpty(/drawer_rows|PGRST202|42883|Could not find/i.test(error.code+" "+error.message)?"شغّل patch_drawer_rows.sql في Supabase الأول علشان التفاصيل تظهر.":error.message),{back:1});
   const L=data||[],sum=Math.round(L.reduce((a,r)=>a+(+r.amount||0),0)*100)/100,want=Math.round(((m.f&&+m.f[FKEY[k]])||0)*100)/100,bad=Math.abs(sum-want)>=0.5;
-  dsOpen(T+" · "+m.label+" · "+fm(sum),`<div class="m" style="margin-bottom:6px">${num(L.length)} حركة</div>${bad?`<div class="box" style="border:1px solid var(--red);margin-bottom:8px"><b style="color:var(--red)">المجموع (${fm(sum)}) مختلف عن الرقم في الدرج (${fm(want)})</b></div>`:""}`+(L.map(r=>fRow(esc(r.label)+`<div class="m">${esc(r.day)}${r.sub?" · "+esc(r.sub):""}</div>`,fm(r.amount))).join("")||`<p class="m">مفيش حركات.</p>`),{back:1})}
+  const gk=r=>k=="sales"?"يوم "+r.day:String(r.label||"").split(" — ")[0]||"—",G={};L.forEach(r=>{const g=gk(r);(G[g]=G[g]||{name:g,rows:[],t:0}).rows.push(r);G[g].t+=+r.amount||0});
+  const GL=Object.values(G).sort((a,b)=>b.t-a.t);C.fdg={k,i,GL,T,m};
+  dsOpen(T+" · "+m.label+" · "+fm(sum),`<div class="m" style="margin-bottom:6px">${num(L.length)} حركة في ${num(GL.length)} ${k=="sales"?"يوم":"بند"} · اضغط على أي كارت تشوف تفاصيله</div>${bad?`<div class="box" style="border:1px solid var(--red);margin-bottom:8px"><b style="color:var(--red)">المجموع (${fm(sum)}) مختلف عن الرقم في الدرج (${fm(want)})</b></div>`:""}`+(GL.map((g,x)=>fRow(esc(g.name)+`<div class="m">${num(g.rows.length)} حركة</div>`,fm(g.t),`fullDrwG(${x})`)).join("")||`<p class="m">مفيش حركات.</p>`),{back:1})}
+// تفاصيل كارت واحد (موظف / بند مصروف / يوم...): كل حركاته لوحدها
+function fullDrwG(x){const D=C.fdg,g=D&&D.GL[x];if(!g)return;
+  dsOpen(g.name+" · "+fm(g.t),`<div class="m" style="margin-bottom:6px">${esc(D.T)} · ${esc(D.m.label)} · ${num(g.rows.length)} حركة</div>`+g.rows.map(r=>{const l=String(r.label||""),t=l.includes(" — ")?l.split(" — ").slice(1).join(" — "):(l==g.name?"":l);return fRow(esc(t||g.name)+`<div class="m">${esc(r.day)}${r.sub?" · "+esc(r.sub):""}</div>`,fm(r.amount))}).join(""),{back:1})}
 // بيجيب كل الصفوف صفحة صفحة (1000 في المرة) بدل ما يقف عند 300
 async function fullAll(mk){let all=[];for(let p=0;p<100;p++){const{data,error}=await mk().range(p*1000,p*1000+999);if(error)return{error};const L=data||[];all=all.concat(L);if(L.length<1000)break}return{data:all}}
 
