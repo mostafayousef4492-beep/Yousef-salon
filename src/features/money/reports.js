@@ -167,7 +167,7 @@ async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
   if(R.some(r=>r.error||!r.data))return null;
   const fill=(x,f)=>{const n=k=>+f[k]||0;x.f=f;x.tin=DR_IN.reduce((t,k)=>t+n(k),0);x.tout=DR_OUT.reduce((t,k)=>t+n(k),0);x.net=Math.round((x.tin-x.tout)*100)/100;return x};
   M.forEach((x,i)=>fill(x,R[i].data));
-  const since=fill({label:T.lc?("بعد قفل "+T.lc):"كل الحركات",from:T.from,to:T.to},T.f||{});
+  const since=fill({label:"كل الحركات",from:T.from,to:T.to},T.f||{});
   return{f:{expected_cash:T.total},T,since,months:M,from,to,last:T.lc,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}
 async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
@@ -212,14 +212,13 @@ async function fullNoBarber(){const[a,b]=C.rr;
 // تفاصيل الدرج: الرصيد المعدود في آخر قفل + دخل وطلع بعده = الموجود المتوقع. وكل بند بيفتح حركاته من الداتابيز بنفس حسابه بالظبط.
 function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const T=D.T,S=D.since,tot=T.total,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse(),au=D.audit||[];
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
-  dsOpen("الدرج دلوقتي · "+fm(tot),`<div class="m" style="margin-bottom:6px">الموجود المتوقع = آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده. اضغط على أي سطر تشوف حركاته.</div>
-${fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.base))}
-${fRow("+ دخل بعد القفل",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
-${fRow("− طلع بعد القفل",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
-<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span>${fm(T.base+S.tin-S.tout)}</span></div>
-<div class="m" style="margin-top:6px">الفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>
+  dsOpen("الدرج دلوقتي · "+fm(tot),`<div class="m" style="margin-bottom:6px">الموجود المتوقع = كل كاش دخل − كل كاش طلع من أول حركة مسجلة، من غير قفل اليوم ولا رصيد أول اليوم. اضغط على أي سطر تشوف حركاته.</div>
+${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
+${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
+<div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span>${fm(tot)}</span></div>
+<div class="m" style="margin-top:6px">الفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>${T.closeTotal!=null&&Math.abs(T.closeTotal-tot)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-tot)}</b><div class="m">لو الحساب بدأ من الكاش المعدود في آخر قفل (${esc(T.lc)}: ${fm(T.counted)}) الرقم هيبقى ${fm(T.closeTotal)}. الفرق معناه إن الكاش المعدود في القفلات مختلف عن اللي الحركات بتقوله، راجع القفلات.</div></div>`:""}
 ${au.length?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">⚠ أيام اتقفلت وبعد كده حركاتها اتغيّرت</b><div class="m">الرصيد المعدود في القفل اتحسب قبل التغيير. راجع الأيام دي (الرقم = التغيير في صافي اليوم بعد القفل):</div>${au.map(x=>`<div style="display:flex;justify-content:space-between;padding:3px 0"><span>${esc(x.day)}</span><b style="color:var(--red)">${fm(x.changed)}</b></div>`).join("")}</div>`:""}
-<h2>حركة كل شهر (دخل − طلع)</h2><div class="m" style="margin-bottom:4px">للمتابعة بس: حركة الشهر مش رصيد، ومجموعها مش بيساوي الموجود لأن الرصيد معتمد على عدّ القفل.</div>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}`,{list:1})}
+<h2>حركة كل شهر (دخل − طلع)</h2><div class="m" style="margin-bottom:4px">مجموع صافي الشهور = الموجود فوق.</div>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}`,{list:1})}
 const fullPer=i=>{const D=C.fdr;return D?(i<0?D.since:D.months[i]):null};
 function fullDrwMonth(i){const m=fullPer(i);if(!m)return;const f=m.f||{},n=k=>+f[k]||0;
   const IN=[["مبيعات كاش",n("cash_sales"),`fullDrw('sales',${i})`],["إيداع في الدرج",n("moves_in"),`fullDrw('in',${i})`]],
