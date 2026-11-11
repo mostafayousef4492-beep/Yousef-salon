@@ -82,4 +82,4 @@ async function drawerTruth(toDay){try{
   try{const{data:cl}=await sb.from("cash_closings").select("day,counted_cash").lte("day",toDay).order("day",{ascending:false}).limit(1),c=cl&&cl[0];
     if(c){lc=c.day;counted=+c.counted_cash;if(c.day==toDay){closeTotal=drRound(counted);fAfter={}}else{const d=new Date(c.day+"T00:00");d.setDate(d.getDate()+1);afterFrom=ymd(d);const{data:r2}=await sb.rpc("drawer_range",{p_from:afterFrom,p_to:toDay});if(r2&&r2.expected_cash!=null){closeTotal=drRound(+r2.expected_cash);fAfter=r2}}}}catch(e){}
   return{lc,counted,closeTotal,fAfter,afterFrom,base:0,from,to:toDay,f:data,total}}catch(e){return null}}
-async function drawerLedger(toDay){const t=await drawerTruth(toDay);return t?t.total:null}
+async function drawerLedger(toDay){const t=await drawerTruth(toDay);return t?(t.closeTotal!=null?t.closeTotal:t.total):null}

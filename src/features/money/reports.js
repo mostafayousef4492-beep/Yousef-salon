@@ -169,9 +169,9 @@ async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
   if(R.some(r=>r.error||!r.data))return null;
   const fill=(x,f)=>{const n=k=>+f[k]||0;x.f=f;x.tin=DR_IN.reduce((t,k)=>t+n(k),0);x.tout=DR_OUT.reduce((t,k)=>t+n(k),0);x.net=Math.round((x.tin-x.tout)*100)/100;return x};
   M.forEach((x,i)=>fill(x,R[i].data));
-  const own=!!me&&me.role=="owner",aft=!own&&T.lc;
+  const own=!!me&&me.role=="owner",aft=!!T.lc;
   const bal=aft?fill({label:"بعد قفل "+T.lc,from:T.afterFrom,to},T.fAfter||{}):fill({label:"كل الحركات",from:T.from,to},T.f||{});
-  const val=own?T.total:(T.closeTotal!=null?T.closeTotal:T.total);
+  const val=T.closeTotal!=null?T.closeTotal:T.total;
   const since=fill({label:"الفترة المختارة",from:pf,to:pt},PR.data);
   return{f:{expected_cash:since.net},bal,val,T,since,own,months:M,from,to,pf,pt,audit:au&&!au.error&&Array.isArray(au.data)?au.data:null}}async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
@@ -216,15 +216,15 @@ async function fullNoBarber(){const[a,b]=C.rr;
 // تفاصيل الدرج: الرصيد المعدود في آخر قفل + دخل وطلع بعده = الموجود المتوقع. وكل بند بيفتح حركاته من الداتابيز بنفس حسابه بالظبط.
 function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الدرج مش متاحة");const S=D.since,B=D.bal,T=D.T,own=D.own,val=D.val,L=D.months.map((m,i)=>[m,i]).filter(([m])=>m.tin||m.tout).reverse();
   const tr="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800";
-  const cmp=own&&T.closeTotal!=null&&Math.abs(T.closeTotal-val)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(T.closeTotal-val)}</b><div class="m">حساب القفل (آخر رصيد معدود ${esc(T.lc)}: ${fm(T.counted)} + حركات بعده) = ${fm(T.closeTotal)}. الفرق معناه إن الكاش المعدود في القفلات مختلف عن الحركات، راجع القفلات.</div></div>`:"";
-  const balRows=own?"":fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
+  const cmp=own&&T.closeTotal!=null&&Math.abs(T.total-T.closeTotal)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:10px"><b style="color:var(--red)">الحركات بس بتدّي ${fm(T.total)} (فرق ${fm(T.closeTotal-T.total)} عن رصيد القفل)</b><div class="m">الرصيد المعروض هو المعدود في آخر قفل (${esc(T.lc)}: ${fm(T.counted)}) + الحركات بعده. الفرق ده من فروق عدّ اتقبلت في القفلات أو أيام حركاتها اتغيّرت بعد القفل، راجع القفلات.</div></div>`:"";
+  const balRows=fRow(T.lc?("آخر رصيد معدود <span class=\"m\">· قفل "+esc(T.lc)+"</span>"):"رصيد البداية <span class=\"m\">· مفيش قفل</span>",fm(T.lc?T.counted:0));
   dsOpen("حركة الدرج · "+fm(S.net),`<div class="m" style="margin-bottom:6px">حركة الفترة المختارة لوحدها (${esc(S.from)} ← ${esc(S.to)}): كل كاش دخل − كل كاش طلع جواها. مش رصيد، فممكن تطلع بالسالب لو صرفت من فلوس فاتت. اضغط على أي سطر تشوف حركاته.</div>
 ${fRow("+ دخل الدرج",fm(S.tin),"fullDrwMonth(-1)","var(--ok)")}
 ${fRow("− طلع من الدرج",fm(S.tout),"fullDrwMonth(-1)","var(--red)")}
 <div class="tot" style="${tr}"><span>صافي حركة الفترة</span><span style="color:${S.net<0?"var(--red)":"inherit"}">${fm(S.net)}</span></div>
 <h2>حركة كل شهر لوحده</h2>${L.map(([m,i])=>fRow(esc(m.label)+`<div class="m">دخل ${fm(m.tin)} · طلع ${fm(m.tout)}</div>`,fm(m.net),`fullDrwMonth(${i})`,m.net<0?"var(--red)":"")).join("")||`<p class="m">مفيش حركات.</p>`}
-<h2>${own?"الموجود في الدرج دلوقتي (من الحركات)":"الموجود في الدرج دلوقتي (من القفل)"}</h2><div class="m" style="margin-bottom:4px">${own?"كل كاش دخل − كل كاش طلع من أول حركة، من غير قفل ولا رصيد أول اليوم.":"آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده."}</div>
-${balRows}${fRow(own?"+ دخل الدرج":"+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow(own?"− طلع من الدرج":"− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
+<h2>الموجود في الدرج دلوقتي (من القفل)</h2><div class="m" style="margin-bottom:4px">آخر رصيد معدود في قفل اليوم + حركات الأيام اللي بعده.</div>
+${balRows}${fRow("+ دخل بعد القفل",fm(B.tin),"fullDrwMonth(-2)","var(--ok)")}${fRow("− طلع بعد القفل",fm(B.tout),"fullDrwMonth(-2)","var(--red)")}
 <div class="tot" style="${tr}"><span>الموجود المتوقع في الدرج</span><span style="color:${val<0?"var(--red)":"inherit"}">${fm(val)}</span></div>${cmp}`,{list:1})}
 const fullPer=i=>{const D=C.fdr;return D?(i==-2?D.bal:i<0?D.since:D.months[i]):null};
 function fullDrwMonth(i){const m=fullPer(i);if(!m)return;const f=m.f||{},n=k=>+f[k]||0;
