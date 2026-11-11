@@ -193,7 +193,7 @@ function fullExp(){const f=C.fr,B=[];
 function fullBand(k){const f=C.fr,T={commission:"عمولات الصنايعية",salary:"الرواتب",bonus:"المكافآت وأجر اليوم",deduction:"الخصومات"}[k],L=(f.staff||[]).filter(x=>+x[k]).sort((a,b)=>Math.abs(b[k])-Math.abs(a[k]));
   dsOpen(T,L.length?L.map(x=>fRow(esc(x.name)+` <span class="m">· ${RL[x.role]||""}</span>`,fm(k=="deduction"?-x[k]:x[k]),`fullStaff('${x.id}','e')`)).join(""):`<p class="m">مفيش.</p>`,{back:1})}
 async function fullCat(i){const f=C.fr,x=(f.expense_cats||[])[i],[a,b]=C.rr;if(!x)return;
-  const{data,error}=await sb.from("expenses").select("spent_on,note,amount,paid_from").eq("category",x.c).gte("spent_on",ymd(a)).lt("spent_on",ymd(b)).order("spent_on",{ascending:false}).limit(300);
+  const{data,error}=await fullAll(()=>sb.from("expenses").select("spent_on,note,amount,paid_from").eq("category",x.c).gte("spent_on",ymd(a)).lt("spent_on",ymd(b)).order("spent_on",{ascending:false}).order("id",{ascending:false}));
   if(error)return toast(error.message);
   dsOpen(x.c+" · "+fm(x.t),(data||[]).map(r=>fRow(`${esc(r.note||x.c)}<div class="m">${r.spent_on}${r.paid_from?" · "+({drawer:"من الدرج",owner:"من المالك",bank:"بنك"}[r.paid_from]||esc(r.paid_from)):""}</div>`,fm(r.amount))).join("")||`<p class="m">مفيش تفاصيل.</p>`,{back:1})}
 function fullProfit(){const f=C.fr,R=[["شغل المحل",f.revenue,1],["تكلفة المنتجات المباعة",-f.cogs],["عمولات الصنايعية",-f.commissions],["الرواتب",-f.salaries],["المكافآت وأجر اليوم",-f.bonuses],["الخصومات على الموظفين",f.deductions],["المصروفات",-f.expenses],["صافي الربح",f.profit,1]];
@@ -206,7 +206,7 @@ async function fullStaff(id,from){const f=C.fr,x=(f.staff||[]).find(y=>y.id==id)
 <div class="m" style="margin:8px 0">مستحقاته = عمولة ${fm(x.commission)} + راتب ${fm(x.salary)} + مكافآت ${fm(x.bonus)} − خصومات ${fm(x.deduction)}. «باقيله» رصيد حسابه من أول يوم لحد دلوقتي.</div>
 <h2>حركات الفترة</h2>`+(E.length?E.map(r=>fRow(`${esc(r.label)}<div class="m">${FKIND[r.kind]||""} · ${new Date(r.at).toLocaleDateString("ar-EG")}</div>`,(+r.credit>0?"+ "+fm(r.credit):"− "+fm(r.debit)),null,+r.credit>0?"var(--ok)":"var(--red)")).join(""):`<p class="m">مفيش حركات.</p>`),{back:1})}
 async function fullNoBarber(){const[a,b]=C.rr;
-  const{data,error}=await sb.from("invoices").select("id,no,total,created_at,payment_method,invoice_items(name,qty)").is("barber_id",null).gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at",{ascending:false}).limit(300);
+  const{data,error}=await fullAll(()=>sb.from("invoices").select("id,no,total,created_at,payment_method,invoice_items(name,qty)").is("barber_id",null).gte("created_at",a.toISOString()).lt("created_at",b.toISOString()).order("created_at",{ascending:false}).order("id",{ascending:false}));
   if(error)return toast(error.message);const L=data||[],tot=L.reduce((x,i)=>x+(+i.total),0);
   dsOpen("مبيعات من غير حلاق · "+fm(tot),`<div class="m" style="margin-bottom:6px">فواتير اتسجلت من غير ما تتربط بحلاق (غالبًا بيع منتجات). اضغط على الفاتورة تشوفها.</div>`+(L.length?L.map(i=>fRow(`#${i.no} <span class="m">· ${new Date(i.created_at).toLocaleDateString("ar-EG")}</span><div class="m">${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join("، ")}</div>`,fm(i.total),`dsInvOne(${i.id})`)).join(""):`<p class="m">مفيش.</p>`),{back:1})}
 
