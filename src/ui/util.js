@@ -70,3 +70,6 @@ function t24c(el){const w=el.parentNode,s=w.querySelectorAll("select"),h=w.query
 function t24v(id,v){const el=$(id);if(!el)return;const s=el.parentNode.querySelectorAll("select"),[h,m]=v?v.slice(0,5).split(":"):["",""];
 if(m&&![...s[1].options].some(o=>o.value==m)){const o=new Option(m,m);s[1].add(o);[...s[1].options].sort((a,b)=>a.value-b.value).forEach(x=>s[1].add(x))}
 s[0].value=h||"";s[1].value=m||"00";el.value=v?v.slice(0,5):""}
+
+// رصيد الدرج من الحركات الفعلية بس (كل كاش دخل − كل كاش طلع لحد اليوم ده)، من غير رصيد أول اليوم ولا قفل اليوم
+async function drawerLedger(toDay){try{const d=new Date(toDay+"T00:00");d.setDate(d.getDate()-365);const{data,error}=await sb.rpc("drawer_range",{p_from:ymd(d),p_to:toDay});if(error||!data||data.expected_cash==null)return null;return Math.round((+data.expected_cash-(+data.opening||0))*100)/100}catch(e){return null}}
