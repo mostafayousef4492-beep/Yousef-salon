@@ -149,10 +149,15 @@ async function rpdLoad(){const box=$("rpd");if(!box||!C.rr)return;const[a,b]=C.r
 
 // ===== التقرير الشامل: شغل المحل · المصاريف (بنود) · صافي الربح · الدرج، وكل بند بيفتح تفاصيله =====
 const FKIND={salary:"راتب",commission:"عمولة",wage:"أجر يوم",adj:"تسوية",deposit:"إيداع / مكافأة",withdraw:"سحب",deduction:"خصم",payout:"صرف راتب",settle:"تسوية حساب"};
-// الدرج دلوقتي = رصيد آخر قفل + كل اللي دخل وطلع بعده لحد النهارده (مش النهارده بس)
-async function fullDrawer(){const{data:cl}=await sb.from("cash_closings").select("day").order("day",{ascending:false}).limit(1),last=cl&&cl[0]?cl[0].day:null,to=ymd(new Date());let from;
-  if(last){const d=new Date(last+"T00:00");d.setDate(d.getDate()+1);from=ymd(d)}else{const d=new Date();d.setDate(d.getDate()-365);from=ymd(d)}
-  if(from>to)from=to;const{data}=await sb.rpc("drawer_range",{p_from:from,p_to:to});return data?{f:data,from,to,last}:null}
+// الدرج دلوقتي = حساب من الحركات الفعلية بس (كل كاش دخل − كل كاش طلع من أول حركة مسجلة لحد النهارده).
+// مش معتمد على رصيد أول اليوم ولا على «قفل اليوم»، فتعديل الرصيد المعدود مبيأثرش على الرقم ده.
+// بنقارنه برقم الطريقة القديمة (من آخر قفل) ونعرض الفرق لو موجود، علشان أي تلاعب يبان.
+async function fullDrawer(){const to=ymd(new Date()),d0=new Date();d0.setDate(d0.getDate()-365);const from=ymd(d0);
+  const{data:cl}=await sb.from("cash_closings").select("day").order("day",{ascending:false}).limit(1),last=cl&&cl[0]?cl[0].day:null;
+  let from2=null;if(last){const d=new Date(last+"T00:00");d.setDate(d.getDate()+1);from2=ymd(d);if(from2>to)from2=to}
+  const[r1,r2]=await Promise.all([sb.rpc("drawer_range",{p_from:from,p_to:to}),from2?sb.rpc("drawer_range",{p_from:from2,p_to:to}):Promise.resolve({data:null})]);
+  const f=r1.data;if(!f)return null;const op=+f.opening||0,ledger=Math.round((+f.expected_cash-op)*100)/100,alt=r2.data&&r2.data.expected_cash!=null?+r2.data.expected_cash:null;
+  return{f:{...f,opening:0,expected_cash:ledger},from,to,last,alt}}
 async function fullLoad(){const[a,b]=C.rr;
   const[{data:f,error},dr]=await Promise.all([sb.rpc("full_report",{p_from:a.toISOString(),p_to:b.toISOString()}),fullDrawer()]);
   const e=$("rpf");if(!e)return;if(error)return e.innerHTML=`<p class="m">${/Could not find the function/i.test(error.message||"")?"التقرير الشامل لسه ما اتفعّلش (شغّل patch_full_report.sql في Supabase).":esc(error.message)}</p>`;
@@ -198,12 +203,11 @@ function fullDrawerOpen(){const D=C.fdr;if(!D)return toast("بيانات الد�
   const IN=[["مبيعات كاش",n("cash_sales"),"fullDrw('sales')"],["إيداع في الدرج",n("moves_in"),"fullDrw('in')"]],
   OUT=[["مصروفات من الدرج",n("exp_cash"),"fullDrw('exp')"],["سحب موظفين (سلف)",n("adv_cash"),"fullDrw('adv')"],["سحب من الدرج",n("moves_out"),"fullDrw('out')"],["رواتب اتصرفت من الدرج",n("sal_cash"),"fullDrw('sal')"],["مشتريات مخزون",n("pur_cash"),null],["دفعات موردين",n("sup_cash"),null]],
   tin=IN.reduce((a,x)=>a+x[1],0),tout=OUT.reduce((a,x)=>a+x[1],0),line=x=>x[1]?fRow(x[0],fm(x[1]),x[2]):"";
-  dsOpen("الدرج دلوقتي · "+fm(f.expected_cash),`<div class="m" style="margin-bottom:6px">من ${D.last?"آخر قفل ("+D.last+")":"أول الفترة"} لحد النهارده. اضغط على أي بند تشوف حركاته.</div>
-${fRow("رصيد آخر قفل (اللي اتعدّ فعلًا)",fm(f.opening))}
+  dsOpen("الدرج دلوقتي · "+fm(f.expected_cash),`<div class="m" style="margin-bottom:6px">محسوب من الحركات الفعلية بس (كل اللي دخل وطلع من أول حركة مسجلة لحد النهارده)، من غير رصيد أول اليوم ولا قفل اليوم. اضغط على أي بند تشوف حركاته.</div>
 <h2>دخل الدرج · ${fm(tin)}</h2>${IN.map(line).join("")||`<p class="m">مفيش.</p>`}
 <h2>طلع من الدرج · ${fm(tout)}</h2>${OUT.map(line).join("")||`<p class="m">مفيش.</p>`}
 <div class="tot" style="display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-weight:800"><span>الموجود المتوقع في الدرج</span><span>${fm(f.expected_cash)}</span></div>
-<div class="m" style="margin-top:6px">${fm(f.opening)} + ${fm(tin)} − ${fm(tout)}. المتوقع حسابيًا، والفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>`,{list:1})}
+<div class="m" style="margin-top:6px">${fm(tin)} − ${fm(tout)}. المتوقع حسابيًا من الحركات، والفعلي بتعرفه من عدّ الدرج في «قفل اليوم».</div>${D.alt!=null&&Math.abs(D.alt-f.expected_cash)>=1?`<div class="box" style="border:1px solid var(--red);margin-top:8px"><b style="color:var(--red)">فرق عن حساب القفل: ${fm(D.alt-f.expected_cash)}</b><div class="m">لو الحساب بدأ من الكاش المعدود في آخر قفل (${D.last}) الرقم هيبقى ${fm(D.alt)}. الفرق معناه إن الرصيد المعدود في القفل مختلف عن اللي الحركات بتقوله، راجع قفلات الأيام اللي فاتت.</div></div>`:""}`,{list:1})}
 async function fullDrw(k){const D=C.fdr,f0=D.from,t0=D.to,ts=new Date(f0+"T00:00").toISOString(),te=(d=>(d.setDate(d.getDate()+1),d.toISOString()))(new Date(t0+"T00:00")),nm=id=>((C.fr.staff||[]).find(x=>x.id==id)||{}).name||"موظف",day=d=>new Date(d).toLocaleDateString("ar-EG");let q,T,R;
   if(k=="sales"){q=sb.from("invoices").select("no,total,created_at").eq("payment_method","cash").gte("created_at",ts).lt("created_at",te).order("created_at",{ascending:false}).limit(300);T="مبيعات كاش";R=r=>fRow(`فاتورة #${r.no}<div class="m">${day(r.created_at)}</div>`,fm(r.total))}
   else if(k=="in"||k=="out"){q=sb.from("cash_moves").select("day,amount,note").eq("kind",k=="in"?"deposit":"withdraw").gte("day",f0).lte("day",t0).order("day",{ascending:false}).limit(300);T=k=="in"?"إيداع في الدرج":"سحب من الدرج";R=r=>fRow(`${esc(r.note||T)}<div class="m">${r.day}</div>`,fm(r.amount))}
