@@ -126,3 +126,12 @@ await T("مفيش كتابة: مفيش أي نداء قاعدة غير ai_*/prof
   for (const t of toolsFor(true, "manager")) await runTool({ ...adm, role: "manager", sb }, t.name, { a_range: "month", b_range: "last_month" });
   for (const c of sb.calls.filter((x) => x[0] === "rpc")) assert.ok(c[1].startsWith("ai_") || c[1] === "business_day_state", c[1]);
 });
+await T("overview: لو الدالة رجّعت صفر فواتير والجدول فيه فواتير → خطأ تناقض مش «مفيش مبيعات»", async () => {
+  const sb = mockSb({ rpcs: { ai_overview: OV(0, 0, 0, 0) } });
+  const base = sb.from; sb.from = (t) => { const b = base(t); if (t !== "invoices") return b; const p = new Proxy({}, { get: (_, k) => k === "then" ? (res) => res({ data: null, count: 162, error: null }) : () => p }); return p; };
+  const out = await runTool({ ...adm, sb }, "overview", { range: "month" });
+  assert.ok(/تناقض/.test(JSON.stringify(out)), JSON.stringify(out).slice(0, 200));
+  const sb2 = mockSb({ rpcs: { ai_overview: OV(0, 0, 0, 0) } });
+  const ok = await runTool({ ...adm, sb: sb2 }, "overview", { range: "month" });
+  assert.ok(!/تناقض/.test(JSON.stringify(ok)));
+});
