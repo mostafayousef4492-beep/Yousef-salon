@@ -31,7 +31,13 @@ async function overview(ctx: Ctx, a: any) {
   const r = rng(ctx, a);
   const o = await rpc(ctx, "ai_overview", base(r));
   const gaps: string[] = [];
-  if (!o.invoices) gaps.push(NO_DATA);
+  if (!o.invoices) {
+    // فحص تأكيدي: لو الدالة رجّعت صفر فواتير نتأكد من الجدول مباشرة، علشان «صفر» ميطلعش غلط
+    let n: number | null = null;
+    try { const c = await ctx.sb.from("invoices").select("id", { count: "exact", head: true }).gte("created_at", r.fromISO).lt("created_at", r.toISO); n = c.error ? null : (c.count ?? null); } catch { /* */ }
+    if (n && n > 0) throw new Error(`تناقض في البيانات: التقرير رجّع صفر فواتير لكن في ${n} فاتورة في الفترة ${r.fromDay} → ${r.toDay}. متعتمدش على الرقم ده وقول للمدير إن في مشكلة تقنية.`);
+    gaps.push(NO_DATA);
+  }
   return {
     ...span(r), source: "دالة ai_overview (نفس معادلات «التقرير الشامل») + " + SRC_INV,
     method: "الإيراد = مجموع totals الفواتير المدفوعة (المبلغ المدفوع فقط؛ المتبقي بيتحسب في unpaid). تكلفة البضاعة = تكلفة المنتجات المباعة. المصروفات من جدول expenses بتاريخ الصرف. تكلفة الموظفين = عمولات + مرتبات الفترة + مكافآت − خصومات. الربح = الإيراد − تكلفة البضاعة − المصروفات − تكلفة الموظفين. متوسط الفاتورة = الإيراد ÷ عدد الفواتير.",
