@@ -98,3 +98,11 @@ if(n!=x.name){const r=await sb.rpc("admin_set_customer_name",{p_customer:id,p_na
 if(pe&&ph&&ph!=(x.phone||"")){const r=x.phone?await sb.rpc("admin_set_customer_phone",{p_customer:id,p_phone:ph}):await sb.rpc("attach_customer_phone",{p_customer:id,p_phone:ph});
 if(r.error)return toast(/Could not find the function/i.test(r.error.message||"")?"شغّل patch_customer_phone.sql في Supabase الأول":r.error.message);if(!x.phone&&r.data)nid=r.data}
 toast("اتحفظ ✓");try{svcClose()}catch(e){}await V.cust();openCust(nid)}finally{b.disabled=false}}
+
+// ---- طلبات «تابعت» على السوشيال: موافقة الكاشير/المدير بعد ما يتأكد من المتابعة، فيتضاف للعميل نقط المكافأة ----
+const SOCN={tiktok:"تيك توك",instagram:"إنستجرام",facebook:"فيسبوك"};
+async function socPending(){try{const{data,error}=await sb.rpc("admin_social_claims");if(error||!data||!data.length||!$("app"))return;
+  const pts=+C.cfg.social_follow_points||10,e=$("socp")||(()=>{const d=document.createElement("div");d.id="socp";$("app").prepend(d);return d})();
+  e.innerHTML=`<div class="box" style="margin:10px 0;border-color:var(--gold,#c9a24a)"><b>📲 طلبات مكافأة المتابعة (${data.length})</b><div class="m" style="margin:4px 0">اتأكد من صفحة العميل على المنصة الأول، وبعدين وافق ويتضاف له ${pts} نقط.</div>${data.map(r=>`<div class="row" style="margin-top:6px"><div><b>${esc(r.name)}</b><div class="m">${SOCN[r.platform]||esc(r.platform)} · ${esc(r.phone||"")}</div></div><div><button class="btn s" onclick="socDecide(${r.id},true)">موافقة</button> <button class="btn s g" onclick="socDecide(${r.id},false)">رفض</button></div></div>`).join("")}</div>`}catch(e){}}
+async function socDecide(id,ok){const{error}=await sb.rpc("admin_decide_social",{p_id:id,p_ok:ok});if(error)return toast(error.message);toast(ok?"اتضافت النقط ✓":"اتم الرفض");const e=$("socp");if(e)e.remove();socPending()}
+(()=>{const q=V.cust;if(!q)return;V.cust=async()=>{await q();socPending()}})();
