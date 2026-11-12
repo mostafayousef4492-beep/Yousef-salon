@@ -62,3 +62,6 @@ async function fbReplies(){const{data}=await sb.rpc("my_feedback",{p_secrets:fbS
 async function fbSend(){const t=($("fb_t").value||"").trim();if(t.length<3)return toast("اكتب رسالة أطول شوية");const a=!!($("fb_a")&&$("fb_a").checked),c=($("fb_c")&&$("fb_c").value||"").replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));const{data,error}=await sb.rpc("send_feedback",{p_message:t,p_anonymous:a,p_contact:c||null});if(error)return toast(error.message);
 if(data){try{localStorage.setItem("fb_sec",JSON.stringify([data,...fbSecs()].slice(0,20)))}catch(e){}}
 svcClose();okFlash("وصلت رسالتك 🙏",a?"اتبعتت من غير اسم. هتلاقي رد الإدارة هنا في «رأيك يهمنا»":"شكرًا إنك شاركتنا رأيك")}
+
+// كارت متابعة السوشيال في الرئيسية (بيتعرّف في customer.js)
+(()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();socFill()}})();
