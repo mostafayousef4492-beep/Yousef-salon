@@ -48,7 +48,7 @@ ${nextRw}<div class="hm-cta"><button class="btn" onclick="C.b=null;go('book')">�
 <a class="hm-catalog" href="/catalog" aria-label="افتح كتالوج القصات"><span>✂ كتالوج القصات والتسريحات والدقن</span><span aria-hidden="true">←</span></a>
 ${bday}${rep}
 <div class="hm-note box"><div class="m">مركز الولاء</div><b>تجمّع ${num(c.lifetime_points||0)} نقطة</b><div class="m">${nextGoal>0?"متبقي لك "+num(nextGoal)+" نقطة للوصول للمستوى التالي.":"أنت وصلت لأعلى مستوى الحالي."}</div><div class="hm-note-actions"><button class="btn s g" onclick="go('loy')">تفاصيل المكافآت</button><button class="btn s g" onclick="go('loy')">دعوة صديق</button></div></div>
-${fbMode()!="off"?`<button class="btn g" style="width:100%;margin-top:10px" onclick="fbOpen()">💬 تواصل مع الإدارة</button>`:""}<button class="btn g" style="width:100%;margin-top:10px" onclick="lookMine()">✂ ملف اللوك بتاعي</button></div>`)};
+${fbMode()!="off"?`<button class="btn g" style="width:100%;margin-top:10px" onclick="fbOpen()">💬 تواصل مع الإدارة</button>`:""}<button class="btn g" style="width:100%;margin-top:10px" onclick="lookMine()">✂ ملف اللوك بتاعي</button><button class="btn g" style="width:100%;margin-top:10px" onclick="tryonOpen()">🪄 جرّب قصتك بالذكاء الاصطناعي</button></div>`)};
 
 // صورتي في صفحة الحساب
 function myPhotoBox(p){return `<div class="box" style="display:flex;align-items:center;gap:14px">${avatarHtml(p,64,true)}<div style="flex:1"><b>${esc(p.name||"")}</b><div class="m">اضغط على الصورة لتغييرها</div></div>${p.avatar?`<button class="btn s g" onclick="rmAvatar()">شيل</button>`:""}</div>`}
