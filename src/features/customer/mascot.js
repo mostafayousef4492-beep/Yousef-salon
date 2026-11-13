@@ -41,7 +41,7 @@ const SVG=`<svg viewBox="0 0 240 300" class="mc-svg" aria-hidden="true">
  <g class="mc-mouth"><path class="mc-m-c" d="M104 170 Q120 182 136 170" fill="none" stroke="#7A3B2E" stroke-width="4" stroke-linecap="round"/>
   <ellipse class="mc-m-o" cx="120" cy="174" rx="11" ry="8" fill="#5A1F1A"/><ellipse class="mc-m-t" cx="120" cy="178" rx="6" ry="3" fill="#E57A6B"/></g>
 </g></svg>`;
-window.MASCOT={svg:SVG,
+window.MASCOT={svg:SVG,head:()=>SVG.replace('viewBox="0 0 240 300" class="mc-svg"','viewBox="44 28 152 176" class="mc-svg mc-mini"'),
  mount(el){el.innerHTML=`<div class="mc-wrap"><div class="mc-3d">${SVG}</div></div>`;
   const w=el.querySelector(".mc-wrap"),svg=el.querySelector(".mc-svg"),pu=[...el.querySelectorAll(".mc-pu")];
   const look=(x,y)=>{const r=svg.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height*.4,dx=Math.max(-1,Math.min(1,(x-cx)/220)),dy=Math.max(-1,Math.min(1,(y-cy)/220));
