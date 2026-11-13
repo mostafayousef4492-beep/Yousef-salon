@@ -20,7 +20,7 @@ function dress(){
 new MutationObserver(()=>{if(document.querySelector(".vip:not([data-w])"))dress()}).observe(document.documentElement,{childList:true,subtree:true});
 
 // 2) هيكل تحميل للرئيسية بدل الفراغ
-(()=>{const q=V.hm;if(!q)return;V.hm=async()=>{try{if(!$("app").querySelector(".hm-shell"))$("app").innerHTML=`<div class="wsk"><div class="sk s"></div><div class="sk"></div><div class="sk h"></div><div class="sk"></div></div>`}catch(e){}return q()}})();
+(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{try{if(!$("app").querySelector(".hm-shell"))$("app").innerHTML=`<div class="wsk"><div class="sk s"></div><div class="sk"></div><div class="sk h"></div><div class="sk"></div></div>`}catch(e){}return q()}})();
 
 // 3) اهتزاز خفيف على الأزرار الأساسية
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".btn:not(.g),.hm-mini,.hm-live,nav button");if(b)buzz(8)},true);
@@ -58,7 +58,7 @@ window.wobOpen=async function(force){
 };
 window.wobClose=function(){ls.set(OB,"1");const d=$("wob");if(d){try{d._stop&&d._stop()}catch(e){}d.style.animation="fadeout .25s both";setTimeout(()=>d.remove(),250)}};
 // يظهر بعد ما الرئيسية تتحمّل لأول مرة بعد تسجيل الدخول
-(()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();try{if(!ls.get(OB)&&$("app")&&$("app").querySelector(".hm-shell"))setTimeout(()=>wobOpen(),500)}catch(e){}}})();
+(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();try{if(!ls.get(OB)&&$("app")&&$("app").querySelector(".hm-shell"))setTimeout(()=>wobOpen(),500)}catch(e){}}})();
 // 5) رابط الدعوة ?ref=CODE: يتحفظ ويتطبّق تلقائي لما العميل الجديد يسجّل
 try{const u=new URLSearchParams(location.search).get("ref");if(u&&/^[A-Za-z0-9]{3,16}$/.test(u))ls.set("salon_ref",u.toUpperCase())}catch(e){}
 async function refAuto(){
@@ -82,5 +82,19 @@ async function refCard(){
     const cta=sh.querySelector(".hm-cta");cta?cta.after(d):sh.appendChild(d);
   }catch(e){}
 }
-(()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();refAuto().then(refCard)}})();
+(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();refAuto().then(refCard)}})();
+
+// 7) «يوسف» جوه المساعد: الزرار العايم + رأس الشات + ترحيب الشات + بيتكلم وهو بيرد (للعميل بس)
+try{if((window.SALON_MODE||"customer")=="customer"&&window.MASCOT){
+  const dress2=()=>{
+    const f=document.getElementById("ai-fab");
+    if(f&&!f.dataset.mc){f.dataset.mc=1;f.innerHTML=MASCOT.head();f.classList.add("mc-fab");f.setAttribute("aria-label","اسأل يوسف");
+      try{if(!sessionStorage.getItem("mc_chip")&&f.classList.contains("on")){sessionStorage.setItem("mc_chip","1");const c=document.createElement("div");c.className="mc-chip";c.textContent="اسألني أي حاجة 👋";document.body.appendChild(c);setTimeout(()=>c.classList.add("out"),6500);setTimeout(()=>c.remove(),7200);c.onclick=()=>{f.click();c.remove()}}}catch(e){}}
+    const bg=document.getElementById("ai-bg");if(!bg)return;
+    const h=bg.querySelector(".ai-h .ai-orb");if(h&&!h.dataset.mc){h.dataset.mc=1;h.classList.add("mc-o");h.innerHTML=MASCOT.head();const t=bg.querySelector(".ai-h b");if(t)t.textContent="يوسف";const sp=bg.querySelector(".ai-h span");if(sp)sp.textContent="مساعدك في الصالون، اسألني أي حاجة"}
+    const o=bg.querySelector(".ai-hello .ai-orb");if(o&&!o.dataset.mc){o.dataset.mc=1;const w=document.createElement("div");w.className="mc-hello";o.replaceWith(w);const m=MASCOT.mount(w);m.wave(true);setTimeout(()=>m.wave(false),2600);const hh=bg.querySelector(".ai-hello h3");if(hh)hh.textContent="أهلًا بيك! أنا يوسف 👋"}
+    const busy=!!bg.querySelector(".ai-dots"),hd=bg.querySelector(".ai-h .ai-orb");if(hd)hd.classList.toggle("mc-talk",busy);const fb=document.getElementById("ai-fab");if(fb)fb.classList.toggle("mc-talk",busy);
+  };
+  new MutationObserver(()=>{try{dress2()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
+}}catch(e){}
 })();

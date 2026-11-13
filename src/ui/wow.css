@@ -55,3 +55,11 @@
 }
 .hm-refc{border-color:rgba(201,162,75,.45);background:linear-gradient(135deg,rgba(201,162,75,.16),transparent 70%),var(--card)}
 .hm-refc-t{display:flex;gap:12px;align-items:center}.hm-refc-i{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:var(--gold-soft,rgba(201,162,75,.12));flex:none}
+/* يوسف جوه المساعد */
+.mc-mini{width:100%;height:100%;overflow:visible}.mc-mini .mc-body,.mc-mini .mc-arm-l,.mc-mini .mc-arm-r{display:none}
+.ai-fab.mc-fab{width:60px;height:60px;padding:0;overflow:visible;background:radial-gradient(circle at 30% 25%,#2a2f3d,#141821);border:2px solid var(--gold,#C9A24B);box-shadow:0 12px 28px -8px rgba(201,162,75,.65)}
+.ai-fab.mc-fab .mc-svg{width:100%;height:100%;border-radius:50%;clip-path:circle(50%)}
+.ai-orb.mc-o{background:radial-gradient(circle at 30% 25%,#2a2f3d,#141821);border:1.5px solid var(--gold,#C9A24B);overflow:hidden;padding:0}
+.ai-orb.mc-o .mc-svg{width:100%;height:100%}
+.mc-hello{margin:0 auto 6px}.mc-hello .mc-wrap{width:200px;height:210px;margin:0 auto}
+.mc-chip{position:fixed;z-index:9;inset-inline-end:84px;bottom:calc(98px + env(safe-area-inset-bottom,0px));background:var(--card2,#1B2030);color:var(--ink,#F3EEE4);border:1px solid var(--line);border-radius:16px;padding:9px 13px;font-size:13.5px;box-shadow:0 12px 28px -12px rgba(0,0,0,.7);animation:rise .5s both;cursor:pointer;transition:opacity .6s}.mc-chip.out{opacity:0}
