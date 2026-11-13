@@ -26,19 +26,37 @@ new MutationObserver(()=>{if(document.querySelector(".vip:not([data-w])"))dress(
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".btn:not(.g),.hm-mini,.hm-live,nav button");if(b)buzz(8)},true);
 
 // 4) ترحيب أول دخول (مرة واحدة)
-const SL=[["✂️","أهلًا بيك في الصالون","احجز دورك من موبايلك في ثواني، من غير زحمة ولا انتظار طويل."],["📍","تابع دورك لحظة بلحظة","شوف كام واحد قدامك ومتى هييجي دورك، وهنبلغك لما الحلاق يناديك."],["👑","نقاطك بتتحول لمكافآت","كل زيارة بتجمّعلك نقاط، وكل ما تزيد مستواك بيعلى وتكسب مميزات أكتر."],["✨","اسأل مساعد الصالون","اسأله عن الحجز، نقاطك، ونصايح للعناية بالشعر والبشرة."]];
-window.wobOpen=function(force){
+const MSG=[
+ ["أهلًا يا {n}! 👋 أنا «يوسف»، مساعدك في الصالون. نورتنا!",1],
+ ["هعرّفك على التطبيق في دقيقة، وبعدها كل حاجة هتبقى في إيدك ✂️",0],
+ ["من «احجز دورك» بتختار الخدمة والحلاق والفترة، ومن غير زحمة ولا وقفة طويلة.",0],
+ ["وبعد ما تحجز، «دوري» بيوريك كام واحد قدامك وهييجي دورك إمتى، وهنبلّغك أول ما الحلاق يناديك 📍",0],
+ ["كل زيارة بتجمّعلك نقاط في «نقاطي»، والنقاط دي بتتحوّل لمكافآت وخصومات، وكل ما تزيد مستواك بيعلى 👑",0],
+ ["وتقدر تدعو صحابك، إنت وهو هتاخدوا نقاط لما يدفع أول فاتورة 🎁",0],
+ ["ولو عندك أي سؤال عن الحجز أو نقاطك، أو حتى مشكلة في الشعر أو البشرة، اسأل المساعد في أي وقت. أنا هنا ✨",0]];
+let VOICE=null;const hasTTS=()=>"speechSynthesis"in window&&typeof SpeechSynthesisUtterance!="undefined";
+const pickVoice=()=>{try{const v=speechSynthesis.getVoices();return v.find(x=>/ar[-_]EG/i.test(x.lang))||v.find(x=>/^ar/i.test(x.lang))||null}catch(e){return null}};
+window.wobOpen=async function(force){
   if(!force&&ls.get(OB))return;if($("wob"))return;
-  let i=0;const d=document.createElement("div");d.id="wob";d.setAttribute("role","dialog");d.setAttribute("aria-label","ترحيب");
-  d.innerHTML=`<button class="wb-sk" onclick="wobClose()">تخطّي</button><div class="wb-track">${SL.map(s=>`<div class="wb-sl"><div class="wb-ic">${s[0]}</div><h2>${s[1]}</h2><p>${s[2]}</p></div>`).join("")}</div><div class="wb-ft"><div class="wb-dots">${SL.map(()=>"<i></i>").join("")}</div><button class="btn" id="wb_n"></button></div>`;
+  let nm="";try{nm=String((await myProfile()).name||"").trim().split(/\s+/)[0]||""}catch(e){}
+  const T=MSG.map(m=>[m[0].replace("{n}",nm||"يا غالي").replace("يا يا","يا"),m[1]]);
+  let i=0,timer=null,snd=false,mc=null;const d=document.createElement("div");d.id="wob";d.setAttribute("role","dialog");d.setAttribute("aria-label","ترحيب");
+  d.innerHTML=`<div class="wb-top"><button class="wb-sk" onclick="wobClose()">تخطّي</button>${hasTTS()?`<button class="wb-snd" id="wb_s" aria-label="تشغيل الصوت">🔇</button>`:""}</div><div class="wb-stage" id="wb_m"></div><div class="wb-bub" id="wb_b" aria-live="polite"></div><div class="wb-ft"><div class="wb-dots">${T.map(()=>"<i></i>").join("")}</div><button class="btn" id="wb_n"></button></div>`;
   document.body.appendChild(d);
-  const sl=[...d.querySelectorAll(".wb-sl")],dots=[...d.querySelectorAll(".wb-dots i")],nb=d.querySelector("#wb_n");
-  const show=()=>{sl.forEach((s,k)=>{s.style.transform=`translateX(${-i*100}%)`;s.style.opacity=k==i?1:0});dots.forEach((x,k)=>x.classList.toggle("on",k==i));nb.textContent=i==SL.length-1?"يلا نبدأ":"التالي"};
-  nb.onclick=()=>{if(i<SL.length-1){i++;show()}else wobClose()};
-  let sx=null;d.addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});d.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)<50)return;if(dx>0&&i<SL.length-1)i++;else if(dx<0&&i>0)i--;show()});
-  show();
+  try{mc=MASCOT.mount($("wb_m"))}catch(e){$("wb_m").innerHTML=`<div class="wb-ic">✂️</div>`}
+  const bub=$("wb_b"),nb=$("wb_n"),dots=[...d.querySelectorAll(".wb-dots i")];
+  const stop=()=>{if(timer){clearInterval(timer);timer=null}if(mc)mc.talk(false);try{speechSynthesis.cancel()}catch(e){}};
+  const say=()=>{stop();const[t,w]=T[i];bub.textContent="";dots.forEach((x,k)=>x.classList.toggle("on",k==i));nb.textContent=i==T.length-1?"يلا نبدأ":"التالي";
+    if(mc){mc.wave(!!w);if(w)setTimeout(()=>mc&&mc.wave(false),2600);mc.talk(true)}
+    if(rm()){bub.textContent=t;if(mc)mc.talk(false)}else{let k=0;timer=setInterval(()=>{k+=1;bub.textContent=t.slice(0,k);if(k>=t.length)stop()},34)}
+    if(snd&&hasTTS()){try{const u=new SpeechSynthesisUtterance(t.replace(/[\u{1F300}-\u{1FAFF}☀-➿✂«»]/gu,""));u.lang="ar-EG";VOICE=VOICE||pickVoice();if(VOICE)u.voice=VOICE;u.rate=1;speechSynthesis.speak(u)}catch(e){}}};
+  nb.onclick=()=>{if(i<T.length-1){i++;say()}else wobClose()};
+  bub.onclick=()=>{if(timer){stop();bub.textContent=T[i][0]}};
+  const sb2=$("wb_s");if(sb2)sb2.onclick=()=>{snd=!snd;sb2.textContent=snd?"🔊":"🔇";sb2.setAttribute("aria-label",snd?"إيقاف الصوت":"تشغيل الصوت");if(snd)say();else{try{speechSynthesis.cancel()}catch(e){}}};
+  d._stop=()=>{stop();if(mc)mc.destroy()};
+  setTimeout(say,350);
 };
-window.wobClose=function(){ls.set(OB,"1");const d=$("wob");if(d){d.style.animation="fadeout .25s both";setTimeout(()=>d.remove(),250)}};
+window.wobClose=function(){ls.set(OB,"1");const d=$("wob");if(d){try{d._stop&&d._stop()}catch(e){}d.style.animation="fadeout .25s both";setTimeout(()=>d.remove(),250)}};
 // يظهر بعد ما الرئيسية تتحمّل لأول مرة بعد تسجيل الدخول
 (()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();try{if(!ls.get(OB)&&$("app")&&$("app").querySelector(".hm-shell"))setTimeout(()=>wobOpen(),500)}catch(e){}}})();
 // 5) رابط الدعوة ?ref=CODE: يتحفظ ويتطبّق تلقائي لما العميل الجديد يسجّل
