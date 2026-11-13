@@ -95,6 +95,28 @@ try{if((window.SALON_MODE||"customer")=="customer"&&window.MASCOT){
     const o=bg.querySelector(".ai-hello .ai-orb");if(o&&!o.dataset.mc){o.dataset.mc=1;const w=document.createElement("div");w.className="mc-hello";o.replaceWith(w);const m=MASCOT.mount(w);m.wave(true);setTimeout(()=>m.wave(false),2600);const hh=bg.querySelector(".ai-hello h3");if(hh)hh.textContent="أهلًا بيك! أنا يوسف 👋"}
     const busy=!!bg.querySelector(".ai-dots"),hd=bg.querySelector(".ai-h .ai-orb");if(hd)hd.classList.toggle("mc-talk",busy);const fb=document.getElementById("ai-fab");if(fb)fb.classList.toggle("mc-talk",busy);
   };
-  new MutationObserver(()=>{try{dress2()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
+  // الصوت: رد صوتي (يوسف بيقرأ الرد) + إدخال بالصوت (الميكروفون). الاتنين اختياريين وبيتخفوا لو المتصفح مش بيدعمهم.
+  const VK="mc_voice",TTS=hasTTS(),SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let speaking=false,seen=-1,rec=null;
+  const clean=t=>String(t||"").replace(/[\u{1F300}-\u{1FAFF}☀-➿✅✂«»*_#`]/gu,"").replace(/\s+/g," ").trim();
+  const talkUI=on=>{speaking=on;const bg=document.getElementById("ai-bg"),h=bg&&bg.querySelector(".ai-h .ai-orb"),f=document.getElementById("ai-fab");const busy=!!(bg&&bg.querySelector(".ai-dots"));[h,f].forEach(x=>x&&x.classList.toggle("mc-talk",on||busy))};
+  const speak=t=>{if(!TTS)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(clean(t).slice(0,600));u.lang="ar-EG";VOICE=VOICE||pickVoice();if(VOICE)u.voice=VOICE;u.onstart=()=>talkUI(true);u.onend=u.onerror=()=>talkUI(false);speechSynthesis.speak(u)}catch(e){}};
+  const voiceOn=()=>ls.get(VK)=="1";
+  const sound2=()=>{
+    const bg=document.getElementById("ai-bg");if(!bg){seen=-1;return}
+    const hd=bg.querySelector(".ai-h");
+    if(hd&&TTS&&!hd.querySelector(".mc-vb")){const b=document.createElement("button");b.type="button";b.className="mc-vb";const set=()=>{b.textContent=voiceOn()?"🔊":"🔇";b.setAttribute("aria-label",voiceOn()?"إيقاف صوت يوسف":"تشغيل صوت يوسف");b.title=b.getAttribute("aria-label")};set();b.onclick=()=>{ls.set(VK,voiceOn()?"0":"1");set();if(voiceOn()){const L=[...bg.querySelectorAll(".ai-m.a")];speak(L.length?L[L.length-1].textContent:"أهلًا بيك، أنا يوسف. اسألني أي حاجة")}else{try{speechSynthesis.cancel()}catch(e){}talkUI(false)}};const x=hd.querySelector(".ai-x");x?x.before(b):hd.appendChild(b)}
+    const fm=bg.querySelector("#ai-f");
+    if(fm&&SR&&!fm.querySelector(".mc-mic")){const m=document.createElement("button");m.type="button";m.className="mc-mic";m.textContent="🎤";m.setAttribute("aria-label","اتكلم");m.onclick=()=>{
+      if(rec){try{rec.stop()}catch(e){}return}
+      try{rec=new SR();rec.lang="ar-EG";rec.interimResults=false;rec.maxAlternatives=1;m.classList.add("on");
+        rec.onresult=e=>{const t=e.results[0]&&e.results[0][0]&&e.results[0][0].transcript;if(t){const i=document.getElementById("ai-in");if(i){i.value=t;fm.requestSubmit?fm.requestSubmit():fm.dispatchEvent(new Event("submit",{cancelable:true}))}}};
+        rec.onerror=ev=>{if(ev&&(ev.error=="not-allowed"||ev.error=="service-not-allowed"))toast("اسمح للميكروفون من إعدادات المتصفح")};
+        rec.onend=()=>{rec=null;m.classList.remove("on")};rec.start()}catch(e){rec=null;m.classList.remove("on")}};
+      const snd=fm.querySelector("#ai-snd,button[type=submit]");snd?snd.before(m):fm.appendChild(m)}
+    const n=bg.querySelectorAll(".ai-m.a").length;
+    if(seen<0)seen=n;else if(n>seen){seen=n;if(voiceOn()){const L=bg.querySelectorAll(".ai-m.a");speak(L[L.length-1].textContent)}}else if(n<seen)seen=n;
+  };
+  new MutationObserver(()=>{try{dress2();sound2()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
 }}catch(e){}
 })();
