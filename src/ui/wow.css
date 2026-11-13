@@ -36,3 +36,5 @@
 #wob .wb-dots{display:flex;gap:8px}#wob .wb-dots i{width:8px;height:8px;border-radius:8px;background:var(--line);transition:all .3s}#wob .wb-dots i.on{width:26px;background:var(--gold2)}
 #wob .btn{width:100%;max-width:380px}
 @media(prefers-reduced-motion:no-preference){#wob .wb-ic{animation:wfloat 3.2s ease-in-out infinite}@keyframes wfloat{50%{transform:translateY(-8px)}}}
+.hm-refc{border-color:rgba(201,162,75,.45);background:linear-gradient(135deg,rgba(201,162,75,.16),transparent 70%),var(--card)}
+.hm-refc-t{display:flex;gap:12px;align-items:center}.hm-refc-i{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:var(--gold-soft,rgba(201,162,75,.12));flex:none}
