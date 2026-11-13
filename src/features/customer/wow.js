@@ -41,4 +41,28 @@ window.wobOpen=function(force){
 window.wobClose=function(){ls.set(OB,"1");const d=$("wob");if(d){d.style.animation="fadeout .25s both";setTimeout(()=>d.remove(),250)}};
 // يظهر بعد ما الرئيسية تتحمّل لأول مرة بعد تسجيل الدخول
 (()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();try{if(!ls.get(OB)&&$("app")&&$("app").querySelector(".hm-shell"))setTimeout(()=>wobOpen(),500)}catch(e){}}})();
+// 5) رابط الدعوة ?ref=CODE: يتحفظ ويتطبّق تلقائي لما العميل الجديد يسجّل
+try{const u=new URLSearchParams(location.search).get("ref");if(u&&/^[A-Za-z0-9]{3,16}$/.test(u))ls.set("salon_ref",u.toUpperCase())}catch(e){}
+async function refAuto(){
+  const k=ls.get("salon_ref");if(!k)return;
+  try{const{data:r}=await sb.rpc("my_referral");if(!r||r.enabled===false)return;
+    if(!r.can_apply){try{localStorage.removeItem("salon_ref")}catch(e){}return}
+    if(r.code&&String(r.code).toUpperCase()==k){try{localStorage.removeItem("salon_ref")}catch(e){}return}
+    const{data,error}=await sb.rpc("apply_referral",{p_key:k});try{localStorage.removeItem("salon_ref")}catch(e){}
+    if(!error&&data)toast("اتسجّلت دعوة "+data+" ✓ هتاخد نقاطك بعد أول فاتورة")}catch(e){}
+}
+// 6) كارت الدعوة في الرئيسية
+async function refCard(){
+  try{
+    const A=$("app"),sh=A&&A.querySelector(".hm-shell");if(!sh||$("hmref"))return;
+    const{data:r,error}=await sb.rpc("my_referral");if(error||!r||r.enabled===false||!r.code)return;
+    if(!$("app").querySelector(".hm-shell")||$("hmref"))return;
+    let nm="";try{nm=String((await myProfile()).name||"").trim().split(/\s+/)[0]||""}catch(e){}
+    window._refMsg=refMsg(r,nm);
+    const d=document.createElement("div");d.id="hmref";d.className="box hm-refc";
+    d.innerHTML=`<div class="hm-refc-t"><span class="hm-refc-i">🎁</span><div><b>ادعي صاحبك واكسبوا نقاط</b><div class="m">هو ياخد ${r.points} وانت تاخد ${r.referrer_points} بعد أول فاتورة</div></div></div><div class="chips" style="margin-top:10px"><a class="btn s" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(window._refMsg)}">ابعت دعوة على واتساب</a><button class="btn s g" onclick="copyRef()">نسخ</button></div>${r.invited?`<div class="m" style="margin-top:8px">دعيت ${r.invited} · اتكافأوا ${r.rewarded} · كسبت ${r.earned} نقطة</div>`:""}`;
+    const cta=sh.querySelector(".hm-cta");cta?cta.after(d):sh.appendChild(d);
+  }catch(e){}
+}
+(()=>{const q=V.hm;if(!q)return;V.hm=async()=>{await q();refAuto().then(refCard)}})();
 })();
