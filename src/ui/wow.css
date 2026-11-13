@@ -63,3 +63,6 @@
 .ai-orb.mc-o .mc-svg{width:100%;height:100%}
 .mc-hello{margin:0 auto 6px}.mc-hello .mc-wrap{width:200px;height:210px;margin:0 auto}
 .mc-chip{position:fixed;z-index:9;inset-inline-end:84px;bottom:calc(98px + env(safe-area-inset-bottom,0px));background:var(--card2,#1B2030);color:var(--ink,#F3EEE4);border:1px solid var(--line);border-radius:16px;padding:9px 13px;font-size:13.5px;box-shadow:0 12px 28px -12px rgba(0,0,0,.7);animation:rise .5s both;cursor:pointer;transition:opacity .6s}.mc-chip.out{opacity:0}
+.mc-vb,.mc-mic{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card2,#1B2030);color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;padding:0}
+.mc-vb{margin-inline-start:auto}.ai-h .ai-x{margin-inline-start:0}
+.mc-mic.on{background:var(--red,#E4574F);border-color:transparent;animation:mcrec 1.1s ease-in-out infinite}@keyframes mcrec{50%{box-shadow:0 0 0 8px rgba(228,87,79,.22)}}
