@@ -84,7 +84,13 @@ export async function handle(req: Request, env: (k: string) => string | undefine
         generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
       }),
     });
-    if (!r.ok) { await finish(false, "http_" + r.status); return json({ error: r.status === 429 ? "الخدمة مشغولة دلوقتي، جرّب كمان شوية" : "حصلت مشكلة في الخدمة، جرّب تاني" }, 502); }
+    if (!r.ok) {
+      // بنسجّل رسالة الرفض من Gemini (نص قصير بدون أي صورة) علشان نعرف السبب من tryon_log.err
+      let detail = "";
+      try { const j = JSON.parse(await r.text()); detail = [j?.error?.status, j?.error?.message].filter(Boolean).join(": "); } catch { /* مفيش تفاصيل */ }
+      await finish(false, `http_${r.status}${detail ? " " + detail.replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").slice(0, 280) : ""}`);
+      return json({ error: r.status === 429 ? "الخدمة مشغولة دلوقتي، جرّب كمان شوية" : "حصلت مشكلة في الخدمة، جرّب تاني" }, 502);
+    }
     const out = parseGemini(await r.json());
     if (!out.image) { await finish(false, out.reason); return json({ error: "مقدرناش نعمل تصوّر للصورة دي. جرّب صورة وش واضحة لشخص واحد." }, 422); }
     await finish(true);
