@@ -42,7 +42,7 @@ async function doClose(){const g=id=>{const v=$(id).value;return v===""?NaN:pars
   // مراجعة قبل القفل: المتوقع + الفرق + أكبر بنود الخروج + حجوزات لسه في الدور
   const{data:pv,error:pe}=await sb.rpc("close_day_preview",{p_day:day});
   if(pe||!pv){if(pe&&!/PGRST202|close_day_preview/.test((pe.code||"")+" "+(pe.message||"")))return toast(pe.message);
-    if(!confirm(dayOnly?"تقفل اليوم؟\nشغل اليوم "+fm(c-clOpening())+" + رصيد أول اليوم "+fm(clOpening())+" = "+fm(c)+"\nمش هتقدر تعدّل بعد كده (المالك يقدر يعيد فتحه).":"تقفل اليوم؟ مش هتقدر تعدّل بعد كده."))return;return doCloseGo()}
+    if(!await askConfirm(dayOnly?"تقفل اليوم؟\nشغل اليوم "+fm(c-clOpening())+" + رصيد أول اليوم "+fm(clOpening())+" = "+fm(c)+"\nمش هتقدر تعدّل بعد كده (المالك يقدر يعيد فتحه).":"تقفل اليوم؟ مش هتقدر تعدّل بعد كده."))return;return doCloseGo()}
   const f=pv.figures||{},n=k=>+f[k]||0,opening=C.clp.op!==null&&!isNaN(C.clp.op)&&me.role=="owner"?C.clp.op:+pv.opening,exp=+pv.expected_cash-(+pv.opening)+opening,diff=c-exp,okd=Math.abs(diff)<0.005;
   const row=(l,v,neg)=>+v?dsKv(l,(neg?"− ":"+ ")+fm(v)):"";
   const big=(pv.big||[]).map(x=>`<div class="row"><div><b>${esc(x.kind)}${x.who?" — "+esc(x.who):""}</b><div class="m">${esc(x.note||"")}</div></div><b>${fm(x.amount)}</b></div>`).join("");
@@ -55,9 +55,9 @@ ${+pv.upcoming?`<div class="m" style="margin-top:8px">${pv.upcoming} حجز لس
 <div class="chips" style="margin-top:12px"><button class="btn g" style="flex:1" onclick="svcClose()">رجوع</button>${pend&&!own?"":`<button class="btn" style="flex:1" onclick="doCloseGo()">${pend?"اقفل برغم كده":okd?"تأكيد القفل":"اقفل برغم الفرق"}</button>`}</div>`,{back:0})}
 async function doCloseGo(){const p=C.clp;if(!p)return;
   const{data,error}=await sb.rpc("close_day",{p_day:p.day,p_counted_cash:p.c,p_counted_card:p.cd,p_counted_wallet:p.w,p_opening:p.op,p_note:p.note});
-  if(error)return toast(error.message);try{svcClose()}catch(e){}C.cres=data;C.clp=null;await bizLoad(true);toast("تم قفل اليوم ✓");V.cash();if(!(C.biz&&C.biz.open)&&confirm("اتقفل اليوم ✓\nتفتح اليوم الجديد دلوقتي؟"))bizOpen()}
+  if(error)return toast(error.message);try{svcClose()}catch(e){}C.cres=data;C.clp=null;await bizLoad(true);toast("تم قفل اليوم ✓");V.cash();if(!(C.biz&&C.biz.open)&&await askConfirm("اتقفل اليوم ✓\nتفتح اليوم الجديد دلوقتي؟"))bizOpen()}
 
-async function delClose(day){if(!confirm("تعيد فتح يوم "+day+"؟\nجرد الدرج بتاعه هيتشال (بيتسجل في المحذوفات) وتقفله تاني بالعدّ الصح. تقدر تعيد فتح آخر يوم اتقفل بس."))return;const{error}=await sb.rpc("reopen_business_day",{p_day:day});if(error)return toast(error.message);C.cres=null;C.cd=null;await bizLoad(true);toast("اتعاد فتح اليوم ✓");V.cash()}
+async function delClose(day){if(!await askConfirm("تعيد فتح يوم "+day+"؟\nجرد الدرج بتاعه هيتشال (بيتسجل في المحذوفات) وتقفله تاني بالعدّ الصح. تقدر تعيد فتح آخر يوم اتقفل بس."))return;const{error}=await sb.rpc("reopen_business_day",{p_day:day});if(error)return toast(error.message);C.cres=null;C.cd=null;await bizLoad(true);toast("اتعاد فتح اليوم ✓");V.cash()}
 
 async function addMove(){const a=parseFloat($("mv_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.from("cash_moves").insert({day:C.cd||bizToday(),kind:$("mv_k").value,amount:a,note:$("mv_n").value||null,...($("mv_pv")&&$("mv_pv").checked&&$("mv_k").value=="withdraw"?{prev_day:true}:{})});error?toast(error.message):(toast("تم ✓"),V.cash())}
 

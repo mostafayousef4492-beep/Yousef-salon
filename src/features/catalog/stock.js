@@ -11,17 +11,17 @@ const stockNum=(v,min)=>{if(v===null)return null;const n=Number(String(v).trim()
 
 // توريد: أي كمية تكتبها بتتضاف على المخزون وبتتسجل في حركة المخزون
 async function restock(id){if(C.stkBusy)return;const p=(C.stk||[]).find(x=>x.id==id);if(!p)return;
-const q=stockNum(prompt("كام قطعة دخلت المخزون من «"+p.name+"»؟\nالكمية الحالية: "+p.stock,"10"),1);if(q===null)return;if(Number.isNaN(q))return toast("اكتب عدد صحيح أكبر من صفر");
-if(!confirm("إضافة "+q+" قطعة لـ «"+p.name+"»؟\nالكمية هتبقى "+(p.stock+q)))return;
+const q=stockNum(await askInput("كام قطعة دخلت المخزون من «"+p.name+"»؟\nالكمية الحالية: "+p.stock,"10"),1);if(q===null)return;if(Number.isNaN(q))return toast("اكتب عدد صحيح أكبر من صفر");
+if(!await askConfirm("إضافة "+q+" قطعة لـ «"+p.name+"»؟\nالكمية هتبقى "+(p.stock+q)))return;
 C.stkBusy=1;const{error}=await sb.rpc("restock_product",{p_id:id,p_qty:q});C.stkBusy=0;error?toast(error.message):(toast("اتضاف "+q+" قطعة"),go("stock"))}
 
 // صنف جديد: بيتسجل بكمية صفر، وبعدين الكمية الابتدائية بتدخل كتوريد علشان تظهر في حركة المخزون
 async function stockAddNew(){if(C.stkBusy)return;
-const n=(prompt("اسم الصنف")||"").trim();if(!n)return;
+const n=(await askInput("اسم الصنف")||"").trim();if(!n)return;
 if((C.stk||[]).some(p=>String(p.name).trim()==n))return toast("الصنف ده موجود، استخدم «+ توريد»");
-const pr=Number(String(prompt("سعر البيع")||"").trim());if(!(pr>=0))return toast("سعر البيع غلط");
-const co=Number(String(prompt("سعر الشراء","0")||"0").trim());if(!(co>=0))return toast("سعر الشراء غلط");
-const q=stockNum(prompt("الكمية الحالية","0"),0);if(q===null)return;if(Number.isNaN(q))return toast("الكمية لازم تكون عدد صحيح");
+const pr=Number(String(await askInput("سعر البيع")||"").trim());if(!(pr>=0))return toast("سعر البيع غلط");
+const co=Number(String(await askInput("سعر الشراء","0")||"0").trim());if(!(co>=0))return toast("سعر الشراء غلط");
+const q=stockNum(await askInput("الكمية الحالية","0"),0);if(q===null)return;if(Number.isNaN(q))return toast("الكمية لازم تكون عدد صحيح");
 C.stkBusy=1;const{data,error}=await sb.from("products").insert({name:n,price:pr,cost:co,stock:0,min_stock:+(C.cfg&&C.cfg.low_stock_default)||5}).select("id").single();
 if(error){C.stkBusy=0;return toast(error.message)}
 if(q>0){const{error:e2}=await sb.rpc("restock_product",{p_id:data.id,p_qty:q});if(e2)toast("اتضاف الصنف بس التوريد فشل: "+e2.message)}

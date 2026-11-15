@@ -27,7 +27,7 @@ function attEdit(rid){const r=(C.attRows||{})[String(rid)];if(!r)return;const a=
 
 function attCancel(){C.aid=null;C.reload()}
 
-async function attDel(rid){if(!confirm("حذف تسجيل الحضور ده؟ (هيتسجّل في سجل التعديلات)"))return;const{data,error}=await sb.rpc("admin_att_delete",{p_id:String(rid)});if(error)return toast(error.message);toast("اتحذف"+(data?.pay_recalculated?" · الأجر اليومي اتحسب تاني":" · راجع الأجر اليومي لليوم ده لو متفعّل"));C.reload()}
+async function attDel(rid){if(!await askConfirm("حذف تسجيل الحضور ده؟ (هيتسجّل في سجل التعديلات)"))return;const{data,error}=await sb.rpc("admin_att_delete",{p_id:String(rid)});if(error)return toast(error.message);toast("اتحذف"+(data?.pay_recalculated?" · الأجر اليومي اتحسب تاني":" · راجع الأجر اليومي لليوم ده لو متفعّل"));C.reload()}
 
 async function setHere(){const g=await getPos();if(g.lat==null)return toast("فعّل الموقع واسمح للمتصفح");$("s_salon_lat").value=g.lat;$("s_salon_lng").value=g.lng;toast("اتحط موقعك الحالي، اضغط حفظ الإعدادات")}
 
@@ -124,7 +124,7 @@ ${(g.staff||[]).map(s=>`<div class="row" style="flex-direction:column;align-item
 <select onchange="lateSet('${s.id}',this.value)">${Object.keys(LATE_M).map(k=>`<option value="${k}" ${s.method==k?"selected":""}>${LATE_M[k]}</option>`).join("")}</select></div>`).join("")||`<p class="m">مفيش موظفين.</p>`}`);
 }
 async function attPayAll(){
-  if(!confirm("تحويل كل الموظفين أصحاب الراتب الثابت لنظام الحضور؟ الراتب هيبطل ينزل بالتقويم من النهارده وينزل بتسجيل الحضور."))return;
+  if(!await askConfirm("تحويل كل الموظفين أصحاب الراتب الثابت لنظام الحضور؟ الراتب هيبطل ينزل بالتقويم من النهارده وينزل بتسجيل الحضور."))return;
   const{data,error}=await sb.rpc("att_pay_all");
   if(error)return toast(error.code=="PGRST202"?"شغّل patch_attendance_pay.sql في Supabase الأول":error.message);
   toast((data||[]).length?"اتحوّل "+data.length+" موظف: "+data.map(x=>x.name+" ("+fm(x.daily_wage)+")").join("، "):"مفيش حد محتاج تحويل");lateRules();
@@ -138,4 +138,4 @@ async function lateSet(id,m){
   error?toast(error.message):toast("تم ✓ — "+LATE_M[m]);
   lateRules();
 }
-async function setStaffPin(id){const v=prompt("اكتب PIN الحضور للموظف (4 إلى 6 أرقام) — هيستخدمه على تابلت الصالون مع كوده");if(v===null)return;const pin=String(v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim();if(!/^\d{4,6}$/.test(pin))return toast("الـ PIN لازم يكون من 4 إلى 6 أرقام");const{data,error}=await sb.rpc("admin_set_staff_pin",{p_staff:id,p_pin:pin});error?toast(error.message):toast(data||"اتحفظ ✓")}
+async function setStaffPin(id){const v=await askInput("اكتب PIN الحضور للموظف (4 إلى 6 أرقام) — هيستخدمه على تابلت الصالون مع كوده");if(v===null)return;const pin=String(v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim();if(!/^\d{4,6}$/.test(pin))return toast("الـ PIN لازم يكون من 4 إلى 6 أرقام");const{data,error}=await sb.rpc("admin_set_staff_pin",{p_staff:id,p_pin:pin});error?toast(error.message):toast(data||"اتحفظ ✓")}

@@ -40,10 +40,10 @@ async function bfSave(force){const B=C.bf;if(!B||C.bfBusy)return;if(!B.day)retur
 if(B.rows.some(r=>!r.s.length&&!Object.keys(r.p).length))return toast("فيه فاتورة فاضية، اختار فيها خدمة أو احذفها");
 const list=[];B.rows.forEach(r=>{const items=[...r.s.map(id=>({type:"service",id,qty:1})),...Object.keys(r.p).map(id=>({type:"product",id:+id,qty:r.p[id]}))];for(let k=0;k<r.n;k++)list.push({customer:r.cust||null,barber:r.barber||null,method:r.method,time:r.time||null,items})});
 const tot=sumOf(B.rows,r=>bfPrice(r)*r.n);
-if(!force&&!confirm("تسجل "+list.length+" فاتورة بتاريخ "+B.day+" بإجمالي "+fm(tot)+"؟"))return;
+if(!force&&!await askConfirm("تسجل "+list.length+" فاتورة بتاريخ "+B.day+" بإجمالي "+fm(tot)+"؟"))return;
 C.bfBusy=1;try{const{data,error}=await sb.rpc("admin_backfill_invoices",{p_day:B.day,p_invoices:list,p_force:!!force});
 if(error)return toast(error.code=="PGRST202"||/Could not find the function/i.test(error.message||"")?"شغّل ملف backfill_invoices.sql في Supabase الأول":error.message);
-if(data&&data.needs_force){C.bfBusy=0;if(confirm("يوم "+data.day+" مقفول في الخزنة.\nلو سجلت فواتير فيه أرقام القفل هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return bfSave(true);return}
+if(data&&data.needs_force){C.bfBusy=0;if(await askConfirm("يوم "+data.day+" مقفول في الخزنة.\nلو سجلت فواتير فيه أرقام القفل هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return bfSave(true);return}
 toast("اتسجل "+data.count+" فاتورة ✓ بإجمالي "+fm(data.total));C.bf=null;C.cd=B.day;V.cash()}finally{C.bfBusy=0}}
 
 

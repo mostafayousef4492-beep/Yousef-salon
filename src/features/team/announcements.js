@@ -20,4 +20,4 @@ async function annTog(id,v){const{error}=await sb.from("team_announcements").upd
 
 async function annPin(id,v){const{error}=await sb.from("team_announcements").update({pinned:v}).eq("id",id);error?toast(error.message):V.ann()}
 
-async function annDel(id){if(!confirm("تحذف الإعلان ده؟"))return;const{error}=await sb.from("team_announcements").delete().eq("id",id);error?toast(error.message):V.ann()}
+async function annDel(id){if(!await askConfirm("تحذف الإعلان ده؟"))return;const{error}=await sb.from("team_announcements").delete().eq("id",id);error?toast(error.message):V.ann()}

@@ -8,7 +8,7 @@ const avatarHtml=(p,size,click)=>`<span class="av${click?" av-edit":""}" style="
 function shrinkImage(file){return new Promise((res,rej)=>{const r=new FileReader();r.onerror=()=>rej(new Error("مقدرتش أقرأ الصورة"));r.onload=()=>{const im=new Image();im.onerror=()=>rej(new Error("الصورة دي مش مدعومة"));im.onload=()=>{const S=256,c=document.createElement("canvas");c.width=c.height=S;const x=c.getContext("2d"),m=Math.min(im.width,im.height),sx=(im.width-m)/2,sy=(im.height-m)/2;x.drawImage(im,sx,sy,m,m,0,0,S,S);res(c.toDataURL("image/jpeg",.82))};im.src=r.result};r.readAsDataURL(file)})}
 
 function pickAvatar(){const i=document.createElement("input");i.type="file";i.accept="image/*";i.onchange=async()=>{const f=i.files&&i.files[0];if(!f)return;try{toast("بجهّز الصورة...");const d=await shrinkImage(f);const{error}=await sb.rpc("set_my_profile",{p_avatar:d});if(error)return toast(error.message);C.myp=null;toast("اتغيّرت صورتك ✓");go(tab)}catch(e){toast(e.message||"فشل رفع الصورة")}};i.click()}
-async function rmAvatar(){if(!confirm("تشيل صورتك؟"))return;const{error}=await sb.rpc("set_my_profile",{p_remove_avatar:true});error?toast(error.message):(C.myp=null,toast("اتشالت"),go(tab))}
+async function rmAvatar(){if(!await askConfirm("تشيل صورتك؟"))return;const{error}=await sb.rpc("set_my_profile",{p_remove_avatar:true});error?toast(error.message):(C.myp=null,toast("اتشالت"),go(tab))}
 
 async function myProfile(force){if(C.myp&&!force)return C.myp;const{data}=await sb.rpc("my_profile");C.myp=data||{};return C.myp}
 

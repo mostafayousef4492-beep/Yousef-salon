@@ -35,7 +35,7 @@ function dsAppts(ks,t){const A=(C.A||[]).filter(a=>!ks||ks.includes(a.status));
   dsOpen(t,A.length?A.map(a=>dsRow(`<b>${TC(a)} · ${esc(a.customers?.name||"عميل")}</b>`,`${(a.appointment_services||[]).map(x=>esc(x.services?.name||"")).filter(Boolean).join(" + ")||"—"}${a.profiles?.full_name?" · الحلاق: "+esc(a.profiles.full_name):""}`,`<span class="tag">${ST[a.status]||a.status}</span>`)).join(""):dsEmpty("مفيش حاجة هنا دلوقتي."))}
 
 
-async function urgDecide(id,ok){if(!ok&&!confirm("ترفض الطلب المستعجل؟ هيفضل في دوره العادي."))return;const{error}=await sb.rpc("decide_urgent",{p_id:id,p_ok:ok});if(error)return toast(error.message);toast(ok?"اتوافق ⚡ بقى أول الدور":"اترفض الطلب المستعجل");V.home()}
+async function urgDecide(id,ok){if(!ok&&!await askConfirm("ترفض الطلب المستعجل؟ هيفضل في دوره العادي."))return;const{error}=await sb.rpc("decide_urgent",{p_id:id,p_ok:ok});if(error)return toast(error.message);toast(ok?"اتوافق ⚡ بقى أول الدور":"اترفض الطلب المستعجل");V.home()}
 
 
 // ---- الرئيسية: إيداع / سحب ----

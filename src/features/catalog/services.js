@@ -1,12 +1,12 @@
 /* features/catalog/services.js — الخدمات والأسعار */
 
-async function editItem(t,id){const x=C.cat[t].find(y=>y.id==id),n=prompt("الاسم",x.name);if(n===null)return;const pr=prompt("سعر البيع",x.price);if(pr===null)return;const u={name:n,price:+pr};
-if(t=="services"){const d=prompt("المدة بالدقايق",x.duration_min);if(d===null)return;u.duration_min=+d;u.category=prompt("القسم (قصات / ذقن / عناية ...)",x.category||"قصات")||"قصات";u.description=prompt("وصف قصير (اختياري)",x.description||"")||null}else{const c=prompt("سعر الشراء",x.cost);if(c===null)return;const m=prompt("الحد الأدنى للمخزون",x.min_stock);if(m===null)return;u.cost=+c;u.min_stock=+m}
+async function editItem(t,id){const x=C.cat[t].find(y=>y.id==id),n=await askInput("الاسم",x.name);if(n===null)return;const pr=await askInput("سعر البيع",x.price);if(pr===null)return;const u={name:n,price:+pr};
+if(t=="services"){const d=await askInput("المدة بالدقايق",x.duration_min);if(d===null)return;u.duration_min=+d;u.category=await askInput("القسم (قصات / ذقن / عناية ...)",x.category||"قصات")||"قصات";u.description=await askInput("وصف قصير (اختياري)",x.description||"")||null}else{const c=await askInput("سعر الشراء",x.cost);if(c===null)return;const m=await askInput("الحد الأدنى للمخزون",x.min_stock);if(m===null)return;u.cost=+c;u.min_stock=+m}
 const{error}=await sb.from(t).update(u).eq("id",id);error?toast(error.message):V.set()}
 
 async function toggleItem(t,id,a){await sb.from(t).update({active:a}).eq("id",id);V.set()}
 
-async function addItem(t){const n=prompt("الاسم");if(!n)return;const pr=+prompt("سعر البيع");if(!(pr>=0))return;const o=t=="services"?{name:n,price:pr,duration_min:+prompt("المدة بالدقايق","30")||30,category:prompt("القسم (قصات / ذقن / عناية ...)","قصات")||"قصات"}:{name:n,price:pr,cost:+prompt("سعر الشراء","0")||0,stock:+prompt("الكمية الحالية","0")||0,min_stock:+C.cfg.low_stock_default||5};
+async function addItem(t){const n=await askInput("الاسم");if(!n)return;const pr=+await askInput("سعر البيع");if(!(pr>=0))return;const o=t=="services"?{name:n,price:pr,duration_min:+await askInput("المدة بالدقايق","30")||30,category:await askInput("القسم (قصات / ذقن / عناية ...)","قصات")||"قصات"}:{name:n,price:pr,cost:+await askInput("سعر الشراء","0")||0,stock:+await askInput("الكمية الحالية","0")||0,min_stock:+C.cfg.low_stock_default||5};
 const{error}=await sb.from(t).insert(o);error?toast(error.message):V.set()}
 
 // ===== نظام الخدمات (شاشة مستقلة للمالك) =====
@@ -83,7 +83,7 @@ async function bndSave(){const B=C.bn;if(B.s.length<2)return toast("اختار �
   const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s});
   if(error)return toast(error.message);toast("اتحفظت ✓");svcClose();bndLoad()}
 
-async function bndDel(id){if(!confirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
+async function bndDel(id){if(!await askConfirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
 
 
 // ===== خدمة بخيارات: كل اختيار بسعره (قص الشعر: كلاسيك / تدريج) =====
@@ -125,13 +125,13 @@ async function grpRemove(ids){
   if(rest.length){const u=await sb.from("services").update({active:false}).in("id",rest);if(u.error)throw u.error;off=rest.length}
   return{del:gone.length,off}}
 async function grpDel(){const g=C.svg&&C.svg.g;if(!g)return;
-  if(!confirm("حذف الخدمة «"+g+"» بكل اختياراتها؟"))return;
+  if(!await askConfirm("حذف الخدمة «"+g+"» بكل اختياراتها؟"))return;
   try{const ids=C.svc.l.filter(x=>x.group_name==g).map(x=>x.id),r=await grpRemove(ids);
     svcClose();toast(r.off?"اتمسح "+r.del+" واتوقف "+r.off+" (مستخدمين في حجوزات قديمة)":"اتمسحت الخدمة ✓");V.svc()}catch(e){toast(e.message)}}
 async function grpOptDel(i){const r=C.svg.rows[i];if(!r||!r.id)return;
   const live=C.svg.rows.filter(x=>!x.gone&&x.id!=r.id&&x.active).length;
-  if(r.active&&live<2&&!confirm("كده هيفضل أقل من اختياريين شغّالين. الأحسن توقف الخدمة كلها. تكمل الحذف؟"))return;
-  if(!confirm("حذف الاختيار «"+r.label+"»؟"))return;
+  if(r.active&&live<2&&!await askConfirm("كده هيفضل أقل من اختياريين شغّالين. الأحسن توقف الخدمة كلها. تكمل الحذف؟"))return;
+  if(!await askConfirm("حذف الاختيار «"+r.label+"»؟"))return;
   try{const x=await grpRemove([r.id]);r.gone=1;toast(x.off?"الاختيار مستخدم في حجوزات قديمة فاتوقف بدل ما يتمسح":"اتمسح ✓");grpDraw();V.svc()}catch(e){toast(e.message)}}
 async function grpAll(on){const g=C.svg&&C.svg.g;if(!g)return;
   const{error}=await sb.from("services").update({active:!!on}).eq("group_name",g);

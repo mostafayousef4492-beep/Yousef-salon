@@ -35,8 +35,8 @@ V.ctl=async()=>{if(me.role!="owner")return put(`<p class="m">للمالك بس.<
   <h2>الموظفين والاستثناءات</h2><p class="m">الاستثناء = صلاحية الموظف مختلفة عن دوره. "تنضيف الاستثناءات" بيشيل المطابق لافتراضي الدور عشان الموظف يسمع أي تغيير بتعمله فوق.</p>
   <button class="btn g s" onclick="rpClean()">تنضيف الاستثناءات المطابقة للدور</button>
   ${(ppl||[]).length?(ppl||[]).map(p=>`<div class="box" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${esc(p.full_name)}</b> <span class="tag">${RL[p.role]||""}</span>${co(p)?` <span class="tag">كوفي بس</span>`:""}<div class="m">${exc(p)?exc(p)+" استثناء":"زي الدور بالظبط"}</div></div><button class="btn s" onclick="C.pb='ctl';openPerms('${p.id}')">تعديل</button></div>`).join(""):`<p class="m">مفيش موظفين.</p>`}`)};
-async function rpSave(){if(!confirm("تحفظ صلاحيات الأدوار؟ بتتطبّق على كل موظف من غير استثناء خاص."))return;
+async function rpSave(){if(!await askConfirm("تحفظ صلاحيات الأدوار؟ بتتطبّق على كل موظف من غير استثناء خاص."))return;
   const rows=rpRows().filter(x=>x[0]=="k");let bad=null;
   for(const[r]of RP_ROLES){const o={};rows.forEach(x=>{const e=$("rp_"+r+"_"+x[1]);if(e)o[x[1]]=e.checked});const{error}=await sb.rpc("set_role_perms",{p_role:r,p_perms:o});if(error){bad=error.message;break}}
   if(bad)return toast(bad);toast("اتحفظت صلاحيات الأدوار ✓");try{const{data:rp}=await sb.rpc("role_perm_defaults");if(rp)RP_ROLES.forEach(([r])=>{if(rp[r])PD[r]=rp[r]})}catch(e){}V.ctl()}
-async function rpClean(){if(!confirm("تشيل من الموظفين أي استثناء مطابق لافتراضي دوره؟ الصلاحية الفعلية مش هتتغيّر دلوقتي."))return;const{data,error}=await sb.rpc("clean_perm_overrides");if(error)return toast(error.message);toast(data&&data.keys?"اتنضّف "+data.keys+" استثناء عند "+data.staff+" موظف":"مفيش حاجة تتنضّف");V.ctl()}
+async function rpClean(){if(!await askConfirm("تشيل من الموظفين أي استثناء مطابق لافتراضي دوره؟ الصلاحية الفعلية مش هتتغيّر دلوقتي."))return;const{data,error}=await sb.rpc("clean_perm_overrides");if(error)return toast(error.message);toast(data&&data.keys?"اتنضّف "+data.keys+" استثناء عند "+data.staff+" موظف":"مفيش حاجة تتنضّف");V.ctl()}
