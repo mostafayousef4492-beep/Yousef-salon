@@ -119,4 +119,16 @@ try{if((window.SALON_MODE||"customer")=="customer"&&window.MASCOT){
   };
   new MutationObserver(()=>{try{dress2();sound2()}catch(e){}}).observe(document.documentElement,{childList:true,subtree:true});
 }}catch(e){}
+
+// 8) «وحشتنا»: لو العميل غايب من ٢١ يوم أو أكتر، كارت ودّي بزرار حجز زي آخر مرة
+async function missCard(){
+  try{
+    const lv=C.lastVisit,sh=document.querySelector("#app .hm-shell");if(!lv||!lv.day||!sh||document.getElementById("hmmiss")||sh.querySelector(".hm-live"))return;
+    const days=Math.floor((Date.now()-new Date(lv.day+"T12:00:00").getTime())/864e5);if(!(days>=21))return;
+    const d=document.createElement("div");d.id="hmmiss";d.className="box hm-miss";
+    d.innerHTML=`<div class="hm-refc-t"><span class="hm-refc-i">💈</span><div><b>وحشتنا!</b><div class="m">بقالك ${days} يوم مجيتش${lv.services?" — آخر مرة: "+esc(lv.services):""}</div></div></div><button class="btn" style="width:100%;margin-top:10px" onclick="repeatVisit()">احجز زي آخر مرة</button>`;
+    const h=sh.querySelector(".hm-head"),live=sh.querySelector(".hm-live");h?h.after(d):sh.prepend(d);
+  }catch(e){}
+}
+(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();missCard()}})();
 })();
