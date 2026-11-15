@@ -53,7 +53,7 @@ function delTx(id){return ownerDel("staff_transactions",id,()=>C.reload(),"حذ�
 
 async function myS(id,st){const{error}=await sb.rpc("set_my_appt_status",{p_id:id,p_status:st});error?toast(error.message):C.reload()}
 
-V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="bnow"></div><div id="mecuts"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber")barberNow();panel(me.id,false)};
+V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="btoday"></div><div id="bnow"></div><div id="mecuts"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber"){barberToday();barberNow();clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="me"){barberToday();barberNow()}},45000)}panel(me.id,false)};
 
 // ===== كارت الترحيب في شاشة الموظف (عرض فقط — بيقرا اللي متحمّل أصلًا من شاشتي) =====
 function meHero(){const el=$("mehero");if(!el)return;
@@ -66,6 +66,12 @@ const big=cf?{l:"صافي مستحقاتك — "+RGL,v:n(sm&&sm.net)}:cc?{l:"ع�
 const st=[];if(cc&&cf)st.push(["العمولة",n(sm&&sm.commission)]);if(cs)st.push(["القصّات",sm?String(+sm.cuts||0):"—"]);if(cf)st.push(["السحب",n(sm&&sm.advances)]);if(cf&&C.meOld&&+C.meOld.rem>0)st.push(["باقيلك من "+mAr(C.meOld.period),fm(C.meOld.rem)]);if(C.meQ)st.push(["في الانتظار",String(C.meQ.w)]);
 el.innerHTML=`<div class="me-hero"><div class="me-top">${avatarHtml({avatar:C.meAv,name:me.full_name},52,false)}<div class="me-id"><div class="me-gr">${gr}</div><div class="me-nm">${esc(first)}</div><span class="tag">${RL[me.role]||""}</span></div></div>${big?`<div class="me-big"><div class="me-bl">${big.l}</div><div class="me-bv">${big.v}</div></div>`:""}${st.length?`<div class="me-st">${st.map(x=>`<div><div class="me-sl">${x[0]}</div><div class="me-sv">${x[1]}</div></div>`).join("")}</div>`:""}</div>`}
 
+async function barberToday(){
+  const el=$("btoday");if(!el)return;const[f,t]=rangeOf("today");
+  const{data,error}=await sb.rpc("staff_cuts_list",{p_staff:me.id,p_from:f,p_to:t});if(!$("btoday")||error)return;
+  const L=data||[],hasT=L.some(x=>x.total!=null),hasC=L.some(x=>x.commission!=null),tot=L.reduce((a,x)=>a+(+x.total||0),0),com=L.reduce((a,x)=>a+(+x.commission||0),0),
+    last=L.length?new Date(L[0].at).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}):"";
+  el.innerHTML=`<div class="box bt-card"><div class="cc-l">شغلك النهارده</div><div class="bt-grid"><div><div class="cc-n">${num(L.length)}</div><div class="m">حلقة</div></div>${hasT?`<div><div class="cc-n">${fm(tot)}</div><div class="m">إيراد</div></div>`:""}${hasC?`<div><div class="cc-n bt-gold">${fm(com)}</div><div class="m">عمولتك</div></div>`:""}</div>${last?`<div class="m" style="margin-top:8px">آخر حلقة الساعة ${last}</div>`:`<div class="m" style="margin-top:8px">لسه مفيش حلقات النهارده، يلا نبدأ 💪</div>`}</div>`}
 async function barberNow(){const{data,error}=await sb.rpc("my_queue");const e=$("bnow");if(!e||error)return;
 const{data:ub}=await sb.rpc("urgent_board"),U=new Set((ub||[]).filter(x=>x.state=="approved").map(x=>x.id)),L=(data||[]).filter(a=>me.role=="owner"||me.role=="manager"||!a.finished),act=L.filter(a=>a.status!="no_show"),sk=L.filter(a=>a.status=="no_show"),cur=act.find(a=>a.status=="in_service"),q=act.filter(a=>a.status!="in_service"),nx=q.find(a=>a.status=="checked_in")||q.find(a=>a.called)||q[0],ca=can("manage_appts"),cd=a=>a.ticket_code||"#"+a.ticket_no,nm=a=>(U.has(a.id)?"⚡ ":"")+esc(a.customer_name||"عميل");
 C.meQ={w:q.length};if($("mehero"))meHero();e.innerHTML=`<div class="box"><div class="cc-l">العميل الحالي</div>${cur?`<div class="cc-n" style="font-size:1.4rem">${nm(cur)}</div><div class="m"><span dir="ltr">${cd(cur)}</span> · ${esc(cur.services)||"—"}</div><button class="btn s" style="margin-top:8px" onclick="tk('finish_ticket',${cur.id})">خلّصت الخدمة</button> <button class="btn s g" style="margin-top:8px" onclick="lookOpen(${cur.id})">✂ اللوك</button>`:`<div class="m">مفيش حد على الكرسي دلوقتي</div>`}</div>

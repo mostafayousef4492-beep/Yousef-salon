@@ -251,3 +251,7 @@ p.m.empty{border-color:var(--line);background:transparent}
 @keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
 .cd-off{position:fixed;top:0;left:0;right:0;z-index:99;background:#8a5a00;color:#fff;text-align:center;padding:8px 12px;font-size:13px}
+
+.bt-card{margin-top:8px;background:linear-gradient(135deg,var(--gold-soft),transparent 70%),var(--card);border-color:var(--gold3)}
+.bt-grid{display:flex;gap:var(--s4,16px);align-items:flex-end;flex-wrap:wrap;margin-top:6px}.bt-grid>div{flex:1 1 90px}
+.bt-grid .cc-n{font-size:clamp(24px,6vw,34px);font-weight:700;line-height:1.1}.bt-gold{color:var(--gold2)}
