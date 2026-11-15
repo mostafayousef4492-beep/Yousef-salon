@@ -1,0 +1,58 @@
+/* ui/system.css — نظام التصميم الموحّد (أسود · دهبي · أبيض + فاتح/داكن). بيتحمّل آخر ملف CSS في الإدارة والموظفين والعملاء.
+   قواعده: مقياس مسافات واحد، كروت واحدة، أزرار وحقول مريحة للمس، واستغلال أحسن لمساحة الكمبيوتر. مفيش أي تغيير في الوظايف. */
+:root{
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;
+  --rad:16px;--rad-s:12px;--rad-l:22px;
+  --ctl:48px;               /* ارتفاع الأزرار والحقول على اللمس */
+  --card-bd:var(--line2);
+  --card-sh:0 1px 0 rgba(255,255,255,.03) inset,0 14px 30px -24px rgba(0,0,0,.85);
+  --acc:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+:root[data-theme="light"]{--card-sh:0 1px 2px rgba(60,45,10,.06),0 14px 30px -26px rgba(60,45,10,.5);--card-bd:rgba(27,23,16,.10)}
+
+/* ===== كروت موحّدة ===== */
+.box,.row,.card,.ticket{border-radius:var(--rad);border-color:var(--card-bd);box-shadow:var(--card-sh)}
+.box{padding:var(--sp-4)}
+.row{padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-2);min-height:56px}
+@media(hover:hover){.box[role=button],button.row,.box.cc-stat{transition:transform .18s,border-color .18s,box-shadow .18s}.box[role=button]:hover,button.row:hover{transform:translateY(-2px);border-color:var(--gold3)}}
+
+/* ===== عناوين الأقسام ===== */
+h2{font-size:14px;letter-spacing:.2px;margin:var(--sp-5) 0 var(--sp-3)}
+h1{letter-spacing:0}
+
+/* ===== كروت الأرقام ===== */
+.cc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3);margin:0 0 var(--sp-2)}
+.cc-stat{position:relative;overflow:hidden;padding:var(--sp-4) var(--sp-4) 14px}
+.cc-stat::before{content:"";position:absolute;inset-inline:0;top:0;height:3px;background:var(--acc);opacity:.85}
+.cc-stat .cc-l{font-size:13px;color:var(--mute);margin-bottom:6px}
+.cc-stat .cc-n{font-size:clamp(26px,3.2vw,38px);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;color:var(--ink)}
+@media(min-width:900px){.cc-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--sp-4)}}
+
+/* ===== الأزرار والحقول (أسهل في اللمس) ===== */
+.btn{min-height:var(--ctl);border-radius:var(--rad-s);font-size:15px;letter-spacing:0}
+.btn.s{min-height:40px;padding:8px 16px}
+input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{min-height:var(--ctl);border-radius:var(--rad-s);font-size:16px;padding:10px 14px}
+textarea{min-height:96px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+.chip{min-height:40px;display:inline-flex;align-items:center}
+.cc-act{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.cc-act>.btn{flex:0 1 auto;width:auto;min-width:150px}.dash-side .cc-act>.btn{flex:1 1 140px}
+
+/* ===== رأس اللوحة ===== */
+.dash-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;margin-bottom:var(--sp-4)}
+.dash-head h1{margin:2px 0 8px}
+.dash-search{flex:1 1 280px;max-width:460px}
+.dash-search input{width:100%}
+
+/* ===== كراسي ===== */
+.cc-chairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:var(--sp-3)}
+.cc-chair{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:var(--sp-4)}
+.cc-chair b{font-size:16px}
+
+/* ===== استغلال مساحة الكمبيوتر ===== */
+@media(min-width:900px){
+  #app{max-width:1240px;padding:var(--sp-5) var(--sp-6) 80px}
+  #app[data-tab=pos]{max-width:1400px}
+  .dash-cols{grid-template-columns:minmax(0,1.8fr) minmax(300px,.9fr)}
+}
+@media(min-width:1500px){#app{max-width:1360px}}
