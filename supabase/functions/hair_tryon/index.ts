@@ -88,7 +88,7 @@ export async function handle(req: Request, env: (k: string) => string | undefine
       // بنسجّل رسالة الرفض من Gemini (نص قصير بدون أي صورة) علشان نعرف السبب من tryon_log.err
       let detail = "";
       try { const j = JSON.parse(await r.text()); detail = [j?.error?.status, j?.error?.message].filter(Boolean).join(": "); } catch { /* مفيش تفاصيل */ }
-      await finish(false, `http_${r.status}${detail ? " " + detail.replace(/\s+/g, " ").slice(0, 220) : ""}`);
+      await finish(false, `http_${r.status}${detail ? " " + detail.replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").slice(0, 280) : ""}`);
       return json({ error: r.status === 429 ? "الخدمة مشغولة دلوقتي، جرّب كمان شوية" : "حصلت مشكلة في الخدمة، جرّب تاني" }, 502);
     }
     const out = parseGemini(await r.json());
