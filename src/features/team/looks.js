@@ -6,7 +6,7 @@ const lkDate=l=>l&&l.updated_at?new Date(l.updated_at).toLocaleDateString("ar-EG
 const lkVals=()=>LK_F.map(f=>($("lk_"+f[0])||{}).value||"");
 
 function lookForm(l,saveCall,title){
-  dsOpen(title,(l.wish_style?`<div class="box" style="margin-bottom:8px"><div class="m">الشكل اللي العميل عايزه (من تجربة القصة)</div><b>${esc(l.wish_style)}</b></div>`:"")+`<div class="m" style="margin-bottom:6px">${lkHas(l)?"آخر تحديث "+lkDate(l):"لسه مفيش ملف للعميل ده، اكتب اللي تعرفه."}</div>`
+  dsOpen(title,(l.wish_style?`<div class="box" style="margin-bottom:8px"><div class="m">الشكل اللي العميل اختاره (من الكتالوج)</div><b>${esc(l.wish_style)}</b></div>`:"")+`<div class="m" style="margin-bottom:6px">${lkHas(l)?"آخر تحديث "+lkDate(l):"لسه مفيش ملف للعميل ده، اكتب اللي تعرفه."}</div>`
   +LK_F.map(f=>`<label class="m" style="display:block;margin-top:8px">${f[1]}</label>`+(f[0]=="notes"?`<textarea id="lk_${f[0]}" rows="3" maxlength="600" placeholder="${f[2]}">${esc(l[f[0]]||"")}</textarea>`:`<input id="lk_${f[0]}" maxlength="200" placeholder="${f[2]}" value="${esc(l[f[0]]||"")}">`)).join("")
   +`<button class="btn" style="width:100%;margin-top:12px" onclick="${saveCall}">حفظ</button>`)}
 
