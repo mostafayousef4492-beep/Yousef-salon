@@ -255,3 +255,9 @@ p.m.empty{border-color:var(--line);background:transparent}
 .bt-card{margin-top:8px;background:linear-gradient(135deg,var(--gold-soft),transparent 70%),var(--card);border-color:var(--gold3)}
 .bt-grid{display:flex;gap:var(--s4,16px);align-items:flex-end;flex-wrap:wrap;margin-top:6px}.bt-grid>div{flex:1 1 90px}
 .bt-grid .cc-n{font-size:clamp(24px,6vw,34px);font-weight:700;line-height:1.1}.bt-gold{color:var(--gold2)}
+/* نوافذ التأكيد + زر الرجوع */
+.dlg-bg{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);animation:fadein .15s both}.dlg-bg.out{opacity:0;transition:opacity .14s}
+.dlg{width:min(420px,100%);background:var(--card2);border:1px solid var(--gold3);border-radius:var(--r,20px);padding:20px;box-shadow:0 30px 60px -20px rgba(0,0,0,.8)}
+.dlg p{margin:0 0 14px;line-height:1.9;color:var(--ink);font-size:16px}.dlg .dlg-in{width:100%;margin-bottom:14px}
+.dlg-b{display:flex;gap:10px}.dlg-b .btn{flex:1}.btn.danger{background:var(--red,#E4574F);color:#fff;border-color:transparent}
+#bk{position:absolute;inset-inline-start:8px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--gold2);font-size:26px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}#bk[hidden]{display:none}

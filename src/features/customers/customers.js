@@ -31,9 +31,9 @@ C.chOpenAfter=n;go("pos")}
 
 function custBook(id){const x=C.CU.find(y=>y.id==id);go("appts");let n=0;const w=setInterval(async()=>{if($("adm")||++n>40){clearInterval(w);if(!$("adm"))return;await admForm();let m=0;const w2=setInterval(()=>{if($("ad_n")||++m>40){clearInterval(w2);if($("ad_n")){$("ad_n").value=x.name;$("ad_p").value=x.phone||""}}},100)}},100)}
 
-async function adjP(id){const n=+prompt("عدد النقاط (موجب للإضافة، سالب للخصم)");if(!n)return;const note=prompt("السبب (هيظهر للعميل في سجل نقاطه)","")||"";const{error}=await sb.rpc("adjust_points",{p_customer:id,p_pts:n,p_note:note});error?toast(error.message):(toast("تم ✓"),V.cust())}
+async function adjP(id){const n=+await askInput("عدد النقاط (موجب للإضافة، سالب للخصم)");if(!n)return;const note=await askInput("السبب (هيظهر للعميل في سجل نقاطه)","")||"";const{error}=await sb.rpc("adjust_points",{p_customer:id,p_pts:n,p_note:note});error?toast(error.message):(toast("تم ✓"),V.cust())}
 
-async function delC(id){if(!confirm("حذف العميل وكل حجوزاته وتقييماته؟ مش هيترجّع."))return;const{error}=await sb.rpc("delete_customer",{p_id:id});error?toast(error.message):(toast("تم الحذف"),V.cust())}
+async function delC(id){if(!await askConfirm("حذف العميل وكل حجوزاته وتقييماته؟ مش هيترجّع."))return;const{error}=await sb.rpc("delete_customer",{p_id:id});error?toast(error.message):(toast("تم الحذف"),V.cust())}
 
 const dsCuRow=c=>{(C.dsN=C.dsN||{})[c.id]=c.name;return `<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="dsCust(${c.id})"><div><b>${esc(c.name)}</b><div class="m">${dsPh()&&c.phone?`<span dir="ltr">${esc(c.phone)}</span> · `:""}${c.sub||""}</div></div>${c.end?`<div style="text-align:left">${c.end}</div>`:""}</button>`};
 
@@ -50,15 +50,15 @@ const e=$("ccode");if(e)e.textContent=data;
 const w=$("ccw");if(w)w.remove();
 e.insertAdjacentHTML("afterend",`<span id="ccw">${waBtn(x.phone,0,"كود دخولك على تطبيق "+C.cfg.salon_name+": "+data+" (صالح 15 دقيقة)")}</span>`)}
 
-async function claimOk(id){if(!confirm("تأكد إن اللي بيطلب الربط هو صاحب الرقم فعلًا. تربط؟"))return;const{error}=await sb.rpc("approve_claim",{p_id:id});error?toast(error.message):(toast("تم ربط الحساب ✓"),V.cust())}
+async function claimOk(id){if(!await askConfirm("تأكد إن اللي بيطلب الربط هو صاحب الرقم فعلًا. تربط؟"))return;const{error}=await sb.rpc("approve_claim",{p_id:id});error?toast(error.message):(toast("تم ربط الحساب ✓"),V.cust())}
 
 async function attachPh(id){const x=C.CU.find(y=>y.id==id);if(!x)return;
-const v=prompt("رقم موبايل "+x.name+" (01xxxxxxxxx)\nلو الرقم مسجل لعميل تاني هتتنقل النقاط عليه والسجلين يتدمجوا");if(v===null)return;
+const v=await askInput("رقم موبايل "+x.name+" (01xxxxxxxxx)\nلو الرقم مسجل لعميل تاني هتتنقل النقاط عليه والسجلين يتدمجوا");if(v===null)return;
 const ph=v.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\D/g,"");if(!/^01\d{9}$/.test(ph))return toast("الموبايل لازم 11 رقم ويبدأ بـ 01");
 const{data,error}=await sb.rpc("attach_customer_phone",{p_customer:id,p_phone:ph});if(error)return toast(error.message);
 toast(data==id?"تم ربط الرقم ✓":"الرقم كان مسجل — اتدمجت النقاط والسجل ✓");await V.cust();openCust(data)}
 
-async function setRef(id){const v=prompt("رقم موبايل أو كود الدعوة بتاع اللي رشّح العميل ده");if(v===null||!v.trim())return;
+async function setRef(id){const v=await askInput("رقم موبايل أو كود الدعوة بتاع اللي رشّح العميل ده");if(v===null||!v.trim())return;
 const{data,error}=await sb.rpc("staff_set_referrer",{p_customer:id,p_key:v.replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d))});error?toast(error.message):toast("تم ✓ المُحيل: "+data+" — النقاط بعد أول فاتورة")}
 
 async function custAv(id){const{data}=await sb.from("customers").select("name,avatar,birthday").eq("id",id).maybeSingle();const e=$("cav");if(!e||!data)return;if(!data.birthday){const wb=$("wa-bd");if(wb)wb.remove()}e.innerHTML=`<div style="display:flex;align-items:center;gap:12px;margin-top:10px">${avatarHtml(data,64,false)}${data.birthday?`<span class="m">🎂 ${new Date(data.birthday+"T00:00").toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"})}</span>`:""}${isAdm(me)?` <button class="btn s g" onclick="cuBday(${id},'${data.birthday||""}')">${data.birthday?"تعديل الميلاد":"إضافة ميلاد"}</button>`:""}</div><div id="cbd"></div>`}
@@ -75,13 +75,13 @@ return `<div class="box" style="margin-bottom:8px;${x.read_at?"opacity:.75":"bor
 function fbFilter(k){C.fbf=k;fbList()}
 async function fbSt(id,st){const{error}=await sb.from("customer_feedback").update({status:st,read_at:new Date().toISOString()}).eq("id",id);error?toast(error.message):fbList()}
 async function fbRead(id){const{error}=await sb.from("customer_feedback").update({read_at:new Date().toISOString()}).eq("id",id);error?toast(error.message):fbList()}
-async function fbDel(id){if(!confirm("حذف الرسالة دي؟"))return;const{error}=await sb.from("customer_feedback").delete().eq("id",id);error?toast(error.message):fbList()}
-async function fbReply(id){const r=prompt("اكتب ردك (العميل هيشوفه في تطبيقه)");if(r==null)return;const t=r.trim();if(t.length<2)return toast("اكتب رد");const{error}=await sb.from("customer_feedback").update({reply:t,replied_at:new Date().toISOString(),read_at:new Date().toISOString(),status:"done"}).eq("id",id);error?toast(error.message):(toast("اتبعت الرد"),fbList())}
+async function fbDel(id){if(!await askConfirm("حذف الرسالة دي؟"))return;const{error}=await sb.from("customer_feedback").delete().eq("id",id);error?toast(error.message):fbList()}
+async function fbReply(id){const r=await askInput("اكتب ردك (العميل هيشوفه في تطبيقه)");if(r==null)return;const t=r.trim();if(t.length<2)return toast("اكتب رد");const{error}=await sb.from("customer_feedback").update({reply:t,replied_at:new Date().toISOString(),read_at:new Date().toISOString(),status:"done"}).eq("id",id);error?toast(error.message):(toast("اتبعت الرد"),fbList())}
 
 // ===== تعديل اسم العميل لو اتكتب غلط =====
 async function custRename(id,cur){
   const x=(C.CU||[]).find(y=>y.id==id),old=cur||(x&&x.name)||"";
-  const v=prompt("اكتب الاسم الصح للعميل",old);if(v===null)return;const n=v.trim();
+  const v=await askInput("اكتب الاسم الصح للعميل",old);if(v===null)return;const n=v.trim();
   if(n.length<2)return toast("اكتب اسم العميل (حرفين على الأقل)");if(n==old)return;
   const{data,error}=await sb.rpc("admin_set_customer_name",{p_customer:id,p_name:n});
   if(error)return toast(error.message=="غير مصرح"?"مش مسموح لك تعدّل اسم العميل":error.message);

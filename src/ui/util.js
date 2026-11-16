@@ -1,6 +1,6 @@
 /* ui/util.js — أدوات مشتركة (جداول، أعمدة، كروت) */
 
-async function copyLink(p){const u=location.origin+p;try{await navigator.clipboard.writeText(u);toast("تم نسخ الرابط ✓")}catch(e){prompt("انسخ الرابط:",u)}}
+async function copyLink(p){const u=location.origin+p;try{await navigator.clipboard.writeText(u);toast("تم نسخ الرابط ✓")}catch(e){await askInput("انسخ الرابط:",u)}}
 
 // ================= التقارير =================
 
@@ -29,9 +29,9 @@ async function bizOpen(){if(C.biz&&C.biz.open)return toast("فيه يوم مفت
   dsOpen("فتح يوم عمل",`<div class="m" style="margin-bottom:8px">اختار تاريخ اليوم اللي هتشتغل عليه. لو اخترت يوم قديم، كل الفواتير والمصروفات والسحب والسلف هتتسجل على اليوم ده (مش النهارده)، والحضور والانصراف بيفضلوا بالوقت الحقيقي. اليوم بيفضل مفتوح لحد ما تقفله بجرد الدرج.</div><input type="date" id="bo_d" value="${cal}" max="${cal}"${min?` min="${min}"`:""} oninput="bizOpenHint()"><div id="bo_n" class="m" style="margin:8px 0"></div><button class="btn" onclick="bizOpenGo()">فتح اليوم</button>`);bizOpenHint()}
 function bizOpenHint(){const v=$("bo_d")?.value,cal=(C.biz&&C.biz.calendar)||ymd(new Date()),n=$("bo_n");if(!n)return;n.innerHTML=v&&v<cal?`<b style="color:#b45309">⚠ هتشتغل على يوم ${esc(v)} والنهارده الحقيقي ${esc(cal)}</b>`:""}
 async function bizOpenGo(){const v=$("bo_d")?.value,cal=(C.biz&&C.biz.calendar)||ymd(new Date());if(!v)return toast("اختار التاريخ");
-  if(!confirm(v<cal?"تفتح يوم "+v+" والنهارده "+cal+"؟\nكل اللي هتسجله هيتحسب على يوم "+v+" لحد ما تقفل اليوم.":"تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;
+  if(!await askConfirm(v<cal?"تفتح يوم "+v+" والنهارده "+cal+"؟\nكل اللي هتسجله هيتحسب على يوم "+v+" لحد ما تقفل اليوم.":"تفتح يوم عمل جديد دلوقتي؟\nهيفضل مفتوح (حتى بعد 12) لحد ما تقفله بجرد الدرج."))return;
   const{error}=await sb.rpc("open_business_day",{p_day:v<cal?v:null});if(error)return toast(error.message);svcClose();await bizLoad(true);toast("اتفتح اليوم ✓");go("home")}
-async function bizReopen(){if(!me||me.role!="owner")return;if(!confirm("تعيد فتح آخر يوم اتقفل؟\nجرد الدرج بتاعه هيتشال (بيتسجل في سجل المحذوفات) وتقدر تعدّل وتقفله تاني."))return;
+async function bizReopen(){if(!me||me.role!="owner")return;if(!await askConfirm("تعيد فتح آخر يوم اتقفل؟\nجرد الدرج بتاعه هيتشال (بيتسجل في سجل المحذوفات) وتقدر تعدّل وتقفله تاني."))return;
   const{error}=await sb.rpc("reopen_business_day");if(error)return toast(error.message);await bizLoad(true);toast("اتعاد فتح اليوم ✓");go("home")}
 const bizTm=t=>t?new Date(t).toLocaleString("ar-EG",{hourCycle:"h23",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
 const bizLocal=t=>{const d=new Date(t),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes())};
@@ -43,7 +43,7 @@ async function bizEdit(day){if(!me||me.role!="owner")return toast("التعدي�
   dsOpen("تعديل يوم "+day,`<div class="m" style="margin-bottom:8px">عدّل وقت الفتح أو القفل. وقت القفل هو الحد بين اليوم ده واللي بعده: اللي اتسجل قبله بيتحسب على اليوم ده. مفيش فواتير بتتمسح، وأرقام المتوقع في الجرد بتتحدّث (العدّ الفعلي ما بيتغيّرش).</div><label class="m">وقت الفتح</label><input type="datetime-local" id="be_o" value="${bizLocal(r.opened_at)}">${r.closed_at?`<label class="m">وقت القفل</label><input type="datetime-local" id="be_c" value="${bizLocal(r.closed_at)}">`:`<div class="m" style="margin:8px 0">اليوم لسه مفتوح — القفل من شاشة الخزنة بجرد الدرج.</div>`}<button class="btn" style="margin-top:8px" onclick="bizEditGo('${day}')">حفظ التعديل</button>`)}
 async function bizEditGo(day){const o=$("be_o")?.value,c=$("be_c")?.value,{data}=await sb.rpc("business_days_list"),r=(data||[]).find(x=>x.day==day);if(!r)return;
   const po=o&&bizLocal(r.opened_at)!=o?new Date(o).toISOString():null,pc=c&&r.closed_at&&bizLocal(r.closed_at)!=c?new Date(c).toISOString():null;
-  if(!po&&!pc)return toast("مفيش تغيير");if(!confirm("تحفظ التعديل على يوم "+day+"؟"))return;
+  if(!po&&!pc)return toast("مفيش تغيير");if(!await askConfirm("تحفظ التعديل على يوم "+day+"؟"))return;
   const{error}=await sb.rpc("edit_business_day",{p_day:day,p_opened_at:po,p_closed_at:pc});if(error)return toast(error.message);
   svcClose();await bizLoad(true);toast("اتعدّل ✓");go("cash")}
 function bizClose(){if(!C.biz||!C.biz.open)return toast("مفيش يوم مفتوح دلوقتي");C.cd=C.biz.day;go("cash");toast("اكتب جرد الدرج (كاش / كارت / محفظة) واضغط قفل اليوم")}

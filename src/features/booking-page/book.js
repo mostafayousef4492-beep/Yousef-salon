@@ -101,7 +101,7 @@ async function changeB(){const L=store.get("salon_book_last");if(!L)return;
 async function doChangeB(id){const L=store.get("salon_book_last");if(!L||C.busy)return;C.busy=true;
   const{error}=await sb.rpc("public_change_barber",{p_id:L.id,p_phone:L.p,p_barber:id});C.busy=false;
   if(error)return toast(isNetErr(error)?"التغيير لم يتأكد — النت واقف":error.message);toast("تم تغيير الحلاق ✓");showTicket()}
-async function cancelT(){if(!confirm("تلغي الحجز؟"))return;const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_cancel",{p_id:L.id,p_phone:L.p});
+async function cancelT(){if(!await askConfirm("تلغي الحجز؟"))return;const L=store.get("salon_book_last");if(!L)return;const{error}=await sb.rpc("public_cancel",{p_id:L.id,p_phone:L.p});
   if(error)return toast(error.message);clearInterval(C.poll);store.del("salon_book_last");toast("اتلغى الحجز");start()}
 init();
 

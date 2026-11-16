@@ -1,21 +1,28 @@
 /* features/catalog/services.js — الخدمات والأسعار */
 
-async function editItem(t,id){const x=C.cat[t].find(y=>y.id==id),n=prompt("الاسم",x.name);if(n===null)return;const pr=prompt("سعر البيع",x.price);if(pr===null)return;const u={name:n,price:+pr};
-if(t=="services"){const d=prompt("المدة بالدقايق",x.duration_min);if(d===null)return;u.duration_min=+d;u.category=prompt("القسم (قصات / ذقن / عناية ...)",x.category||"قصات")||"قصات";u.description=prompt("وصف قصير (اختياري)",x.description||"")||null}else{const c=prompt("سعر الشراء",x.cost);if(c===null)return;const m=prompt("الحد الأدنى للمخزون",x.min_stock);if(m===null)return;u.cost=+c;u.min_stock=+m}
+async function editItem(t,id){const x=C.cat[t].find(y=>y.id==id),n=await askInput("الاسم",x.name);if(n===null)return;const pr=await askInput("سعر البيع",x.price);if(pr===null)return;const u={name:n,price:+pr};
+if(t=="services"){const d=await askInput("المدة بالدقايق",x.duration_min);if(d===null)return;u.duration_min=+d;u.category=await askInput("القسم (قصات / ذقن / عناية ...)",x.category||"قصات")||"قصات";u.description=await askInput("وصف قصير (اختياري)",x.description||"")||null}else{const c=await askInput("سعر الشراء",x.cost);if(c===null)return;const m=await askInput("الحد الأدنى للمخزون",x.min_stock);if(m===null)return;u.cost=+c;u.min_stock=+m}
 const{error}=await sb.from(t).update(u).eq("id",id);error?toast(error.message):V.set()}
 
 async function toggleItem(t,id,a){await sb.from(t).update({active:a}).eq("id",id);V.set()}
 
-async function addItem(t){const n=prompt("الاسم");if(!n)return;const pr=+prompt("سعر البيع");if(!(pr>=0))return;const o=t=="services"?{name:n,price:pr,duration_min:+prompt("المدة بالدقايق","30")||30,category:prompt("القسم (قصات / ذقن / عناية ...)","قصات")||"قصات"}:{name:n,price:pr,cost:+prompt("سعر الشراء","0")||0,stock:+prompt("الكمية الحالية","0")||0,min_stock:+C.cfg.low_stock_default||5};
+async function addItem(t){const n=await askInput("الاسم");if(!n)return;const pr=+await askInput("سعر البيع");if(!(pr>=0))return;const o=t=="services"?{name:n,price:pr,duration_min:+await askInput("المدة بالدقايق","30")||30,category:await askInput("القسم (قصات / ذقن / عناية ...)","قصات")||"قصات"}:{name:n,price:pr,cost:+await askInput("سعر الشراء","0")||0,stock:+await askInput("الكمية الحالية","0")||0,min_stock:+C.cfg.low_stock_default||5};
 const{error}=await sb.from(t).insert(o);error?toast(error.message):V.set()}
 
 // ===== نظام الخدمات (شاشة مستقلة للمالك) =====
+
+// أقسام المنيو الثابتة (الترتيب والأيقونة). أي قسم قديم برّه القائمة بيظهر بعدهم.
+const SVC_SEC=[["الشعر","✂️"],["الدقن","🧔"],["الصبغات","🎨"],["التصفيف","💇"],["العناية","🧖"],["إضافات","➕"]];
+const svcSecRank=c=>{const i=SVC_SEC.findIndex(x=>x[0]==c);return i<0?SVC_SEC.length:i};
+const svcSecIcon=c=>(SVC_SEC.find(x=>x[0]==c)||[0,""])[1];
+const svcSecCmp=(a,b)=>svcSecRank(a)-svcSecRank(b)||String(a).localeCompare(String(b),"ar");
 
 V.svc=async()=>{const{data,error}=await sb.from("services").select("*").order("category").order("price");
 if(error)return put(`<h1>الخدمات</h1><p class="m">${esc(error.message)}</p>`);
 C.svc={l:data||[],q:"",c:"",e:0};drawSvc()};
 
-const svcCats=()=>[...new Set(C.svc.l.map(x=>x.category||"قصات"))];
+const svcCats=()=>[...new Set([...SVC_SEC.map(x=>x[0]),...C.svc.l.map(x=>x.category||"قصات")])].filter(c=>C.svc.l.some(x=>(x.category||"قصات")==c)).sort(svcSecCmp);
+const svcCatsAll=()=>[...new Set([...SVC_SEC.map(x=>x[0]),...C.svc.l.map(x=>x.category||"").filter(Boolean)])].sort(svcSecCmp);
 
 function drawSvc(){const S=C.svc,on=S.l.filter(x=>x.active).length;
 put(`<h1>الخدمات</h1><div class="m">${num(on)} شغّالة${S.l.length-on?" · "+num(S.l.length-on)+" موقوفة":""}</div>
@@ -28,8 +35,8 @@ h.innerHTML=cs.length>1?`<button class="chip ${S.c?"":"sel"}" onclick="C.svc.c='
 
 function svcList(){const S=C.svc,q=S.q.trim().toLowerCase(),g={};
 S.l.filter(x=>(!S.c||(x.category||"قصات")==S.c)&&(!q||(x.name+" "+(x.category||"")).toLowerCase().includes(q))).forEach(x=>(g[x.category||"قصات"]=g[x.category||"قصات"]||[]).push(x));
-const ks=Object.keys(g);
-$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
+const ks=Object.keys(g).sort(svcSecCmp);
+$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${svcSecIcon(k)} ${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
 
 function svcClose(){C.dsL=null;const w=$("sheet");if(w){w.classList.add("out");setTimeout(()=>w.remove(),160)}}
 
@@ -38,8 +45,8 @@ const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="s
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${id?"تعديل خدمة":"خدمة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
 <label class="m" for="sf-n">اسم الخدمة</label><input id="sf-n" value="${esc(x.name)}" placeholder="مثال: قصة + دقن" autocomplete="off">
 <div class="svc-2"><div><label class="m" for="sf-p">السعر (${esc(C.cfg.currency)})</label><input id="sf-p" type="number" inputmode="decimal" min="0" value="${esc(x.price)}"></div><div><label class="m" for="sf-d">المدة (دقيقة)</label><input id="sf-d" type="number" inputmode="numeric" min="5" step="5" value="${esc(x.duration_min||30)}"></div></div>
-<label class="m" for="sf-c">القسم</label><input id="sf-c" value="${esc(id?(x.category||"قصات"):"")}" placeholder="قصات / ذقن / عناية ..." autocomplete="off">
-<div class="chips">${svcCats().map((c,i)=>`<button type="button" class="chip" onclick="$('sf-c').value=svcCats()[${i}]">${esc(c)}</button>`).join("")}</div>
+<label class="m" for="sf-c">القسم</label><input id="sf-c" value="${esc(id?(x.category||"قصات"):"")}" placeholder="الشعر / الدقن / الصبغات / التصفيف / العناية" autocomplete="off">
+<div class="chips">${svcCatsAll().map((c,i)=>`<button type="button" class="chip" onclick="$('sf-c').value=svcCatsAll()[${i}]">${svcSecIcon(c)} ${esc(c)}</button>`).join("")}</div>
 <label class="m" for="sf-ds">وصف قصير (اختياري)</label><input id="sf-ds" value="${esc(x.description||"")}" autocomplete="off">
 <label class="svc-sw"><input id="sf-a" type="checkbox" ${x.active?"checked":""}><span>شغّالة — ظاهرة للعملاء وفي الكاشير</span></label>
 <label class="svc-sw"><input id="sf-rd" type="checkbox" ${x.redeemable?"checked":""}><span>العميل يقدر يشتريها بنقاط الولاء</span></label>
@@ -62,28 +69,32 @@ async function bndLoad(){const el=$("bnd");if(!el)return;
   if(error){el.innerHTML=/bundles_list|PGRST202|42883/.test(error.code+" "+error.message)?"":`<p class="m">${esc(error.message)}</p>`;return}
   C.bnd=data||[];
   el.innerHTML=`<h2>الباقات</h2><button class="btn g" style="width:100%;margin-bottom:8px" onclick="bndOpen()">+ باقة جديدة</button>`
-   +(C.bnd.length?C.bnd.map(b=>`<button class="row svc${b.active?"":" off"}" onclick="bndOpen(${b.id})"><div><b>🎁 ${esc(b.name)}</b><div class="m">${(b.services||[]).map(x=>esc(x.name)).join(" + ")}</div><div class="m">لوحدها ${fm(b.full)} · وفّر ${fm(b.saving)}${b.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(b.price)}</b></button>`).join(""):`<p class="m">لسه مفيش باقات. الباقة بتجمّع كذا خدمة بسعر أقل من مجموعهم.</p>`)}
+   +(C.bnd.length?C.bnd.map(b=>`<button class="row svc${b.active?"":" off"}" onclick="bndOpen(${b.id})"><div><b>🎁 ${esc(b.name)}</b><div class="m">${BN.names(b)}</div><div class="m">لوحدها ${fm(b.full)} · وفّر ${fm(b.saving)}${b.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(b.price)}</b></button>`).join(""):`<p class="m">لسه مفيش باقات. الباقة بتجمّع كذا خدمة بسعر أقل من مجموعهم.</p>`)}
 
 function bndOpen(id){const b=id&&(C.bnd||[]).find(x=>x.id==id);
-  C.bn=b?{id:b.id,name:b.name,desc:b.description||"",price:String(b.price),active:b.active,s:(b.services||[]).map(x=>x.id)}:{id:null,name:"",desc:"",price:"",active:true,s:[]};bndDraw()}
+  C.bn=b?{id:b.id,name:b.name,desc:b.description||"",price:String(b.price),active:b.active,s:(b.services||[]).map(x=>x.id),g:(b.slots||[]).map(x=>x.group)}:{id:null,name:"",desc:"",price:"",active:true,s:[],g:[]};bndDraw()}
 
-function bndSum(){const B=C.bn,full=(C.svc?C.svc.l:[]).filter(x=>B.s.includes(x.id)).reduce((a,x)=>a+(+x.price||0),0),pr=+B.price||0;
-  return B.s.length<2?`<div class="m">اختار خدمتين على الأقل</div>`:`<div class="m">الخدمات لوحدها ${fm(full)}${pr>0&&pr<full?` · الباقة ${fm(pr)} · الخصم ${fm(full-pr)} (${Math.round((full-pr)/full*100)}%)`:pr>=full?` · <span style="color:var(--red)">سعر الباقة لازم يبقى أقل من ${fm(full)}</span>`:""}</div>`}
+const bndGroups=()=>{const m={};(C.svc?C.svc.l:[]).forEach(x=>{if(!x.group_name)return;const g=m[x.group_name]=m[x.group_name]||{name:x.group_name,on:[],all:0};g.all++;if(x.active)g.on.push(x)});return Object.values(m)};
+const bndBase=g=>{const o=(bndGroups().find(x=>x.name==g)||{on:[]}).on;return o.length?Math.min(...o.map(x=>+x.price||0)):0};
+function bndSum(){const B=C.bn,full=(C.svc?C.svc.l:[]).filter(x=>B.s.includes(x.id)).reduce((a,x)=>a+(+x.price||0),0)+(B.g||[]).reduce((a,g)=>a+bndBase(g),0),pr=+B.price||0;
+  return B.s.length+(B.g||[]).length<2?`<div class="m">اختار خدمتين على الأقل</div>`:`<div class="m">الخدمات لوحدها ${fm(full)}${pr>0&&pr<full?` · الباقة ${fm(pr)} · الخصم ${fm(full-pr)} (${Math.round((full-pr)/full*100)}%)`:pr>=full?` · <span style="color:var(--red)">سعر الباقة لازم يبقى أقل من ${fm(full)}</span>`:""}</div>`}
 
 function bndDraw(){const B=C.bn,SV=(C.svc?C.svc.l:[]).filter(x=>x.active||B.s.includes(x.id));
   dsOpen(B.id?"تعديل باقة":"باقة جديدة",`<div class="box"><input id="bn_n" placeholder="اسم الباقة (مثلاً: باقة العريس)" value="${esc(B.name)}" oninput="C.bn.name=this.value"><input id="bn_d" placeholder="وصف قصير (اختياري)" value="${esc(B.desc)}" oninput="C.bn.desc=this.value">
-<div class="m">الخدمات اللي في الباقة:</div><div class="chips">${SV.map(x=>`<button class="chip ${B.s.includes(x.id)?"sel":""}" onclick="bndTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+<div class="m">الخدمات اللي في الباقة:</div><div class="chips">${SV.filter(x=>!x.group_name||B.s.includes(x.id)).map(x=>`<button class="chip ${B.s.includes(x.id)?"sel":""}" onclick="bndTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+${bndGroups().length?`<div class="m" style="margin-top:8px">خدمات بخيارات (العميل أو الكاشير يختار الخيار وقت الحجز/الدفع):</div><div class="chips">${bndGroups().map((g,i)=>`<button class="chip ${(B.g||[]).includes(g.name)?"sel":""}" ${g.on.length||(B.g||[]).includes(g.name)?"":"disabled"} onclick="bndTgG(${i})">🔀 ${esc(g.name)} · ${g.on.length?g.on.length+" اختيار شغّال · من "+bndBase(g.name):"مفيش اختيارات شغّالة"}</button>`).join("")}</div><div class="m">السعر هنا بيتحسب على أرخص اختيار، ولو اختار خيار أغلى بيدفع الفرق وخصم الباقة بيفضل زي ما هو. لو خيار مش ظاهر شغّال، فعّله من الخدمات الأول.</div>`:""}
 <input id="bn_p" type="number" inputmode="decimal" placeholder="سعر الباقة" value="${esc(B.price)}" oninput="C.bn.price=this.value;$('bn_s').innerHTML=bndSum()"><div id="bn_s">${bndSum()}</div>
 <label class="chips" style="align-items:center"><input type="checkbox" ${B.active?"checked":""} onchange="C.bn.active=this.checked" style="width:auto;margin:0"> <span>شغّالة (ظاهرة للعملاء)</span></label>
 <button class="btn" onclick="bndSave()">حفظ</button>${B.id?`<button class="btn g" onclick="bndDel(${B.id})">حذف الباقة</button>`:""}</div>`)}
 
+function bndTgG(i){const B=C.bn,g=bndGroups()[i];if(!g)return;B.g=(B.g||[]).includes(g.name)?B.g.filter(x=>x!=g.name):[...(B.g||[]),g.name];bndDraw()}
 function bndTg(id){const B=C.bn;B.s=B.s.includes(id)?B.s.filter(x=>x!=id):[...B.s,id];bndDraw()}
 
-async function bndSave(){const B=C.bn;if(B.s.length<2)return toast("اختار خدمتين على الأقل");const pr=parseFloat(B.price);if(!(pr>=0))return toast("اكتب سعر الباقة");
-  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s});
+async function bndSave(){const B=C.bn;if(B.s.length+(B.g||[]).length<2)return toast("اختار خدمتين على الأقل");const pr=parseFloat(B.price);if(!(pr>=0))return toast("اكتب سعر الباقة");
+  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s,p_groups:B.g||[]});
   if(error)return toast(error.message);toast("اتحفظت ✓");svcClose();bndLoad()}
 
-async function bndDel(id){if(!confirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
+async function bndDel(id){if(!await askConfirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
 
 
 // ===== خدمة بخيارات: كل اختيار بسعره (قص الشعر: كلاسيك / تدريج) =====
@@ -125,13 +136,13 @@ async function grpRemove(ids){
   if(rest.length){const u=await sb.from("services").update({active:false}).in("id",rest);if(u.error)throw u.error;off=rest.length}
   return{del:gone.length,off}}
 async function grpDel(){const g=C.svg&&C.svg.g;if(!g)return;
-  if(!confirm("حذف الخدمة «"+g+"» بكل اختياراتها؟"))return;
+  if(!await askConfirm("حذف الخدمة «"+g+"» بكل اختياراتها؟"))return;
   try{const ids=C.svc.l.filter(x=>x.group_name==g).map(x=>x.id),r=await grpRemove(ids);
     svcClose();toast(r.off?"اتمسح "+r.del+" واتوقف "+r.off+" (مستخدمين في حجوزات قديمة)":"اتمسحت الخدمة ✓");V.svc()}catch(e){toast(e.message)}}
 async function grpOptDel(i){const r=C.svg.rows[i];if(!r||!r.id)return;
   const live=C.svg.rows.filter(x=>!x.gone&&x.id!=r.id&&x.active).length;
-  if(r.active&&live<2&&!confirm("كده هيفضل أقل من اختياريين شغّالين. الأحسن توقف الخدمة كلها. تكمل الحذف؟"))return;
-  if(!confirm("حذف الاختيار «"+r.label+"»؟"))return;
+  if(r.active&&live<2&&!await askConfirm("كده هيفضل أقل من اختياريين شغّالين. الأحسن توقف الخدمة كلها. تكمل الحذف؟"))return;
+  if(!await askConfirm("حذف الاختيار «"+r.label+"»؟"))return;
   try{const x=await grpRemove([r.id]);r.gone=1;toast(x.off?"الاختيار مستخدم في حجوزات قديمة فاتوقف بدل ما يتمسح":"اتمسح ✓");grpDraw();V.svc()}catch(e){toast(e.message)}}
 async function grpAll(on){const g=C.svg&&C.svg.g;if(!g)return;
   const{error}=await sb.from("services").update({active:!!on}).eq("group_name",g);

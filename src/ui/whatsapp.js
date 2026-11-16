@@ -34,14 +34,14 @@ const L=(lbl,txt,id)=>`<a ${id?`id="${id}" `:""}class="btn s g" style="text-deco
 const iv=inv?{...inv,no:inv.no}:null;
 return `<div class="box" style="margin-top:10px;width:100%"><div class="m" style="margin-bottom:8px">رسالة واتساب جاهزة للعميل</div><div class="chips">${L("📲 تحميل التطبيق",waAppMsg(x.name))}${L("🎁 نقاطه",waPtsMsg(x.name,x.points))}${L("🎂 هدية عيد ميلاده",waBdayMsg(x.name),"wa-bd")}${iv?L("🧾 آخر فاتورة",waInvText(iv,x.name)):""}</div></div>`}
 /* ===== تذكرة الحجز + رابط متابعة الدور (واتساب) ===== */
-function waTicketMsg(name,no,code,barber,id,ph){
+function waTicketMsg(name,no,code,barber,id,ph,pos){
   const url=location.origin+"/book?t="+encodeURIComponent(id)+"&p="+encodeURIComponent(ph);
-  return `أهلاً ${name||""} 👋\nتم حجز دورك في ${waSalon()} ✅\n🎟 رقم دورك: ${code||no||"—"}${barber?"\n✂️ مع: "+barber:""}\n\nتابع دورك لحظة بلحظة من الرابط ده:\n${url}`;
+  return `أهلاً ${name||""} 👋\nتم حجز دورك في ${waSalon()} ✅\n🎟 رقم تذكرتك: ${code||no||"—"} (ده رقم التذكرة مش ترتيبك)${pos&&pos.ahead!=null?(pos.ahead>0?`\n👥 قدامك ${pos.ahead} ${pos.ahead<=10?"زبون":"زبون"} — ترتيبك ${pos.ahead+1}${pos.min?" · حوالي "+pos.min+" دقيقة":""}`:"\n👥 مفيش حد قدامك، أنت الأول"):"\n👥 ترتيبك الفعلي وعدد اللي قدامك بيظهروا في الرابط"}${barber?"\n✂️ مع: "+barber:""}\n\nتابع دورك لحظة بلحظة من الرابط ده:\n${url}`;
 }
-function waTicketCard(n,ph,data,barber){
+function waTicketCard(n,ph,data,barber,pos){
   const t=(data&&data.ticket)||data||{};if(!t.id)return"";
-  const txt=waTicketMsg(n,t.no,t.code||t.ticket_code,barber,t.id,ph);
-  return `<div class="box" style="margin:10px 0;text-align:center"><b>تم الحجز ✓ رقم الدور ${esc(String(t.code||t.no||"—"))}</b><div class="m" style="margin:6px 0 10px">ابعت للعميل التذكرة ولينك متابعة الدور على واتساب</div>${waBtn(ph,true,txt)}<div style="margin-top:10px"><button class="btn g s" onclick="go('appts')">تم</button></div></div>`;
+  const txt=waTicketMsg(n,t.no,t.code||t.ticket_code,barber,t.id,ph,pos);
+  return `<div class="box" style="margin:10px 0;text-align:center"><b>تم الحجز ✓ رقم التذكرة ${esc(String(t.code||t.no||"—"))}${pos&&pos.ahead!=null?" · قدامه "+pos.ahead:""}</b><div class="m" style="margin:6px 0 10px">ابعت للعميل التذكرة ولينك متابعة الدور على واتساب</div>${waBtn(ph,true,txt)}<div style="margin-top:10px"><button class="btn g s" onclick="go('appts')">تم</button></div></div>`;
 }
 
 /* ===== زرار واتساب في الطابور: اختار استدعاء ولا رابط البرنامج ===== */

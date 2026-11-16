@@ -18,7 +18,7 @@ function pickFix(x){const P=C.P,sub=subOf(P);if(P.dfx==x){P.dfx=0;P.rqid=null;ch
 if(fxPct(x,sub)<=discLim()+0.005){P.disc=0;P.dfx=x;P.rqid=null;chSave();return drawPos()}reqDisc(fxPct(x,sub),x)}
 
 async function reqDisc(pct,fx){const P=C.P,sub=subOf(P);
-if(!sub)return toast("ضيف خدمات الأول");const why=prompt("الخصم ده فوق حدّك ومحتاج موافقة المدير.\nسبب الخصم:");if(why===null)return;
+if(!sub)return toast("ضيف خدمات الأول");const why=await askInput("الخصم ده فوق حدّك ومحتاج موافقة المدير.\nسبب الخصم:");if(why===null)return;
 const{data,error}=await sb.rpc("request_discount",{p_chair:P.chair,p_pct:Math.ceil(pct*100)/100,p_subtotal:sub,p_reason:why});if(error)return toast(error.message);
 toast("اتبعت طلب الموافقة للمدير ⏳");const ch=P.chair,t=setInterval(async()=>{if(!C.P||C.P.chair!=ch)return clearInterval(t);const{data:r}=await sb.from("discount_requests").select("status").eq("id",data).maybeSingle();
 if(r&&r.status=="approved"){clearInterval(t);C.P.disc=fx?0:pct;C.P.dfx=fx||0;C.P.rqid=data;chSave();toast("اتوافق على الخصم ✓");drawPos()}else if(r&&r.status=="rejected"){clearInterval(t);toast("المدير رفض الخصم")}},4000)}

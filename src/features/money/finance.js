@@ -42,7 +42,7 @@ async function savePur(){const f=C.pf;if(f.paid==="")return toast("اكتب ال
   const{error}=await sb.rpc("record_purchase",{p_supplier:f.sup?+f.sup:null,p_date:f.date,p_kind:f.kind,p_items:items,p_paid:+f.paid,p_paid_from:f.paid_from,p_note:f.note||null,p_update_cost:!!f.upd});
   error?toast(error.message):(toast("تم تسجيل الفاتورة ✓"),V.fin())}
 
-async function voidPur(id){if(!confirm("تلغي فاتورة الشراء دي؟ هترجّع المخزون وتمسح المصروف المرتبط بيها."))return;const{error}=await sb.rpc("void_purchase",{p_id:id});error?toast(error.message):(toast("تم الإلغاء"),V.fin())}
+async function voidPur(id){if(!await askConfirm("تلغي فاتورة الشراء دي؟ هترجّع المخزون وتمسح المصروف المرتبط بيها."))return;const{error}=await sb.rpc("void_purchase",{p_id:id});error?toast(error.message):(toast("تم الإلغاء"),V.fin())}
 
 async function finPay(){const box=$("fb");const now=ymd(new Date());C.pm=C.pm||now.slice(0,7)+"-01";const[a,b]=monthR(C.pm);
   const{data:st,error}=await sb.from("profiles").select("id,full_name,role").neq("role","owner").neq("role","customer").order("full_name");if(!error)await addSalary(st);if(error)return errBox(box,error);

@@ -45,7 +45,7 @@ clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="pos"&&!C.chEdit&&!C.cxOpe
 
 async function chOpen(n){let{data:r}=await sb.from("open_invoices").select("*").eq("chair",n).maybeSingle();
 if(!r){const ins=await sb.from("open_invoices").insert({chair:n}).select("*").single();if(ins.error){toast(ins.error.code=="23505"?"الكرسي ده اتفتح من جهاز تاني":ins.error.message);return go("pos")}r=ins.data}
-if(r.status=="paying"){if(!confirm("الفاتورة دي معلّقة وبتتدفع (يمكن من جهاز تاني). تفتحها تاني؟"))return go("pos");await sb.from("open_invoices").update({status:"open"}).eq("chair",n)}
+if(r.status=="paying"){if(!await askConfirm("الفاتورة دي معلّقة وبتتدفع (يمكن من جهاز تاني). تفتحها تاني؟"))return go("pos");await sb.from("open_invoices").update({status:"open"}).eq("chair",n)}
 const[R,{data:br},{data:asx},cr]=await Promise.all([chLoadRefs(),sb.from("profiles").select("id,full_name").eq("role","barber"),sb.from("profiles").select("id,full_name,commission_pct").eq("role","assistant"),r.customer_id?sb.from("customers").select("id,name,phone,points,visits").eq("id",r.customer_id).maybeSingle():Promise.resolve({data:null})]);
 C.P={chair:n,sv:R.sv,pr:R.pr,cm:R.cm||[],cf:(Array.isArray(r.cafe)?r.cafe:[]).filter(i=>(R.cm||[]).some(x=>x.id==i.id)),cu:[],br:br||[],as:asx||[],sa:r.assistants||{},s:(r.services||[]).filter(id=>R.sv.some(x=>x.id==id)),p:(r.products||[]).filter(i=>R.pr.some(x=>x.id==i.id)),cid:r.customer_id?String(r.customer_id):"",cust:cr.data||null,bid:r.barber_id||"",appt:r.appointment_id||null,disc:+r.discount_pct||0,dfx:+r.discount_fixed||0,pay:r.payment_method||"cash",rid:r.redemption_id?String(r.redemption_id):"",vs:[]};
 if(C.P.appt){try{const{data:ap}=await sb.from("appointments").select("is_urgent,urgent_state").eq("id",C.P.appt).maybeSingle();try{const{data:ao}=await sb.from("appointments").select("outside").eq("id",C.P.appt).maybeSingle();if(ao&&ao.outside)C.P.out=1}catch(e){}if(ap&&ap.is_urgent&&ap.urgent_state=="approved")C.P.ur=Math.max(+C.cfg.urgent_multiplier||2,1)}catch(e){}
@@ -61,7 +61,7 @@ async function chSaveNow(){clearTimeout(chT);const P=C.P;if(!P||!P.chair||P.payi
 
 async function chBack(){await chSaveNow();go("pos")}
 
-async function chCancel(){const P=C.P;if(!confirm("تلغي الفاتورة المفتوحة دي وتفضّي الكرسي؟"))return;P.paying=1;clearTimeout(chT);const{error}=await sb.from("open_invoices").delete().eq("chair",P.chair);if(error){P.paying=0;return toast(error.message)}C.P=null;toast("اتفضّى كرسي "+P.chair);go("pos")}
+async function chCancel(){const P=C.P;if(!await askConfirm("تلغي الفاتورة المفتوحة دي وتفضّي الكرسي؟"))return;P.paying=1;clearTimeout(chT);const{error}=await sb.from("open_invoices").delete().eq("chair",P.chair);if(error){P.paying=0;return toast(error.message)}C.P=null;toast("اتفضّى كرسي "+P.chair);go("pos")}
 
 // تحديد العميل برقم الموبايل: لو موجود نستخدمه، ولو جديد نطلب الاسم بس
 
@@ -86,8 +86,8 @@ if(!data||!data[0])return toast("اتضاف العميل بس مقدرتش أج�
 function posPaid(v){const P=C.P;if(!P)return;P.paid=v===""?0:+v;const x=$("pd_x");if(x)x.textContent=P.paid>P.req+(P.cft||0)?"زيادة "+fm(P.paid-P.req-(P.cft||0)):(P.paid&&P.paid<P.req+(P.cft||0)?(P.cft>0?"الدفع الجزئي مش متاح مع الكوفي كورنر":"الباقي دين "+fm(P.req-P.paid)):"")}
 
 async function checkout(){const P=C.P;if(P.paying)return;if(P.pay=="wallet"){const e=await epCheck(P);if(e)return toast(e)}let unp=0,dn="",dp="";if(P.paid&&P.paid<P.req+(P.cft||0)-0.004){if(P.cft>0)return toast("الدفع الجزئي مش متاح مع طلبات الكوفي كورنر — احسبها لوحدها");unp=Math.round((P.req-P.paid)*100)/100;if(unp<=0)return toast("المدفوع أقل من المطلوب");
-if(!P.cid){dn=(prompt("الباقي "+fm(unp)+" دين — اكتب اسم الزبون:")||"").trim();if(dn.length<2)return toast("لازم اسم الزبون عشان نسجل عليه الباقي");dp=(prompt("رقم موبايله (اختياري):")||"").trim()}
-if(!confirm("هيتسجل مدفوع "+fm(P.paid)+" والباقي "+fm(unp)+" دين على "+(P.cust?P.cust.name:dn)+". تكمل؟"))return}
+if(!P.cid){dn=(await askInput("الباقي "+fm(unp)+" دين — اكتب اسم الزبون:")||"").trim();if(dn.length<2)return toast("لازم اسم الزبون عشان نسجل عليه الباقي");dp=(await askInput("رقم موبايله (اختياري):")||"").trim()}
+if(!await askConfirm("هيتسجل مدفوع "+fm(P.paid)+" والباقي "+fm(unp)+" دين على "+(P.cust?P.cust.name:dn)+". تكمل؟"))return}
 if(Object.keys(P.sa||{}).length&&!P.bid)return toast("اختار الحلاق الأول قبل ما تحدد مساعد");
 const ch=P.chair;await chSaveNow();P.paying=1;
 const{data:lk,error:le}=await sb.from("open_invoices").update({status:"paying"}).eq("chair",ch).eq("status","open").select("chair");
@@ -131,7 +131,7 @@ let fn,args,txt;
 if(k=="expense"){fn="cashier_add_expense";args={p_category:$("cx_c").value,p_amount:a,p_note:n,p_paid_from:$("cx_p").value};txt="مصروف "+$("cx_c").value}
 else if(k=="advance"){const sel=$("cx_s");if(!sel.value)return toast("اختار الموظف");fn="cashier_add_advance";args={p_staff:sel.value,p_amount:a,p_note:n};txt="سلفة "+sel.options[sel.selectedIndex].text}
 else{fn="cashier_add_move";args={p_kind:k,p_amount:a,p_note:n};txt=k=="withdraw"?"سحب من الدرج":"إضافة للدرج"}
-if(!confirm("تسجّل "+txt+" بمبلغ "+fm(a)+"؟"))return;
+if(!await askConfirm("تسجّل "+txt+" بمبلغ "+fm(a)+"؟"))return;
 C.cxBusy=1;try{const{error}=await sb.rpc(fn,args);if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل ملف cashier_ops.sql في Supabase الأول":error.message);toast("تم التسجيل ✓");cxLoad()}finally{C.cxBusy=0}}
 
 function chNm(){const o=$("cnm");if(!o)return;if(o.innerHTML)return o.innerHTML="";o.innerHTML=`<div class="box" style="margin-top:8px"><input id="cnn" placeholder="اسم العميل" oninput="chNmQ()"><div id="cnr"></div><button class="btn s" onclick="chNmNew()">تسجيل باسم جديد وإكمال</button></div>`;$("cnn").focus()}
@@ -144,12 +144,12 @@ const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq(
 
 
 // ---- الباقات في الكاشير: الخصم بيتحسب على السيرفر من تذكرة الحجز؛ هنا للعرض وتطبيق/إلغاء باقة على التذكرة ----
-async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){const w=P.wbn&&BN.get(P.wbn);P.bn=w?{id:w.id,name:w.name,price:+w.price,service_ids:BN.ids(w)}:null;P.bnOn=false;if(P.bn)posBnOn()}return}
+async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){const w=P.wbn&&BN.get(P.wbn);P.bn=w?{id:w.id,name:w.name,price:+w.price,service_ids:BN.ids(w),slots:(BN.slots(w)).map(s=>({group:s.group,option_ids:(s.options||[]).map(o=>o.id)}))}:null;P.bnOn=false;if(P.bn)posBnOn()}return}
   try{await BN.load(sb);const{data}=await sb.rpc("ticket_bundle",{p_id:P.appt});P.bn=data||null}catch(e){P.bn=null}
   posBnOn()}
-function posBnOn(){const P=C.P;P.bnOn=!!(P.bn&&(P.bn.service_ids||[]).length&&P.bn.service_ids.every(i=>P.s.includes(i)))}
+function posBnOn(){const P=C.P,b=P.bn;P.bnOn=!!(b&&((b.service_ids||[]).length||(b.slots||[]).length)&&(b.service_ids||[]).every(i=>P.s.includes(i))&&(b.slots||[]).every(s=>(s.option_ids||[]).some(i=>P.s.includes(i))))}
 function posBn(P){
-  const cand=(BN.L||[]).filter(b=>(!P.bn||b.id!=P.bn.id)&&BN.ids(b).every(i=>P.s.includes(i)));
+  const cand=(BN.L||[]).filter(b=>(!P.bn||b.id!=P.bn.id)&&BN.ok(b,P.s));
   return(P.bn?`<div class="m" style="margin:6px 0">${P.bnOn?"🎁 باقة «"+esc(P.bn.name)+"» مطبّقة (مفيش خصم يدوي معاها)":"باقة «"+esc(P.bn.name)+"» على التذكرة بس خدماتها مش كلها في الفاتورة"} <button class="btn s g" onclick="posBnSet(null)">إلغاء الباقة</button></div>`:"")
    +cand.map(b=>`<button class="btn s g" style="margin:4px 0;width:100%" onclick="posBnSet(${b.id})">🎁 طبّق باقة ${esc(b.name)} · وفّر ${fm(b.saving)}</button>`).join("")}
 async function posBnSet(id){const P=C.P;if(!P)return;if(!P.appt){P.wbn=id;await posBnLoad();return drawPos()}const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:id});if(error)return toast(error.message);await posBnLoad();drawPos()}
@@ -161,13 +161,13 @@ const EPCH=[["vodafone_cash","فودافون كاش"],["instapay","إنستا ب
 async function posClaimLoad(){const P=C.P;if(!P||!P.appt){if(P)P.claim=null;return}try{const{data}=await sb.rpc("pay_claim_for",{p_appt:P.appt});P.claim=data||null}catch(e){P.claim=null}}
 function posClaim(P){const c=P.claim;if(!c)return"";return`<div class="box" style="margin:8px 0;border-color:var(--gold)"><b>📲 الزبون بلّغ إنه حوّل فودافون كاش</b><div class="m">رقم العملية: <b dir="ltr">${esc(c.ref)}</b> · المبلغ: <b>${fm(c.amount)}</b><br>اتأكد من رسالة الفلوس على موبايل المحل قبل ما تقفل. لو مش وصلت اضغط رفض.</div><div class="row" style="margin-top:6px"><button class="btn s" onclick="posClaimUse()">استخدم الرقم ده</button><button class="btn s g" onclick="posClaimRej()">رفض</button></div></div>`}
 function posClaimUse(){const P=C.P;if(!P||!P.claim)return;P.pay="wallet";P.ch="vodafone_cash";P.ref=P.claim.ref;drawPos()}
-async function posClaimRej(){const P=C.P;if(!P||!P.claim)return;if(!confirm("رفض طلب التحويل ده؟"))return;const{error}=await sb.rpc("reject_pay_claim",{p_id:P.claim.id});if(error)return toast(error.message);P.claim=null;drawPos()}
+async function posClaimRej(){const P=C.P;if(!P||!P.claim)return;if(!await askConfirm("رفض طلب التحويل ده؟"))return;const{error}=await sb.rpc("reject_pay_claim",{p_id:P.claim.id});if(error)return toast(error.message);P.claim=null;drawPos()}
 function posEp(P){if(P.pay!="wallet")return posClaim(P);
   const info=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:P.ch=="instapay"?C.cfg.instapay_address:"",need=P.ch=="vodafone_cash"||P.ch=="instapay";
   return posClaim(P)+`<div class="box" style="margin:8px 0"><div class="chips">${EPCH.map(x=>`<button class="chip ${P.ch==x[0]?"sel":""}" onclick="C.P.ch='${x[0]}';C.P.ref='';drawPos()">${x[1]}</button>`).join("")}</div>${!P.ch?`<div class="m">اختار القناة اللي العميل هيدفع بيها</div>`:""}
 ${need?`<div class="m" style="margin-top:6px">${info?`حوّل على: <b dir="ltr" style="font-size:1.2em">${esc(info)}</b> <button class="btn s g" onclick="epCopy()">نسخ</button>`:`ضيف ${P.ch=="vodafone_cash"?"رقم فودافون كاش":"عنوان إنستا باي"} من الإعدادات ← الكاشير`}<br>المطلوب: <b>${fm(P.req)}</b></div><input id="ep_r" placeholder="رقم العملية من رسالة التأكيد (مطلوب)" value="${esc(P.ref||"")}" oninput="C.P.ref=this.value" style="margin-top:6px"><div class="m">اتأكد إن الرسالة وصلت على موبايل المحل وإن المبلغ مطابق قبل ما تقفل الفاتورة.</div>`:""}</div>`}
 
-function epCopy(){const P=C.P,v=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:C.cfg.instapay_address;try{navigator.clipboard.writeText(String(v||"")).then(()=>toast("اتنسخ ✓"))}catch(e){prompt("انسخ:",v)}}
+async function epCopy(){const P=C.P,v=P.ch=="vodafone_cash"?C.cfg.vodafone_cash_number:C.cfg.instapay_address;try{navigator.clipboard.writeText(String(v||"")).then(async ()=>toast("اتنسخ ✓"))}catch(e){await askInput("انسخ:",v)}}
 
 // تحقق قبل الدفع: القناة مختارة، رقم العملية مكتوب ومش مستخدم قبل كده
 async function epCheck(P){if(!P.ch)return"اختار قناة الدفع (فودافون كاش / إنستا باي / محفظة تانية)";
@@ -178,11 +178,11 @@ async function epCheck(P){if(!P.ch)return"اختار قناة الدفع (فود
 
 // الباقات كأزرار في الكاشير: الضغط بيضيف خدماتها ويطبّق سعر الباقة، والضغط تاني بيشيلها
 function posBnTiles(P){if(!BN.L||!BN.L.length)return"";
-  return BN.L.map(b=>{const on=!!(P.bn&&P.bn.id==b.id&&P.bnOn);return`<button class="chip ${on?"sel":""}" onclick="P_bn(${b.id})"><b>🎁 ${esc(b.name)}</b><span class="m">${fm(b.price)}</span></button>`}).join("")}
+  return BN.L.map(b=>{const on=!!(P.bn&&P.bn.id==b.id&&P.bnOn);return`<button class="chip ${on?"sel":""}" onclick="P_bn(${b.id})"><b>🎁 ${esc(b.name)}</b><span class="m">${BN.slots(b).length?"من ":""}${fm(b.price)}</span></button>`}).join("")}
 async function P_bn(id){const P=C.P,b=BN.get(id);if(!P||!b)return;const ids=BN.ids(b);
-  if(ids.some(i=>!P.sv.some(x=>x.id==i)))return toast("الباقة فيها خدمة مش متاحة دلوقتي");
+  if(ids.some(i=>!P.sv.some(x=>x.id==i))||BN.slots(b).some(s=>!(s.options||[]).some(o=>P.sv.some(x=>x.id==o.id))))return toast("الباقة فيها خدمة مش متاحة دلوقتي");
   const on=!!(P.bn&&P.bn.id==id&&P.bnOn);
-  if(on){P.s=P.s.filter(x=>!ids.includes(x));ids.forEach(i=>delete P.sa[i])}else P.s=[...new Set([...P.s,...ids])];
+  if(on){const al=BN.all(b);P.s=P.s.filter(x=>!al.includes(x));al.forEach(i=>delete P.sa[i])}else P.s=BN.fill(b,P.s);
   await chSaveNow();
   if(P.appt){const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:on?null:id});if(error)toast(error.message)}
   else P.wbn=on?null:id;
@@ -197,7 +197,7 @@ function dbRows(q){const L=C.DB||[],n=String(q||"").trim().toLowerCase(),F=n?L.f
 return F.length?F.map(x=>`<div class="box" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;gap:8px"><div><b>${esc(x.name)}</b>${x.phone?` · <span dir="ltr">${esc(x.phone)}</span>`:""}<div class="m">فاتورة #${x.no} · ${new Date(x.created_at).toLocaleDateString("ar-EG")}${x.barber?" · "+esc(x.barber):""}</div><div class="m">الدين الأصلي ${fm(x.unpaid)}${+x.collected>0?" · اتسدد "+fm(x.collected):""}</div></div><b style="color:var(--red)">${fm(x.remaining)}</b></div><div class="chips" style="align-items:center;margin-top:6px"><input id="db_a${x.invoice_id}" type="number" inputmode="decimal" min="0" value="${+x.remaining}" style="flex:1;margin:0"><select id="db_m${x.invoice_id}" style="margin:0;width:auto"><option value="cash">كاش</option><option value="card">كارت</option><option value="wallet">محفظة</option></select><button class="btn s" onclick="dbPay(${x.invoice_id})">سدّد</button></div></div>`).join(""):`<p class="m">مفيش ديون ${n?"بالبحث ده":"مفتوحة"} ✓</p>`}
 function dbDraw(){const tot=(C.DB||[]).reduce((a,x)=>a+(+x.remaining),0);dsOpen("ديون الزبائن · "+fm(tot),`<input id="db_q" placeholder="ابحث بالاسم أو الموبايل" oninput="$('db_l').innerHTML=dbRows(this.value)" style="margin-bottom:8px"><div id="db_l">${dbRows("")}</div>`)}
 async function dbPay(id){if(C.dbBusy)return;const a=+($("db_a"+id)?.value||0),m=$("db_m"+id)?.value||"cash",x=(C.DB||[]).find(r=>r.invoice_id==id);if(!x)return;if(!(a>0))return toast("اكتب مبلغ السداد");if(a>+x.remaining+0.004)return toast("المبلغ أكبر من المتبقي ("+fm(x.remaining)+")");
-if(!confirm("تسجيل سداد "+fm(a)+" من "+x.name+(a<+x.remaining?" (الباقي بعده "+fm(+x.remaining-a)+")":" (سداد كامل)")+"؟"))return;C.dbBusy=1;
+if(!await askConfirm("تسجيل سداد "+fm(a)+" من "+x.name+(a<+x.remaining?" (الباقي بعده "+fm(+x.remaining-a)+")":" (سداد كامل)")+"؟"))return;C.dbBusy=1;
 try{const{error}=await sb.rpc("debt_collect",{p_invoice:id,p_amount:a,p_method:m});if(error)return toast(error.message);toast("اتسجل السداد ✓ ودخل الدرج النهارده");
 if(C.P&&C.P.cid){const r=await sb.rpc("debts_list",{p_customer:+C.P.cid});C.P.dbt=r.data||[]}
 await dbOpen(C.dbF);if(C.P&&C.P.chair)drawPos()}finally{C.dbBusy=0}}

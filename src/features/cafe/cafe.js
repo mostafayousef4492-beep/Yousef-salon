@@ -61,7 +61,7 @@ async function cfSell(){const S=C.cf;if(S.busy)return;const items=Object.keys(S.
   const{data,error}=await sb.rpc("cafe_sell",args);S.busy=0;
   if(error)return toast(error.message);
   const tot=S.menu.reduce((a,x)=>a+(S.cart[x.id]?x.price*S.cart[x.id]:0),0);S.cart={};S.note="";S.deb="";S.dn="";S.dp="";okFlash(S.pay=="credit"?"اتسجّل آجل":"تم البيع",cfm(tot));V.cafe()}
-async function cfVoid(id,back){const why=prompt("سبب الإلغاء؟ (اختياري)");if(why===null)return;const{error}=await sb.rpc("cafe_void_sale",{p_id:id,p_reason:why||null});if(error)return toast(error.message);toast("اتلغت ✓");(back||V.cafe)()}
+async function cfVoid(id,back){const why=await askInput("سبب الإلغاء؟ (اختياري)");if(why===null)return;const{error}=await sb.rpc("cafe_void_sale",{p_id:id,p_reason:why||null});if(error)return toast(error.message);toast("اتلغت ✓");(back||V.cafe)()}
 
 // ============================ لوحة الكوفي ============================
 V.cafe_dash=async()=>{if(!cfAdm())return cfDeny();await bizLoad();const d=bizToday();
@@ -91,7 +91,7 @@ function cfpDraw(){const P=C.cfa.products,row=(p)=>{const id=p?p.id:"new",v=(k,d
 async function cfpSave(id){const g=k=>$("cfp_"+k+"_"+id),n=g("n").value.trim(),p=parseFloat(g("p").value),c=parseFloat(g("c").value||0);if(!n)return toast("اكتب اسم المنتج");if(!(p>=0))return toast("اكتب السعر");if(!(c>=0))return toast("التكلفة غير صحيحة");
   const{error}=await sb.rpc("cafe_save_product",{p_id:id=="new"?null:+id,p_name:n,p_price:p,p_cost:c,p_track:g("t").checked,p_min:parseInt(g("m").value||0),p_active:g("a").checked,p_sort:id=="new"?(C.cfa.products.length+1):(C.cfa.products.find(x=>x.id==id)||{}).sort||0});
   if(error)return toast(error.message);toast("اتحفظ ✓");V.cafe_prods()}
-async function cfpStock(id){const p=C.cfa.products.find(x=>x.id==id),v=prompt("اكتب الزيادة (+) أو النقص (−) في مخزون "+p.name+"\nمثال: 20 أو -3");if(v===null)return;const n=parseInt(v);if(!n)return toast("اكتب رقم صحيح");const why=prompt("السبب (جرد/تالف/...)")||"تسوية";const{error}=await sb.rpc("cafe_adjust_stock",{p_id:id,p_delta:n,p_reason:why});if(error)return toast(error.message);toast("اتعدّل ✓");V.cafe_prods()}
+async function cfpStock(id){const p=C.cfa.products.find(x=>x.id==id),v=await askInput("اكتب الزيادة (+) أو النقص (−) في مخزون "+p.name+"\nمثال: 20 أو -3");if(v===null)return;const n=parseInt(v);if(!n)return toast("اكتب رقم صحيح");const why=await askInput("السبب (جرد/تالف/...)")||"تسوية";const{error}=await sb.rpc("cafe_adjust_stock",{p_id:id,p_delta:n,p_reason:why});if(error)return toast(error.message);toast("اتعدّل ✓");V.cafe_prods()}
 
 // ============================ المشتريات والمخزون ============================
 V.cafe_buy=async()=>{if(!cfAdm())return cfDeny();await bizLoad();const A=C.cfa=C.cfa||{};A.from=A.from||ymd(new Date(Date.now()-29*864e5));A.to=A.to||ymd(new Date());
@@ -115,7 +115,7 @@ async function cfbSave(){cfbRead();const A=C.cfa,st=A.kind=="stock",items=[];
   for(const i of A.items){const q=parseFloat(i.qty),c=parseFloat(i.cost);if(!(q>0)||!(c>=0)||i.cost==="")return toast("اكتب كمية وسعر لكل بند");const pid=st&&i.pid?+i.pid:null;if(!pid&&!(i.name||"").trim())return toast("اكتب اسم كل بند");items.push({product_id:pid,name:(i.name||"").trim(),qty:q,unit_cost:c})}
   if(A.busy)return;A.busy=1;const{error}=await sb.rpc("cafe_record_purchase",{p_date:A.date||bizToday(),p_kind:A.kind,p_items:items,p_supplier:(A.sup||"").trim()||null,p_paid_from:A.from_||"drawer",p_note:(A.note||"").trim()||null,p_update_cost:!!(st&&A.uc)});A.busy=0;
   if(error)return toast(error.message);A.items=[{}];A.sup="";A.note="";toast("اتسجلت ✓");V.cafe_buy()}
-async function cfbVoid(id){if(!confirm("تلغي فاتورة الشراء دي؟ المخزون هيرجع والمصروف المرتبط هيتشال (بيتسجل في سجل المحذوفات)."))return;const{error}=await sb.rpc("cafe_void_purchase",{p_id:id});if(error)return toast(error.message);toast("اتلغت ✓");V.cafe_buy()}
+async function cfbVoid(id){if(!await askConfirm("تلغي فاتورة الشراء دي؟ المخزون هيرجع والمصروف المرتبط هيتشال (بيتسجل في سجل المحذوفات)."))return;const{error}=await sb.rpc("cafe_void_purchase",{p_id:id});if(error)return toast(error.message);toast("اتلغت ✓");V.cafe_buy()}
 
 // ============================ المصروفات ============================
 V.cafe_exp=async()=>{if(!cfAdm())return cfExpStaff();await bizLoad();const A=C.cfa=C.cfa||{};A.from=A.from||ymd(new Date(Date.now()-29*864e5));A.to=A.to||ymd(new Date());
@@ -128,7 +128,7 @@ V.cafe_exp=async()=>{if(!cfAdm())return cfExpStaff();await bizLoad();const A=C.c
   <input id="cfe_n" placeholder="ملاحظات"><button class="btn" style="width:100%" onclick="cfeSave()">حفظ المصروف</button></section>
   <h3 class="sec">المصروفات</h3>${A.expenses.map(e=>`<div class="box cf-rec"><div><b>${cfm(e.amount)}</b> <span class="tag">${esc(e.category)}</span> <span class="tag">${e.paid_from=="drawer"?"من الدرج":"برّه الدرج"}</span>${e.purchase_id?` <span class="tag">من مشتريات</span>`:""}<div class="m">${esc(e.spent_on)}${e.note?" · "+esc(e.note):""}</div></div>${cfOwner()&&!e.purchase_id?`<button class="btn s g" onclick="cfeDel(${e.id})">مسح</button>`:""}</div>`).join("")||`<p class="m">مفيش مصروفات في الفترة.</p>`}`)};
 async function cfeSave(){const a=parseFloat($("cfe_a").value);if(!(a>0))return toast("اكتب المبلغ");const{error}=await sb.rpc("cafe_add_expense",{p_date:$("cfe_d").value||bizToday(),p_category:$("cfe_c").value,p_amount:a,p_note:$("cfe_n").value.trim()||null,p_paid_from:$("cfe_f").value});if(error)return toast(error.message);toast("اتسجّل ✓");V.cafe_exp()}
-async function cfeDel(id){if(!confirm("تمسح المصروف ده؟ (بيتسجل في سجل المحذوفات)"))return;const{error}=await sb.rpc("cafe_delete_expense",{p_id:id});if(error)return toast(error.message);V.cafe_exp()}
+async function cfeDel(id){if(!await askConfirm("تمسح المصروف ده؟ (بيتسجل في سجل المحذوفات)"))return;const{error}=await sb.rpc("cafe_delete_expense",{p_id:id});if(error)return toast(error.message);V.cafe_exp()}
 
 // ============================ التقارير ============================
 V.cafe_rep=async()=>{if(!cfAdm())return cfDeny();await bizLoad();const R=C.cfr=C.cfr||{};if(!R.from){const t=bizToday();R.from=R.to=t;R.mode="day"}
@@ -145,7 +145,7 @@ function cfrCustom(){const R=C.cfr,f=$("cfr_f").value,t=$("cfr_t").value;if(!f||
 // ============================ شاشات موظف الكوفي (موبايل): مصروف، سحب، آجل، حركة اليوم ============================
 // الصلاحيات الحقيقية في القاعدة (can_use_cafe). الموظف بيشوف ويسجّل اللي هو سجّله في يوم العمل الحالي بس.
 const cfUndoBtn=(fn,id,back)=>`<button class="btn s g" onclick="cfUndo('${fn}',${id},'${back}')">تراجع</button>`;
-async function cfUndo(fn,id,back){if(!confirm("متأكد؟"))return;const map={cafe_delete_expense:"p_id",cafe_void_withdrawal:"p_id",cafe_void_collection:"p_id"};const{error}=await sb.rpc(fn,{[map[fn]]:id});if(error)return toast(error.message);toast("اتراجع ✓");V[back]()}
+async function cfUndo(fn,id,back){if(!await askConfirm("متأكد؟"))return;const map={cafe_delete_expense:"p_id",cafe_void_withdrawal:"p_id",cafe_void_collection:"p_id"};const{error}=await sb.rpc(fn,{[map[fn]]:id});if(error)return toast(error.message);toast("اتراجع ✓");V[back]()}
 async function cfDay(){const{data,error}=await cfRpc("cafe_staff_day");if(error)return null;C.cfs=data;return data}
 const cfShiftLine=d=>{if(!d||d.scope!="mine"||!d.shift)return"";const h=t=>new Date(t).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit",hourCycle:"h23"}),f=d.shift.from;return f?`<div class="m" style="margin:6px 0">⏱ ورديتك: من ${h(f)} ${d.shift.open?"لحد دلوقتي (لسه حاضر)":"لحد "+h(d.shift.to)} — بتشوف مبيعاتك أنت بس في الفترة دي</div>`:`<div class="m" style="margin:6px 0;color:var(--red)">مفيش حضور مسجّل ليك — سجّل حضورك عشان تظهرلك مبيعات ورديتك</div>`};
 const cfSum=a=>a.reduce((t,x)=>t+(+x.amount||0),0);
@@ -158,7 +158,7 @@ async function cfExpStaff(){put(cfHead("مصروف","يوم العمل")+`<p cla
   <button class="btn cf-go" onclick="cfExpStaffSave()">حفظ المصروف</button></section>
   <h3 class="sec">مصروفات النهارده — ${cfm(cfSum(d.expenses))}</h3>${d.expenses.map(e=>`<div class="box cf-rec"><div><b>${cfm(e.amount)}</b> <span class="tag">${esc(e.category)}</span><div class="m">${cfTm(e.at)}${e.note?" · "+esc(e.note):""}</div></div>${e.can_void?cfUndoBtn("cafe_delete_expense",e.id,"cafe_exp"):""}</div>`).join("")||`<p class="m">مفيش مصروفات لسه.</p>`}`)}
 async function cfExpStaffSave(){const a=parseFloat($("cfx_a").value);if(!(a>0))return toast("اكتب المبلغ");const S=C.cfx;if(S.busy)return;
-  if(!confirm("تسجّل مصروف "+cfm(a)+" ("+S.cat+") من الدرج؟"))return;S.busy=1;
+  if(!await askConfirm("تسجّل مصروف "+cfm(a)+" ("+S.cat+") من الدرج؟"))return;S.busy=1;
   const{error}=await sb.rpc("cafe_add_expense",{p_date:null,p_category:S.cat,p_amount:a,p_note:$("cfx_n").value.trim()||null,p_paid_from:"drawer"});S.busy=0;
   if(error)return toast(error.message);okFlash("اتسجّل المصروف",cfm(a));cfExpStaff()}
 
@@ -170,7 +170,7 @@ V.cafe_mv=async()=>{if(!canCafe())return cfDeny();put(cfHead("سحب من الد
   <button class="btn cf-go" onclick="cfWithdraw()">تسجيل السحب</button><p class="m">السلفة بتتخصم من مرتبك. باقي الأنواع بتنزل من كاش الدرج وتظهر للمالك في الخزنة.</p></section>
   <h3 class="sec">سحب النهارده — ${cfm(cfSum(d.withdrawals))}</h3>${d.withdrawals.map(w=>`<div class="box cf-rec"><div><b>${cfm(w.amount)}</b> <span class="tag">${esc((CF_WK.find(k=>k[0]==w.kind)||[0,w.kind])[1])}</span><div class="m">${cfTm(w.at)}${w.note?" · "+esc(w.note):""}</div></div>${w.can_void?cfUndoBtn("cafe_void_withdrawal",w.id,"cafe_mv"):""}</div>`).join("")||`<p class="m">مفيش سحب لسه.</p>`}`)};
 async function cfWithdraw(){const S=C.cfw,a=parseFloat($("cfw_a").value),n=$("cfw_n").value.trim();if(!(a>0))return toast("اكتب المبلغ");if(S.kind=="other"&&!n)return toast("اكتب السبب");if(S.busy)return;
-  if(!confirm("تسحب "+cfm(a)+" ("+(CF_WK.find(k=>k[0]==S.kind)||[0,""])[1]+") من الدرج؟"))return;S.busy=1;
+  if(!await askConfirm("تسحب "+cfm(a)+" ("+(CF_WK.find(k=>k[0]==S.kind)||[0,""])[1]+") من الدرج؟"))return;S.busy=1;
   const{error}=await sb.rpc("cafe_add_withdrawal",{p_kind:S.kind,p_amount:a,p_note:n||null});S.busy=0;
   if(error)return toast(error.message);okFlash("اتسجّل السحب",cfm(a));V.cafe_mv()}
 
@@ -191,7 +191,7 @@ function cfFill(id,b){const e=$("cfd_a_"+id);if(e)e.value=b}
 async function cfDebtAdd(){const n=$("cfd_n").value.trim();if(!n)return toast("اكتب اسم العميل");const{error}=await sb.rpc("cafe_debtor_save",{p_name:n,p_phone:cfDig($("cfd_p").value)||null});if(error)return toast(error.message);toast("اتضاف ✓");V.cafe_debt()}
 async function cfLed(id,keep){const D=C.cfd;if(D.open==id&&!keep){D.open=null;return cfDebtDraw()}const{data,error}=await cfRpc("cafe_debtor_ledger",{p_id:id});if(error)return;D.led[id]=data;D.open=id;cfDebtDraw()}
 async function cfCollect(id){const a=parseFloat($("cfd_a_"+id).value);if(!(a>0))return toast("اكتب المبلغ");const D=C.cfd;if(D.busy)return;const x=D.list.find(v=>v.id==id)||{};
-  if(!confirm("تحصّل "+cfm(a)+" كاش من "+(x.name||"العميل")+"؟"))return;D.busy=1;
+  if(!await askConfirm("تحصّل "+cfm(a)+" كاش من "+(x.name||"العميل")+"؟"))return;D.busy=1;
   const{data,error}=await sb.rpc("cafe_collect_debt",{p_debtor:id,p_amount:a,p_note:null});D.busy=0;
   if(error)return toast(error.message);okFlash("تم التحصيل","باقي "+cfm(data&&data.balance));D.open=null;V.cafe_debt()}
 

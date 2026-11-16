@@ -6,9 +6,9 @@ const{data,error}=await sb.from("invoices").select("id,no,total,payment_method,p
 if(error)return put(`<h1>الفواتير</h1><p class="m">مفيش صلاحية لعرض الفواتير لحسابك.</p>`);
 put(`<h1>الفواتير</h1>`+(data.length?data.map(i=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="dsInvOne(${i.id})"><div><b>#${i.no}</b> · ${esc(i.customers?.name||"عميل عابر")}<div class="m">${new Date(i.created_at).toLocaleString("ar-EG")} · ${(i.invoice_items||[]).map(z=>esc(z.name)+(z.qty>1?" ×"+z.qty:"")).join(" + ")}</div><div class="m">الحلاق: ${esc(i.barber?.full_name||"—")}</div></div><div style="text-align:left"><b>${fm(i.total)}</b><div class="m">${payTxt(i)}</div></div></button>`).join(""):`<p class="m">لسه مفيش فواتير.</p>`))};
 
-async function delInv(id,force){if(!force&&!confirm("حذف الفاتورة دي؟\nالمخزون هيرجع، ونقاط العميل وزيارته هتتعكس، وأرقام المبيعات هتتعدّل."))return;const{data,error}=await sb.rpc("admin_void_invoice",{p_id:String(id),p_force:!!force});if(error)return toast(error.message);if(data?.needs_force){if(!confirm("الفاتورة دي من يوم "+data.day+" وهو مقفول في الخزنة.\nلو حذفتها أرقام اليوم هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return;return delInv(id,true)}toast("اتحذفت الفاتورة #"+(data?.no??"")+" ✓");V.inv()}
+async function delInv(id,force){if(!force&&!await askConfirm("حذف الفاتورة دي؟\nالمخزون هيرجع، ونقاط العميل وزيارته هتتعكس، وأرقام المبيعات هتتعدّل."))return;const{data,error}=await sb.rpc("admin_void_invoice",{p_id:String(id),p_force:!!force});if(error)return toast(error.message);if(data?.needs_force){if(!await askConfirm("الفاتورة دي من يوم "+data.day+" وهو مقفول في الخزنة.\nلو حذفتها أرقام اليوم هتبقى مختلفة عن اللي اتجرد.\nتكمّل؟"))return;return delInv(id,true)}toast("اتحذفت الفاتورة #"+(data?.no??"")+" ✓");V.inv()}
 
-async function delAppt(id){if(!confirm("حذف الحجز ده نهائيًا؟\n(مختلف عن الإلغاء: بيتمسح من السجل بالكامل)"))return;const{data,error}=await sb.rpc("admin_delete_appointment",{p_id:String(id)});if(error)return toast(error.message);toast("اتحذف الحجز ✓");go("appts")}
+async function delAppt(id){if(!await askConfirm("حذف الحجز ده نهائيًا؟\n(مختلف عن الإلغاء: بيتمسح من السجل بالكامل)"))return;const{data,error}=await sb.rpc("admin_delete_appointment",{p_id:String(id)});if(error)return toast(error.message);toast("اتحذف الحجز ✓");go("appts")}
 
 // ---- قايمة فواتير (بفلاتر) ← الضغط على فاتورة يفتح تفاصيلها ----
 
@@ -37,10 +37,10 @@ ${me.role=="owner"?`<button class="btn s" style="margin-top:8px" onclick="invPai
 
 // حذف خدمة أو منتج من الفاتورة (للمالك/المدير): الإجمالي بيتعدّل، المنتج بيرجع للمخزون، ونقاط العميل بتتعدّل بنسبة المبلغ الجديد
 async function invDelItem(id,itemId,force){if(C.invBusy)return;const x=(C.invIt||{})[itemId];
-  if(!force&&!confirm("حذف «"+(x?x.name:"البند")+"»"+(x?" ("+fm(x.unit_price*x.qty)+")":"")+" من الفاتورة؟\nالإجمالي هيتعدّل"+(x&&x.item_type=="product"?"، والمنتج هيرجع للمخزون":"")+"، ونقاط العميل هتتعدّل بنسبة المبلغ الجديد."))return;
+  if(!force&&!await askConfirm("حذف «"+(x?x.name:"البند")+"»"+(x?" ("+fm(x.unit_price*x.qty)+")":"")+" من الفاتورة؟\nالإجمالي هيتعدّل"+(x&&x.item_type=="product"?"، والمنتج هيرجع للمخزون":"")+"، ونقاط العميل هتتعدّل بنسبة المبلغ الجديد."))return;
   C.invBusy=1;const{data,error}=await sb.rpc("invoice_remove_item",{p_invoice:id,p_item:itemId,p_force:!!force});C.invBusy=0;
   if(error)return toast(error.message);
-  if(data&&data.needs_force){if(!confirm("الفاتورة دي من يوم "+data.day+" وهو مقفول في الخزنة.\nلو حذفت منها، أرقام قفل اليوم هتتحدّث.\nتكمّل؟"))return;return invDelItem(id,itemId,true)}
+  if(data&&data.needs_force){if(!await askConfirm("الفاتورة دي من يوم "+data.day+" وهو مقفول في الخزنة.\nلو حذفت منها، أرقام قفل اليوم هتتحدّث.\nتكمّل؟"))return;return invDelItem(id,itemId,true)}
   toast("اتحذف «"+((data&&data.item)||"")+"» · الإجمالي بقى "+fm(data&&data.new_total)+" ✓");dsInvOne(id)}
 
 
@@ -55,13 +55,13 @@ async function invFind(id,no){const t=($("ip_q")?.value||"").trim().replace(/[%,
 async function invNew(id,no){const n=($("ip_n").value||"").trim();if(!n)return toast("اكتب الاسم");
   const{data:cid,error}=await sb.rpc("add_customer",{p_name:n,p_phone:null});if(error)return toast(error.message);invAttach(id,cid,n)}
 async function invAttach(id,cid,nm){
-  if(!confirm("تربط الفاتورة بـ "+nm+"؟\nهيتحسبله نقاطها وزيارتها. مينفعش تتعكس بعدين."))return;
+  if(!await askConfirm("تربط الفاتورة بـ "+nm+"؟\nهيتحسبله نقاطها وزيارتها. مينفعش تتعكس بعدين."))return;
   const{data,error}=await sb.rpc("invoice_attach_customer",{p_invoice:id,p_customer:cid});if(error)return toast(error.message);
   toast("اتربطت ✓ +"+(data?.points||0)+" نقطة"+(data?.bonus?" و +"+data.bonus+" مكافأة زيارات":""));dsInvOne(id)}
 
 
 // ---- تعديل المبلغ المدفوع الفعلي (لو العميل دفع أكتر من الحساب) ----
-async function invPaid(id,total,cur){const v=prompt("المطلوب "+fm(total)+"\nاكتب المبلغ المدفوع الفعلي (لازم يساوي أو يزيد عن المطلوب):",cur);if(v===null)return;const n=+v;if(!(n>=total))return toast("المبلغ لازم يكون "+fm(total)+" أو أكتر");
+async function invPaid(id,total,cur){const v=await askInput("المطلوب "+fm(total)+"\nاكتب المبلغ المدفوع الفعلي (لازم يساوي أو يزيد عن المطلوب):",cur);if(v===null)return;const n=+v;if(!(n>=total))return toast("المبلغ لازم يكون "+fm(total)+" أو أكتر");
   let r=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n});
-  if(!r.error&&r.data&&r.data.needs_force){if(!confirm("الفاتورة دي من يوم "+r.data.day+" وهو مقفول في الخزنة.\nلو عدّلت المدفوع، متوقع الدرج لليوم ده هيتحسب من جديد (والمبلغ المعدود هيفضل زي ما هو).\nتكمّل؟"))return;r=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n,p_force:true})}
+  if(!r.error&&r.data&&r.data.needs_force){if(!await askConfirm("الفاتورة دي من يوم "+r.data.day+" وهو مقفول في الخزنة.\nلو عدّلت المدفوع، متوقع الدرج لليوم ده هيتحسب من جديد (والمبلغ المعدود هيفضل زي ما هو).\nتكمّل؟"))return;r=await sb.rpc("invoice_set_paid",{p_invoice:id,p_paid:n,p_force:true})}
   if(r.error)return toast(/Could not find the function/i.test(r.error.message||"")?"شغّل ملف patch_paid_amount.sql في Supabase الأول":r.error.message);toast(r.data&&r.data.refreshed_day?"اتسجل المبلغ ✓ وقفلة اليوم اتحدّثت":"اتسجل المبلغ ✓");dsInvOne(id)}

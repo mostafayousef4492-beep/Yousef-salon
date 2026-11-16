@@ -28,12 +28,12 @@ async function tgAdd(){const v=parseFloat($("tg_v").value);if(!(v>0))return toas
 
 async function tierAdd(id){const p=parseFloat($("tr_p"+id).value),l=$("tr_l"+id).value.trim(),a=parseFloat($("tr_a"+id).value)||0;if(!(p>0)||!l)return toast("اكتب النسبة واسم المستوى");const{error}=await sb.from("staff_target_tiers").insert({target_id:id,threshold_pct:p,label:l,reward_amount:a});error?toast(error.code=="23505"?"المستوى ده موجود بنفس النسبة":error.message):tgtOwner()}
 
-async function tierDel(id){if(!confirm("تحذف المستوى ده؟"))return;const{error}=await sb.from("staff_target_tiers").delete().eq("id",id);error?toast(error.message):tgtOwner()}
+async function tierDel(id){if(!await askConfirm("تحذف المستوى ده؟"))return;const{error}=await sb.from("staff_target_tiers").delete().eq("id",id);error?toast(error.message):tgtOwner()}
 
 async function tgTog(id,v){const{error}=await sb.from("staff_targets").update({active:v,updated_at:new Date().toISOString()}).eq("id",id);error?toast(error.code=="23505"?"فيه تارجت شغّال تاني بنفس النطاق":error.message):tgtOwner()}
 
-async function tgDel(id){if(!confirm("تحذف التارجت ده ومستوياته؟ الحوافز المسجّلة بتفضل في السجل."))return;const{error}=await sb.from("staff_targets").delete().eq("id",id);error?toast(error.message):tgtOwner()}
+async function tgDel(id){if(!await askConfirm("تحذف التارجت ده ومستوياته؟ الحوافز المسجّلة بتفضل في السجل."))return;const{error}=await sb.from("staff_targets").delete().eq("id",id);error?toast(error.message):tgtOwner()}
 
-async function payAw(id){if(!confirm("تصرف الحافز ده؟ هيتسجل كمكافأة في حساب الحلاق."))return;const{error}=await sb.rpc("pay_target_award",{p_id:id});error?toast(error.message):(toast("تم صرف الحافز ✓"),tgtOwner())}
+async function payAw(id){if(!await askConfirm("تصرف الحافز ده؟ هيتسجل كمكافأة في حساب الحلاق."))return;const{error}=await sb.rpc("pay_target_award",{p_id:id});error?toast(error.message):(toast("تم صرف الحافز ✓"),tgtOwner())}
 
-async function cancelAw(id){if(!confirm("تلغي الحافز ده؟"))return;const{error}=await sb.rpc("cancel_target_award",{p_id:id});error?toast(error.message):tgtOwner()}
+async function cancelAw(id){if(!await askConfirm("تلغي الحافز ده؟"))return;const{error}=await sb.rpc("cancel_target_award",{p_id:id});error?toast(error.message):tgtOwner()}

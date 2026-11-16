@@ -11,11 +11,11 @@ async function oldLoad(id){const e=$("oldsal");if(!e)return;let d=null;
   try{const r=await sb.rpc("staff_old_month",{p_staff:id});if(r.error){if(/staff_old_month|PGRST202|42883/.test(r.error.code+" "+r.error.message))return;return}d=r.data}catch(x){return}
   if(!d||!$("oldsal"))return;const rem=+d.rem;
   e.innerHTML=`<h2>باقي له من الشهر القديم</h2><div class="box"><div class="m">${mAr(d.period)}: مستحق ${fm(+d.due)} · اتصرف ${fm(+d.paid)}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px"><b style="font-size:1.6rem;color:${rem>0?"var(--red)":"var(--ok)"}">${fm(rem)}</b>${rem>0?`<button class="btn" onclick="payOld('${id}',${rem})">صرف الراتب القديم</button>`:`<span class="m">مفيش متبقي ✓</span>`}</div>${rem>0?`<div class="m" style="margin-top:6px">بيتصرف من الدرج، وبيتسجل في مرتبات ${mAr(d.period)}.</div>`:""}</div>`}
-async function payOld(id,rem){if(!confirm("تصرف "+fm(rem)+" من الدرج كباقي الراتب القديم؟"))return;const{error}=await sb.rpc("pay_old_salary",{p_staff:id});if(error)return toast(error.message);toast("اتصرف من الدرج ✓");C.meOld=undefined;oldLoad(id);stlLoad(id)}
+async function payOld(id,rem){if(!await askConfirm("تصرف "+fm(rem)+" من الدرج كباقي الراتب القديم؟"))return;const{error}=await sb.rpc("pay_old_salary",{p_staff:id});if(error)return toast(error.message);toast("اتصرف من الدرج ✓");C.meOld=undefined;oldLoad(id);stlLoad(id)}
 
-async function undoStl(sid,staff){if(!confirm("تلغي التسوية دي؟\nلو فيها صرف كاش هيتمسح كمان، والرصيد هيتحسب من جديد."))return;const{error}=await sb.rpc("admin_undo_settlement",{p_id:String(sid)});if(error)return toast(error.message);toast("اتلغت التسوية ✓");stlLoad(staff)}
+async function undoStl(sid,staff){if(!await askConfirm("تلغي التسوية دي؟\nلو فيها صرف كاش هيتمسح كمان، والرصيد هيتحسب من جديد."))return;const{error}=await sb.rpc("admin_undo_settlement",{p_id:String(sid)});if(error)return toast(error.message);toast("اتلغت التسوية ✓");stlLoad(staff)}
 
-async function doSettle(id){const a=parseFloat($("st_a").value),r=$("st_r").value.trim();if(!(a>0))return toast("اكتب مبلغ التسوية");if(!r)return toast("اكتب سبب التسوية");if(!confirm("تنفّذ التسوية؟ بتتسجل كسجل تدقيق ومينفعش تتمسح."))return;
+async function doSettle(id){const a=parseFloat($("st_a").value),r=$("st_r").value.trim();if(!(a>0))return toast("اكتب مبلغ التسوية");if(!r)return toast("اكتب سبب التسوية");if(!await askConfirm("تنفّذ التسوية؟ بتتسجل كسجل تدقيق ومينفعش تتمسح."))return;
   const{error}=await sb.rpc("settle_staff_account",{p_staff:id,p_amount:a,p_reason:r,p_record_payment:$("st_p").checked,p_paid_from:$("st_s").value});error?toast(error.message):(toast("تمت التسوية ✓"),stlLoad(id))}
 
 // ================= دور المدير + كروت المالية =================

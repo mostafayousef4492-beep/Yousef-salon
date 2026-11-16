@@ -38,8 +38,8 @@ ${list.length?list.map(r=>`<div class="row" style="flex-direction:column;align-i
   }
   window.rrClose=close;
   window.rrDecide=async(id,ok)=>{
-    let note=null;if(!ok){note=prompt("سبب الرفض (اختياري)","");if(note===null)return}
-    else if(!confirm("توافق؟ هتتخصم النقاط ويتفعّل الكوبون."))return;
+    let note=null;if(!ok){note=await askInput("سبب الرفض (اختياري)","");if(note===null)return}
+    else if(!await askConfirm("توافق؟ هتتخصم النقاط ويتفعّل الكوبون."))return;
     const{data,error}=await sb.rpc("decide_redeem",{p_id:id,p_approve:ok,p_note:note});
     if(error)return toast(error.message);
     toast(ok?"تمت الموافقة — كود الكوبون: "+data:"تم الرفض");

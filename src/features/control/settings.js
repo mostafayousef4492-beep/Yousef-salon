@@ -60,6 +60,6 @@ put(h)};
 async function saveSec(){const rows=[];(FLD[C.sec]||[]).forEach(([k,l,t])=>{const e=$("s_"+k);if(!e)return;if(t=="bool")rows.push({key:k,value:e.checked});else if(t=="number"||t=="day"){if(e.value!=="")rows.push({key:k,value:+e.value})}else rows.push({key:k,value:e.value})});
 const{error}=await sb.from("app_settings").upsert(rows);error?toast(error.message):(toast("تم الحفظ ✓"),loadCfg())}
 
-async function doReset(scope,label){const w=prompt(label+"\n\nالعملية دي مش هتترجّع. اكتب كلمة: تصفير");if(w!=="تصفير")return toast("اتلغى");const{data,error}=await sb.rpc("reset_data",{p_scope:scope,p_confirm:w});error?toast(error.message):toast(data||"تم التصفير ✓")}
+async function doReset(scope,label){const w=await askInput(label+"\n\nالعملية دي مش هتترجّع. اكتب كلمة: تصفير");if(w!=="تصفير")return toast("اتلغى");const{data,error}=await sb.rpc("reset_data",{p_scope:scope,p_confirm:w});error?toast(error.message):toast(data||"تم التصفير ✓")}
 
-async function resetAllPerms(){if(!confirm("ترجّع صلاحيات كل الحلاقين والكاشير للافتراضي؟"))return;const{error}=await sb.from("profiles").update({perms:{}}).in("role",["barber","cashier","assistant"]);error?toast(error.message):toast("تم ✓")}
+async function resetAllPerms(){if(!await askConfirm("ترجّع صلاحيات كل الحلاقين والكاشير للافتراضي؟"))return;const{error}=await sb.from("profiles").update({perms:{}}).in("role",["barber","cashier","assistant"]);error?toast(error.message):toast("تم ✓")}
