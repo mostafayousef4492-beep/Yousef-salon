@@ -18,7 +18,7 @@ put(`<h1>الشركات والتعاقدات</h1>
 +(C.cos.length?C.cos.map(c=>{const r=rep[c.id]||{};const st=!c.active?"موقوفة":(c.valid?"شغّالة":"خارج مدة الاتفاق");
 return `<div class="box" style="margin-top:10px"><div class="row"><div><b>${esc(c.name)}</b> <span class="tag">${+c.pct}%</span> <span class="m">${st}</span>
 <div class="m">الكود: <b dir="ltr">${esc(c.code||"")}</b> · من ${esc(c.start||"")}${c.end?" إلى "+esc(c.end):" (مفتوح)"}${c.max?" · أقصى خصم للفاتورة "+fm(c.max):""}${c.limit?" · "+c.limit+" مرات شهريًا للعميل":""}${c.bundles?"":" · مش على الباقات"}${(c.excluded||[]).length?" · "+c.excluded.length+" خدمة مستثناة":""}</div></div>
-<div style="text-align:left"><button class="btn s g" onclick="coEdit(${c.id})">تعديل</button> <button class="btn s g" onclick="coToggle(${c.id})">${c.active?"إيقاف مؤقت":"تشغيل"}</button></div></div>
+<div style="text-align:left"><button class="btn s g" onclick="coEdit(${c.id})">تعديل</button> <button class="btn s g" onclick="coWa(${c.id})">📲 واتساب</button> <button class="btn s g" onclick="coToggle(${c.id})">${c.active?"إيقاف مؤقت":"تشغيل"}</button></div></div>
 <div class="m" style="margin-top:6px">👥 ${c.members} مربوط بالحساب · مستفيدين ${r.beneficiaries||0} · استخدام ${r.uses||0} مرة</div>
 <div class="m">مبيعات قبل الخصم <b>${fm(r.gross||0)}</b> · إجمالي الخصم <b>${fm(r.discounts||0)}</b> · الصافي <b>${fm(r.net||0)}</b></div>
 ${(r.top||[]).length?`<div class="m">أكتر خدمات: ${r.top.map(x=>esc(x.name)+" ("+x.qty+")").join("، ")}</div>`:""}
@@ -51,3 +51,8 @@ o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;
 o.innerHTML=`<div class="box" style="max-width:420px;width:100%;max-height:80vh;overflow:auto;background:var(--card,#fff)"><h3 class="sec">خدمات مش داخلة في الخصم</h3><p class="m">علّم على الخدمات اللي الخصم مايتطبّقش عليها (اختياري).</p>${S.map(s=>`<label class="row" style="cursor:pointer"><span>${esc(s.name)}</span><input type="checkbox" value="${s.id}" ${sel.includes(s.id)?"checked":""}></label>`).join("")}<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="coOk" style="flex:1">تمام</button><button class="btn g" id="coNo" style="flex:1">إلغاء</button></div></div>`;
 document.body.appendChild(o);const done=v=>{o.remove();res(v)};
 o.querySelector("#coOk").onclick=()=>done([...o.querySelectorAll("input:checked")].map(i=>+i.value));o.querySelector("#coNo").onclick=()=>done(null)})}
+
+// رسالة واتساب جاهزة للشركة/الموظفين فيها لينك التسجيل والكود
+function coMsg(c){const l=location.origin+"/?co="+encodeURIComponent(c.code||"");return "أهلاً بحضرتكم 🌟\nاتفاقنا مع "+c.name+": خصم "+(+c.pct)+"% لكل موظف على خدمات صالون أبو يوسف"+(c.end?" لحد "+c.end:"")+".\n\nللاستفادة: سجّل من الرابط ده وحسابك هيتربط بالشركة تلقائي، وبعدها الخصم بيتطبّق عند الدفع:\n"+l+"\n\n(أو بعد التسجيل: بياناتي ← اكتب كود الشركة: "+c.code+")\nولو مش عايز تسجّل، قول للكاشير اسم الشركة أو الكود."}
+async function coWa(id){const c=(C.cos||[]).find(x=>x.id==id);if(!c)return;if(!c.valid&&!await askConfirm("الاتفاق مش شغّال دلوقتي (موقوف أو خارج المدة). تبعت الرسالة برضه؟"))return;
+const m=coMsg(c);window.open("https://wa.me/?text="+encodeURIComponent(m),"_blank","noopener");try{await navigator.clipboard.writeText(m);toast("الرسالة اتنسخت كمان ✓")}catch(e){}}
