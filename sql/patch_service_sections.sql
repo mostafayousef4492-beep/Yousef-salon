@@ -10,7 +10,8 @@ insert into public.service_category_backup(id, name, category)
   select s.id, s.name, s.category from public.services s
   where not exists (select 1 from public.service_category_backup b where b.id = s.id);
 
-with m(id, nm, cat) as (values
+update public.services s set category = m.cat
+from (values
   (1,'قصة شعر','الشعر'),(31,'لف شعر كيرلي','الشعر'),(32,'فرد شعر','الشعر'),
   (2,'حلاقة ذقن','الدقن'),(47,'تحديد دقن','الدقن'),
   (5,'صبغة شعر اسود','الصبغات'),(20,'صبغه شعر الوان','الصبغات'),(34,'صبغة بايجن','الصبغات'),(16,'صبغة دقن','الصبغات'),
@@ -26,7 +27,7 @@ with m(id, nm, cat) as (values
   (48,null,'الصبغات'),(49,null,'الصبغات'),
   (43,null,'التصفيف'),(44,null,'التصفيف'),(45,null,'التصفيف'),(46,null,'التصفيف'),
   (50,null,'العناية'),(51,null,'العناية'),(52,null,'العناية'),(53,null,'العناية'),(54,null,'العناية'),(55,null,'العناية'),(56,null,'العناية')
-)
-update public.services s set category = m.cat
-from m where s.id = m.id and (m.nm is null or s.name = m.nm) and s.category is distinct from m.cat;
+) as m(id, nm, cat)
+where s.id = m.id and (m.nm is null or s.name = m.nm) and s.category is distinct from m.cat;
+-- ملحوظة: شغّل الملف كله مرة واحدة (Ctrl+A ثم Run) من غير ما تحدد جزء منه.
 -- الخدمات القديمة اللي كانت باقات (12,13,14,3) سيبناها زي ما هي لأنها موقوفة ومرتبطة بفواتير قديمة.
