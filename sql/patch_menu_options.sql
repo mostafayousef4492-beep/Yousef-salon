@@ -10,7 +10,7 @@ create table if not exists public.service_menu_backup as
   select id, name, group_name, option_label, active, now() as saved_at from public.services where false;
 insert into public.service_menu_backup(id, name, group_name, option_label, active)
   select s.id, s.name, s.group_name, s.option_label, s.active from public.services s
-  where s.id in (1,2,6,8,30,35,36,37,38,40,41,42,45,46)
+  where s.id in (1,2,6,8,30,35,36,37,38,40,41,42,43,44,45,46)
     and not exists (select 1 from public.service_menu_backup b where b.id = s.id);
 
 update public.services s set group_name = m.g, option_label = m.l, active = m.a
@@ -25,7 +25,9 @@ from (values
   (35,'حلاقة ذقن — ماكينة'                   ,'حلاقة ذقن','ماكينة'                ,true),
   (36,'حلاقة ذقن — موس'                      ,'حلاقة ذقن','موس'                   ,true),
   (37,'حلاقة ذقن — تدريج'                    ,'حلاقة ذقن','تدريج'                 ,true),
-  -- تسريح الشعر
+  -- تسريح الشعر (المكرر الموقوف 43 و44 بياخدوا اسم «(مكرر)» عشان الاسم ده محجوز في الجدول للخدمتين الشغّالتين)
+  (43,'تسريح الشعر — استشوار فقط'            ,'تسريح الشعر','استشوار فقط (مكرر)'   ,false),
+  (44,'تسريح الشعر — استشوار + مكوه'         ,'تسريح الشعر','استشوار + مكوه (مكرر)',false),
   (6 ,'استشوار'                              ,'تسريح الشعر','استشوار فقط'         ,true),
   (8 ,'استشوار +مكوه'                        ,'تسريح الشعر','استشوار + مكوه'      ,true),
   (45,'تسريح الشعر — كيرلي أو ويفي'          ,'تسريح الشعر','كيرلي أو ويفي'       ,true),
@@ -36,5 +38,5 @@ from (values
 ) as m(id, nm, g, l, a)
 where s.id = m.id and s.name = m.nm
   and (s.group_name is distinct from m.g or s.option_label is distinct from m.l or s.active is distinct from m.a);
--- ما اتلمسش (عمدًا): خدمة 39 (قص تدريج 70 مكررة مع «قصة شعر»)، 43/44 (مكررين مع استشوار)، 11 (حلاقة أطفال القديمة)،
+-- ما اتلمسش (عمدًا): خدمة 39 (قص تدريج 70 مكررة مع «قصة شعر»)، 11 (حلاقة أطفال القديمة)،
 -- صبغات / عناية البشرة / اسكراب / مكوة / مكوه كيرلي / المركّبات — نرتبهم في خطوة تانية.
