@@ -11,11 +11,18 @@ const{error}=await sb.from(t).insert(o);error?toast(error.message):V.set()}
 
 // ===== نظام الخدمات (شاشة مستقلة للمالك) =====
 
+// أقسام المنيو الثابتة (الترتيب والأيقونة). أي قسم قديم برّه القائمة بيظهر بعدهم.
+const SVC_SEC=[["الشعر","✂️"],["الدقن","🧔"],["الصبغات","🎨"],["التصفيف","💇"],["العناية","🧖"],["إضافات","➕"]];
+const svcSecRank=c=>{const i=SVC_SEC.findIndex(x=>x[0]==c);return i<0?SVC_SEC.length:i};
+const svcSecIcon=c=>(SVC_SEC.find(x=>x[0]==c)||[0,""])[1];
+const svcSecCmp=(a,b)=>svcSecRank(a)-svcSecRank(b)||String(a).localeCompare(String(b),"ar");
+
 V.svc=async()=>{const{data,error}=await sb.from("services").select("*").order("category").order("price");
 if(error)return put(`<h1>الخدمات</h1><p class="m">${esc(error.message)}</p>`);
 C.svc={l:data||[],q:"",c:"",e:0};drawSvc()};
 
-const svcCats=()=>[...new Set(C.svc.l.map(x=>x.category||"قصات"))];
+const svcCats=()=>[...new Set([...SVC_SEC.map(x=>x[0]),...C.svc.l.map(x=>x.category||"قصات")])].filter(c=>C.svc.l.some(x=>(x.category||"قصات")==c)).sort(svcSecCmp);
+const svcCatsAll=()=>[...new Set([...SVC_SEC.map(x=>x[0]),...C.svc.l.map(x=>x.category||"").filter(Boolean)])].sort(svcSecCmp);
 
 function drawSvc(){const S=C.svc,on=S.l.filter(x=>x.active).length;
 put(`<h1>الخدمات</h1><div class="m">${num(on)} شغّالة${S.l.length-on?" · "+num(S.l.length-on)+" موقوفة":""}</div>
@@ -28,8 +35,8 @@ h.innerHTML=cs.length>1?`<button class="chip ${S.c?"":"sel"}" onclick="C.svc.c='
 
 function svcList(){const S=C.svc,q=S.q.trim().toLowerCase(),g={};
 S.l.filter(x=>(!S.c||(x.category||"قصات")==S.c)&&(!q||(x.name+" "+(x.category||"")).toLowerCase().includes(q))).forEach(x=>(g[x.category||"قصات"]=g[x.category||"قصات"]||[]).push(x));
-const ks=Object.keys(g);
-$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
+const ks=Object.keys(g).sort(svcSecCmp);
+$("svl").innerHTML=ks.length?ks.map(k=>`<h2>${svcSecIcon(k)} ${esc(k)}</h2>`+g[k].map(x=>x.group_name?(g[k].find(y=>y.group_name==x.group_name)===x?grpRow(x.group_name):""):`<button class="row svc${x.active?"":" off"}" onclick="svcOpen(${x.id})"><div><b>${esc(x.name)}</b><div class="m">${num(x.duration_min||30)} دقيقة${x.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(x.price)}</b></button>`).join("")).join(""):`<p class="m empty">${S.l.length?"مفيش خدمة بالاسم ده.":"لسه مفيش خدمات. ضيف أول خدمة من الزرار اللي فوق."}</p>`}
 
 function svcClose(){C.dsL=null;const w=$("sheet");if(w){w.classList.add("out");setTimeout(()=>w.remove(),160)}}
 
@@ -38,8 +45,8 @@ const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="s
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${id?"تعديل خدمة":"خدمة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
 <label class="m" for="sf-n">اسم الخدمة</label><input id="sf-n" value="${esc(x.name)}" placeholder="مثال: قصة + دقن" autocomplete="off">
 <div class="svc-2"><div><label class="m" for="sf-p">السعر (${esc(C.cfg.currency)})</label><input id="sf-p" type="number" inputmode="decimal" min="0" value="${esc(x.price)}"></div><div><label class="m" for="sf-d">المدة (دقيقة)</label><input id="sf-d" type="number" inputmode="numeric" min="5" step="5" value="${esc(x.duration_min||30)}"></div></div>
-<label class="m" for="sf-c">القسم</label><input id="sf-c" value="${esc(id?(x.category||"قصات"):"")}" placeholder="قصات / ذقن / عناية ..." autocomplete="off">
-<div class="chips">${svcCats().map((c,i)=>`<button type="button" class="chip" onclick="$('sf-c').value=svcCats()[${i}]">${esc(c)}</button>`).join("")}</div>
+<label class="m" for="sf-c">القسم</label><input id="sf-c" value="${esc(id?(x.category||"قصات"):"")}" placeholder="الشعر / الدقن / الصبغات / التصفيف / العناية" autocomplete="off">
+<div class="chips">${svcCatsAll().map((c,i)=>`<button type="button" class="chip" onclick="$('sf-c').value=svcCatsAll()[${i}]">${svcSecIcon(c)} ${esc(c)}</button>`).join("")}</div>
 <label class="m" for="sf-ds">وصف قصير (اختياري)</label><input id="sf-ds" value="${esc(x.description||"")}" autocomplete="off">
 <label class="svc-sw"><input id="sf-a" type="checkbox" ${x.active?"checked":""}><span>شغّالة — ظاهرة للعملاء وفي الكاشير</span></label>
 <label class="svc-sw"><input id="sf-rd" type="checkbox" ${x.redeemable?"checked":""}><span>العميل يقدر يشتريها بنقاط الولاء</span></label>

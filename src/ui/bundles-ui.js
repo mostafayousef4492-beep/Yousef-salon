@@ -47,9 +47,15 @@ SG.tog=function(sel,id,SV){if(sel.includes(id))return sel.filter(x=>x!=id);
   const s=SV.find(x=>x.id==id),g=s&&s.group_name;
   return[...(g?sel.filter(x=>{const o=SV.find(y=>y.id==x);return!(o&&o.group_name==g)}):sel),id]};
 // item(x,isSel,short): بيرجّع زرار الخدمة؛ short=true للاختيارات جوه المجموعة (اسم الاختيار بس)
+SG.secOrder=["الشعر","الدقن","الصبغات","التصفيف","العناية","إضافات"];SG.secIcon={"الشعر":"✂️","الدقن":"🧔","الصبغات":"🎨","التصفيف":"💇","العناية":"🧖","إضافات":"➕"};
 SG.render=function(SV,sel,item){const seen={},out=[];let loose=[];
+  const rk=c=>{const i=SG.secOrder.indexOf(c);return i<0?99:i};
+  const cats=[...new Set(SV.map(x=>x.category||""))];
+  if(cats.length>1){SV=SV.map((x,i)=>[x,i]).sort((a,b)=>rk(a[0].category)-rk(b[0].category)||String(a[0].category||"").localeCompare(String(b[0].category||""),"ar")||a[1]-b[1]).map(a=>a[0])}
+  let lastC=null;
   const flush=()=>{if(loose.length){out.push(`<div class="chips">${loose.join("")}</div>`);loose=[]}};
   SV.forEach(x=>{const g=x.group_name;
+    if(cats.length>1&&x.category&&x.category!==lastC&&!(g&&seen[g])){lastC=x.category;flush();out.push(`<div class="m" style="margin:12px 0 4px;width:100%"><b>${SG.secIcon[x.category]||""} ${esc(x.category)}</b></div>`)}
     if(!g){loose.push(item(x,sel.includes(x.id),false));return}
     if(seen[g])return;seen[g]=1;flush();
     const opts=SV.filter(y=>y.group_name==g),pick=opts.some(y=>sel.includes(y.id));
