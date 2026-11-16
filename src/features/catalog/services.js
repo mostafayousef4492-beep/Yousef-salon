@@ -91,7 +91,7 @@ function bndTgG(i){const B=C.bn,g=bndGroups()[i];if(!g)return;B.g=(B.g||[]).incl
 function bndTg(id){const B=C.bn;B.s=B.s.includes(id)?B.s.filter(x=>x!=id):[...B.s,id];bndDraw()}
 
 async function bndSave(){const B=C.bn;if(B.s.length+(B.g||[]).length<2)return toast("اختار خدمتين على الأقل");const pr=parseFloat(B.price);if(!(pr>=0))return toast("اكتب سعر الباقة");
-  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s,p_groups:B.g||[]});
+  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s,...((B.g||[]).length?{p_groups:B.g}:{})});
   if(error)return toast(error.message);toast("اتحفظت ✓");svcClose();bndLoad()}
 
 async function bndDel(id){if(!await askConfirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
