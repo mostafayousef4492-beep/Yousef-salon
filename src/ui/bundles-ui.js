@@ -11,7 +11,8 @@ BN.all=bd=>[...BN.ids(bd),...BN.optIds(bd)];
 // الباقة مكتملة على قايمة خدمات: كل الثابتة + اختيار واحد على الأقل من كل خانة
 BN.ok=(bd,sel)=>BN.ids(bd).every(i=>sel.includes(i))&&BN.slots(bd).every(s=>(s.options||[]).some(o=>sel.includes(o.id)));
 // الاختيار الافتراضي لكل خانة = أرخص خيار (اللي الخصم محسوب عليه)
-BN.defOpt=s=>((s.options||[])[0]||{}).id;
+BN.baseOpt=s=>(s.options||[]).find(o=>o.id==s.base)||(s.options||[])[0]||null;   // الخيار اللي الباقة اتسعّرت عليه
+BN.defOpt=s=>(BN.baseOpt(s)||{}).id;
 // بيضيف خدمات الباقة (الثابتة + خيار لكل خانة لو مفيش) على قايمة sel
 BN.fill=(bd,sel)=>{const o=[...new Set([...sel,...BN.ids(bd)])];BN.slots(bd).forEach(s=>{if(!(s.options||[]).some(x=>o.includes(x.id))&&BN.defOpt(s))o.push(BN.defOpt(s))});return o};
 // بيشيل خدمات الباقة (الثابتة + أي خيار من خاناتها) من قايمة sel
@@ -42,7 +43,7 @@ BN.html=function(b,fn,fm){
 
 BN.summary=function(b,SV,fm){const c=BN.calc(b,SV);if(!c.bd)return"";
   return`<div class="box" style="margin:10px 0;border-color:var(--gold,#c9a24a)"><b>🎁 ${esc(c.bd.name)}</b>
-${BN.slots(c.bd).map(s=>{const o=(s.options||[]).find(x=>b.s.includes(x.id)),base=(s.options||[])[0];return`<div class="m" style="padding-top:4px">${esc(s.group)}: <b>${o?esc(o.name):"اختار نوع من الخدمات تحت"}</b>${o&&base&&+o.price>+base.price?` · فرق ${fm(+o.price-+base.price)} عن أرخص اختيار`:""}</div>`}).join("")}
+${BN.slots(c.bd).map(s=>{const o=(s.options||[]).find(x=>b.s.includes(x.id)),base=BN.baseOpt(s),d=o&&base?+o.price-+base.price:0;return`<div class="m" style="padding-top:4px">${esc(s.group)}: <b>${o?esc(o.name):"اختار نوع من الخدمات تحت"}</b>${d>0?` · زيادة ${fm(d)} عن «${esc(base.name)}»`:d<0?` · أرخص ${fm(-d)} من «${esc(base.name)}»`:""}</div>`}).join("")}
 <div style="display:flex;justify-content:space-between;padding-top:6px"><span>الخدمات دي كلها لوحدها</span><span>${fm(c.full)}</span></div>
 <div style="display:flex;justify-content:space-between"><span>خصم الباقة</span><b style="color:var(--ok,#2ea66b)">− ${fm(c.saving)}</b></div>
 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line,#2a2f3a);margin-top:6px;padding-top:6px"><b>الإجمالي بعد الباقة</b><b>${fm(c.total)}</b></div></div>`};
