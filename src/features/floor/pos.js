@@ -144,12 +144,12 @@ const{data}=await sb.from("customers").select("id,name,phone,points,visits").eq(
 
 
 // ---- الباقات في الكاشير: الخصم بيتحسب على السيرفر من تذكرة الحجز؛ هنا للعرض وتطبيق/إلغاء باقة على التذكرة ----
-async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){const w=P.wbn&&BN.get(P.wbn);P.bn=w?{id:w.id,name:w.name,price:+w.price,service_ids:BN.ids(w)}:null;P.bnOn=false;if(P.bn)posBnOn()}return}
+async function posBnLoad(){const P=C.P;await posClaimLoad();try{await BN.load(sb)}catch(e){}if(!P||!P.appt){if(P){const w=P.wbn&&BN.get(P.wbn);P.bn=w?{id:w.id,name:w.name,price:+w.price,service_ids:BN.ids(w),slots:(BN.slots(w)).map(s=>({group:s.group,option_ids:(s.options||[]).map(o=>o.id)}))}:null;P.bnOn=false;if(P.bn)posBnOn()}return}
   try{await BN.load(sb);const{data}=await sb.rpc("ticket_bundle",{p_id:P.appt});P.bn=data||null}catch(e){P.bn=null}
   posBnOn()}
-function posBnOn(){const P=C.P;P.bnOn=!!(P.bn&&(P.bn.service_ids||[]).length&&P.bn.service_ids.every(i=>P.s.includes(i)))}
+function posBnOn(){const P=C.P,b=P.bn;P.bnOn=!!(b&&((b.service_ids||[]).length||(b.slots||[]).length)&&(b.service_ids||[]).every(i=>P.s.includes(i))&&(b.slots||[]).every(s=>(s.option_ids||[]).some(i=>P.s.includes(i))))}
 function posBn(P){
-  const cand=(BN.L||[]).filter(b=>(!P.bn||b.id!=P.bn.id)&&BN.ids(b).every(i=>P.s.includes(i)));
+  const cand=(BN.L||[]).filter(b=>(!P.bn||b.id!=P.bn.id)&&BN.ok(b,P.s));
   return(P.bn?`<div class="m" style="margin:6px 0">${P.bnOn?"🎁 باقة «"+esc(P.bn.name)+"» مطبّقة (مفيش خصم يدوي معاها)":"باقة «"+esc(P.bn.name)+"» على التذكرة بس خدماتها مش كلها في الفاتورة"} <button class="btn s g" onclick="posBnSet(null)">إلغاء الباقة</button></div>`:"")
    +cand.map(b=>`<button class="btn s g" style="margin:4px 0;width:100%" onclick="posBnSet(${b.id})">🎁 طبّق باقة ${esc(b.name)} · وفّر ${fm(b.saving)}</button>`).join("")}
 async function posBnSet(id){const P=C.P;if(!P)return;if(!P.appt){P.wbn=id;await posBnLoad();return drawPos()}const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:id});if(error)return toast(error.message);await posBnLoad();drawPos()}
@@ -178,11 +178,11 @@ async function epCheck(P){if(!P.ch)return"اختار قناة الدفع (فود
 
 // الباقات كأزرار في الكاشير: الضغط بيضيف خدماتها ويطبّق سعر الباقة، والضغط تاني بيشيلها
 function posBnTiles(P){if(!BN.L||!BN.L.length)return"";
-  return BN.L.map(b=>{const on=!!(P.bn&&P.bn.id==b.id&&P.bnOn);return`<button class="chip ${on?"sel":""}" onclick="P_bn(${b.id})"><b>🎁 ${esc(b.name)}</b><span class="m">${fm(b.price)}</span></button>`}).join("")}
+  return BN.L.map(b=>{const on=!!(P.bn&&P.bn.id==b.id&&P.bnOn);return`<button class="chip ${on?"sel":""}" onclick="P_bn(${b.id})"><b>🎁 ${esc(b.name)}</b><span class="m">${BN.slots(b).length?"من ":""}${fm(b.price)}</span></button>`}).join("")}
 async function P_bn(id){const P=C.P,b=BN.get(id);if(!P||!b)return;const ids=BN.ids(b);
-  if(ids.some(i=>!P.sv.some(x=>x.id==i)))return toast("الباقة فيها خدمة مش متاحة دلوقتي");
+  if(ids.some(i=>!P.sv.some(x=>x.id==i))||BN.slots(b).some(s=>!(s.options||[]).some(o=>P.sv.some(x=>x.id==o.id))))return toast("الباقة فيها خدمة مش متاحة دلوقتي");
   const on=!!(P.bn&&P.bn.id==id&&P.bnOn);
-  if(on){P.s=P.s.filter(x=>!ids.includes(x));ids.forEach(i=>delete P.sa[i])}else P.s=[...new Set([...P.s,...ids])];
+  if(on){const al=BN.all(b);P.s=P.s.filter(x=>!al.includes(x));al.forEach(i=>delete P.sa[i])}else P.s=BN.fill(b,P.s);
   await chSaveNow();
   if(P.appt){const{error}=await sb.rpc("set_ticket_bundle",{p_id:P.appt,p_bundle:on?null:id});if(error)toast(error.message)}
   else P.wbn=on?null:id;

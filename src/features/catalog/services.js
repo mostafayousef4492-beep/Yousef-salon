@@ -69,25 +69,29 @@ async function bndLoad(){const el=$("bnd");if(!el)return;
   if(error){el.innerHTML=/bundles_list|PGRST202|42883/.test(error.code+" "+error.message)?"":`<p class="m">${esc(error.message)}</p>`;return}
   C.bnd=data||[];
   el.innerHTML=`<h2>الباقات</h2><button class="btn g" style="width:100%;margin-bottom:8px" onclick="bndOpen()">+ باقة جديدة</button>`
-   +(C.bnd.length?C.bnd.map(b=>`<button class="row svc${b.active?"":" off"}" onclick="bndOpen(${b.id})"><div><b>🎁 ${esc(b.name)}</b><div class="m">${(b.services||[]).map(x=>esc(x.name)).join(" + ")}</div><div class="m">لوحدها ${fm(b.full)} · وفّر ${fm(b.saving)}${b.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(b.price)}</b></button>`).join(""):`<p class="m">لسه مفيش باقات. الباقة بتجمّع كذا خدمة بسعر أقل من مجموعهم.</p>`)}
+   +(C.bnd.length?C.bnd.map(b=>`<button class="row svc${b.active?"":" off"}" onclick="bndOpen(${b.id})"><div><b>🎁 ${esc(b.name)}</b><div class="m">${BN.names(b)}</div><div class="m">لوحدها ${fm(b.full)} · وفّر ${fm(b.saving)}${b.active?"":" · موقوفة (مخفية عن العملاء)"}</div></div><b class="svc-p">${fm(b.price)}</b></button>`).join(""):`<p class="m">لسه مفيش باقات. الباقة بتجمّع كذا خدمة بسعر أقل من مجموعهم.</p>`)}
 
 function bndOpen(id){const b=id&&(C.bnd||[]).find(x=>x.id==id);
-  C.bn=b?{id:b.id,name:b.name,desc:b.description||"",price:String(b.price),active:b.active,s:(b.services||[]).map(x=>x.id)}:{id:null,name:"",desc:"",price:"",active:true,s:[]};bndDraw()}
+  C.bn=b?{id:b.id,name:b.name,desc:b.description||"",price:String(b.price),active:b.active,s:(b.services||[]).map(x=>x.id),g:(b.slots||[]).map(x=>x.group)}:{id:null,name:"",desc:"",price:"",active:true,s:[],g:[]};bndDraw()}
 
-function bndSum(){const B=C.bn,full=(C.svc?C.svc.l:[]).filter(x=>B.s.includes(x.id)).reduce((a,x)=>a+(+x.price||0),0),pr=+B.price||0;
-  return B.s.length<2?`<div class="m">اختار خدمتين على الأقل</div>`:`<div class="m">الخدمات لوحدها ${fm(full)}${pr>0&&pr<full?` · الباقة ${fm(pr)} · الخصم ${fm(full-pr)} (${Math.round((full-pr)/full*100)}%)`:pr>=full?` · <span style="color:var(--red)">سعر الباقة لازم يبقى أقل من ${fm(full)}</span>`:""}</div>`}
+const bndGroups=()=>{const m={};(C.svc?C.svc.l:[]).forEach(x=>{if(!x.group_name)return;const g=m[x.group_name]=m[x.group_name]||{name:x.group_name,on:[],all:0};g.all++;if(x.active)g.on.push(x)});return Object.values(m)};
+const bndBase=g=>{const o=(bndGroups().find(x=>x.name==g)||{on:[]}).on;return o.length?Math.min(...o.map(x=>+x.price||0)):0};
+function bndSum(){const B=C.bn,full=(C.svc?C.svc.l:[]).filter(x=>B.s.includes(x.id)).reduce((a,x)=>a+(+x.price||0),0)+(B.g||[]).reduce((a,g)=>a+bndBase(g),0),pr=+B.price||0;
+  return B.s.length+(B.g||[]).length<2?`<div class="m">اختار خدمتين على الأقل</div>`:`<div class="m">الخدمات لوحدها ${fm(full)}${pr>0&&pr<full?` · الباقة ${fm(pr)} · الخصم ${fm(full-pr)} (${Math.round((full-pr)/full*100)}%)`:pr>=full?` · <span style="color:var(--red)">سعر الباقة لازم يبقى أقل من ${fm(full)}</span>`:""}</div>`}
 
 function bndDraw(){const B=C.bn,SV=(C.svc?C.svc.l:[]).filter(x=>x.active||B.s.includes(x.id));
   dsOpen(B.id?"تعديل باقة":"باقة جديدة",`<div class="box"><input id="bn_n" placeholder="اسم الباقة (مثلاً: باقة العريس)" value="${esc(B.name)}" oninput="C.bn.name=this.value"><input id="bn_d" placeholder="وصف قصير (اختياري)" value="${esc(B.desc)}" oninput="C.bn.desc=this.value">
-<div class="m">الخدمات اللي في الباقة:</div><div class="chips">${SV.map(x=>`<button class="chip ${B.s.includes(x.id)?"sel":""}" onclick="bndTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+<div class="m">الخدمات اللي في الباقة:</div><div class="chips">${SV.filter(x=>!x.group_name||B.s.includes(x.id)).map(x=>`<button class="chip ${B.s.includes(x.id)?"sel":""}" onclick="bndTg(${x.id})">${esc(x.name)} · ${x.price}</button>`).join("")}</div>
+${bndGroups().length?`<div class="m" style="margin-top:8px">خدمات بخيارات (العميل أو الكاشير يختار الخيار وقت الحجز/الدفع):</div><div class="chips">${bndGroups().map((g,i)=>`<button class="chip ${(B.g||[]).includes(g.name)?"sel":""}" ${g.on.length||(B.g||[]).includes(g.name)?"":"disabled"} onclick="bndTgG(${i})">🔀 ${esc(g.name)} · ${g.on.length?g.on.length+" اختيار شغّال · من "+bndBase(g.name):"مفيش اختيارات شغّالة"}</button>`).join("")}</div><div class="m">السعر هنا بيتحسب على أرخص اختيار، ولو اختار خيار أغلى بيدفع الفرق وخصم الباقة بيفضل زي ما هو. لو خيار مش ظاهر شغّال، فعّله من الخدمات الأول.</div>`:""}
 <input id="bn_p" type="number" inputmode="decimal" placeholder="سعر الباقة" value="${esc(B.price)}" oninput="C.bn.price=this.value;$('bn_s').innerHTML=bndSum()"><div id="bn_s">${bndSum()}</div>
 <label class="chips" style="align-items:center"><input type="checkbox" ${B.active?"checked":""} onchange="C.bn.active=this.checked" style="width:auto;margin:0"> <span>شغّالة (ظاهرة للعملاء)</span></label>
 <button class="btn" onclick="bndSave()">حفظ</button>${B.id?`<button class="btn g" onclick="bndDel(${B.id})">حذف الباقة</button>`:""}</div>`)}
 
+function bndTgG(i){const B=C.bn,g=bndGroups()[i];if(!g)return;B.g=(B.g||[]).includes(g.name)?B.g.filter(x=>x!=g.name):[...(B.g||[]),g.name];bndDraw()}
 function bndTg(id){const B=C.bn;B.s=B.s.includes(id)?B.s.filter(x=>x!=id):[...B.s,id];bndDraw()}
 
-async function bndSave(){const B=C.bn;if(B.s.length<2)return toast("اختار خدمتين على الأقل");const pr=parseFloat(B.price);if(!(pr>=0))return toast("اكتب سعر الباقة");
-  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s});
+async function bndSave(){const B=C.bn;if(B.s.length+(B.g||[]).length<2)return toast("اختار خدمتين على الأقل");const pr=parseFloat(B.price);if(!(pr>=0))return toast("اكتب سعر الباقة");
+  const{error}=await sb.rpc("admin_save_bundle",{p_id:B.id,p_name:B.name,p_desc:B.desc,p_price:pr,p_active:B.active,p_services:B.s,p_groups:B.g||[]});
   if(error)return toast(error.message);toast("اتحفظت ✓");svcClose();bndLoad()}
 
 async function bndDel(id){if(!await askConfirm("تحذف الباقة؟ الحجوزات اللي عليها هتفضل بخدماتها بس من غير خصم."))return;const{error}=await sb.rpc("admin_delete_bundle",{p_id:id});if(error)return toast(error.message);svcClose();bndLoad()}
