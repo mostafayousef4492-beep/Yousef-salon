@@ -6,7 +6,7 @@
 --   * خصم الباقة بيفضل ثابت زي ما هو.
 --   * الباقات الحالية اللي فيها خدمة بقت خيار (قصة شعر / حلاقة ذقن / استشوار / استشوار+مكوه) بتتحوّل لخانات تلقائي،
 --     والخيار الأساسي هو الخدمة الأصلية، وبيتأكد إن خصم كل باقة ماتغيّرش (لو اتغيّر بيرفض ويرجّع كل حاجة).
--- لازم patch_bundle_options.sql و patch_menu_options.sql يكونوا اتشغّلوا قبله. آمن للتكرار.
+-- الترتيب: patch_bundle_options.sql ← patch_menu_options.sql ← الملف ده. (لو اتشغّل قبل المنيو، شغّله تاني بعده: آمن للتكرار.)
 -- ============================================================
 alter table public.bundle_slots add column if not exists base_service_id bigint references public.services(id);
 
@@ -115,7 +115,7 @@ begin
   for r in
     select bi.bundle_id, sv.group_name, min(bi.service_id) as sid
       from bundle_items bi join services sv on sv.id = bi.service_id
-     where sv.group_name is not null
+     where sv.group_name is not null and sv.active   -- الخدمة الموقوفة بتفضل زي ما هي (الباقة اللي فيها خدمة موقوفة أصلاً مخبّية)
      group by bi.bundle_id, sv.group_name
     having count(*) = 1
   loop
