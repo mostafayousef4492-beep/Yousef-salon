@@ -181,3 +181,7 @@ function coMyBox(){const c=C.myco;if(c)return `<h2>🏢 شركتي</h2><div clas
 if(C.coOff)return"";return `<h2>🏢 موظف في شركة متعاقدة؟</h2><div class="box"><input id="co_code" placeholder="كود الشركة" dir="ltr" autocomplete="off"><button class="btn s" style="margin-top:8px" onclick="coJoin()">اربط حسابي</button></div>`}
 async function coJoin(){const v=(($("co_code")||{}).value||"").trim();if(!v)return toast("اكتب كود الشركة");const{data,error}=await sb.rpc("company_join",{p_code:v});if(error)return toast(error.message);toast("اتربط حسابك بـ «"+data.name+"» ✓");go("loy")}
 async function coLeave(){if(!await askConfirm("تفك ربط حسابك بالشركة؟"))return;const{error}=await sb.rpc("company_leave");if(error)return toast(error.message);go("loy")}
+// رابط الشركة ?co=CODE: يتحفظ ويتربط الحساب تلقائي بعد التسجيل/الدخول
+try{const u=new URLSearchParams(location.search).get("co");if(u&&/^[A-Za-z0-9]{3,20}$/.test(u))localStorage.setItem("salon_co",u.toUpperCase())}catch(e){}
+async function coAuto(){let k=null;try{k=localStorage.getItem("salon_co")}catch(e){}if(!k)return;const rm=()=>{try{localStorage.removeItem("salon_co")}catch(e){}};
+try{const{data,error}=await sb.rpc("company_join",{p_code:k});rm();if(error)return/Could not find|schema cache/i.test(error.message||"")?0:toast(error.message);if(data){C.myco=undefined;toast("اتربط حسابك بـ «"+data.name+"» وخصمك "+(+data.pct)+"% ✓")}}catch(e){}}

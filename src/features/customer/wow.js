@@ -82,7 +82,7 @@ async function refCard(){
     const cta=sh.querySelector(".hm-cta");cta?cta.after(d):sh.appendChild(d);
   }catch(e){}
 }
-(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();refAuto().then(refCard)}})();
+(()=>{const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();refAuto().then(refCard);if(typeof coAuto=="function")coAuto()}})();
 
 // 7) «يوسف» جوه المساعد: الزرار العايم + رأس الشات + ترحيب الشات + بيتكلم وهو بيرد (للعميل بس)
 try{if((window.SALON_MODE||"customer")=="customer"&&window.MASCOT){
