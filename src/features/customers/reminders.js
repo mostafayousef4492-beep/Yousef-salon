@@ -6,7 +6,7 @@ const remMsg=(n,d)=>`أهلاً ${n||""} 👋\nوحشتنا في ${waSalon()}! �
 
 V.rem=async()=>{const{data,error}=await sb.rpc("customers_overview");if(error)return put(`<h1>التذكير</h1><p class="m">${esc(error.message)}</p>`);
  C.REM=(data||[]).filter(x=>x.last_visit).map(x=>({...x,days:Math.floor((Date.now()-new Date(x.last_visit).getTime())/864e5)})).filter(x=>x.days>=remDays()).sort((a,b)=>b.days-a.days);
- put(`<h1>التذكير</h1><div class="box"><div class="m">العملاء اللي غايبين من</div><div class="chips" style="align-items:center"><input id="rem_d" type="number" min="1" max="365" value="${remDays()}" style="width:90px"><span class="m">يوم أو أكتر</span>${isAdm(me)?`<button class="btn s" onclick="saveRemDays()">حفظ المدة</button>`:""}</div></div>
+ put(`<h1>التذكير</h1><button class="btn s" onclick="go('fix')" style="margin-bottom:8px">📅 مواعيد ثابتة (حجز + تذكير تلقائي)</button><div class="box"><div class="m">العملاء اللي غايبين من</div><div class="chips" style="align-items:center"><input id="rem_d" type="number" min="1" max="365" value="${remDays()}" style="width:90px"><span class="m">يوم أو أكتر</span>${isAdm(me)?`<button class="btn s" onclick="saveRemDays()">حفظ المدة</button>`:""}</div></div>
  <input placeholder="ابحث بالاسم أو الموبايل" oninput="C.rq=this.value;$('rl').innerHTML=remRows()"><div id="rl">${remRows()}</div>`)};
 
 function remRows(){const q=(C.rq||"").trim().toLowerCase(),L=(C.REM||[]).filter(x=>!q||(x.name||"").toLowerCase().includes(q)||String(x.phone||"").includes(q));
