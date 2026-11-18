@@ -16,7 +16,7 @@ put(`<h1>خامات الخدمات</h1>
 <p class="m">الخامة بتتخصم تلقائي بكمية ثابتة لما الفاتورة تتقفل، وبترجع لوحدها لو الفاتورة اتلغت.</p>
 ${low?`<div class="m" style="margin:6px 0;color:var(--red)">${low} خامة وصلت للحد الأدنى أو أقل</div>`:""}`
 +(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
-return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}<div class="m">الوحدة: ${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
+return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}<div class="m">الوحدة: ${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
 ${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m" style="margin-top:10px">مفيش خامات لسه. دوس «+ خامة جديدة» وضيف مثلاً: شفرة (قطعة)، كريم حمام (جرام)، ماسك (جرام).</p>`))};
 
@@ -37,7 +37,10 @@ const u=(await askInput("الوحدة",x.unit)||"").trim();if(!u)return;
 const co=matQ(await askInput("تكلفة الوحدة",String(x.cost)));if(co===null)return;if(!(co>=0))return toast("التكلفة غلط");
 const mn=matQ(await askInput("الحد الأدنى للتنبيه",String(x.min_stock)));if(mn===null)return;if(!(mn>=0))return toast("الحد الأدنى غلط");
 const act=await askConfirm(x.active?"الخامة شغّالة. تفضل شغّالة؟ (إلغاء = إيقافها عن الخصم)":"الخامة موقوفة. تشغّلها؟",{ok:x.active?"تفضل شغّالة":"شغّلها"});
-C.matBusy=1;const{error}=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});C.matBusy=0;
+const opt=await askConfirm(x.optional?"الخامة دي اختيارية (بتتضاف مع الخدمة في الكاشير، وتمنها بيتخصم من المبلغ قبل نسبة الصنايعي). تفضل اختيارية؟":"تخلّي الخامة دي اختيارية؟ (بتظهر في الكاشير مع الخدمة، وتمنها بيتخصم من المبلغ قبل نسبة الصنايعي، والعميل مش بيدفع زيادة)",{ok:x.optional?"تفضل اختيارية":"اختيارية"});
+let oq=+x.opt_qty||1;if(opt){const q=matQ(await askInput("الكمية اللي بتتخصم كل مرة ("+x.unit+")",String(x.opt_qty||1)));if(q===null)return;if(!(q>0))return toast("الكمية غلط");oq=q}
+C.matBusy=1;let{error}=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});
+if(!error)({error}=await sb.rpc("material_set_optional",{p_id:id,p_optional:!!opt,p_qty:oq}));C.matBusy=0;
 error?toast(error.message):(toast("اتحفظ ✓"),V.mat())}
 
 async function matRestock(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
