@@ -34,6 +34,6 @@ addEventListener("online",()=>toast("رجع الإنترنت ✓"));
     const c=new AbortController(),t=setTimeout(()=>c.abort(),5000);
     try{const r=await fetch(SUPABASE_URL+"/rest/v1/",{method:"HEAD",headers:{apikey:SUPABASE_KEY},cache:"no-store",signal:c.signal});clearTimeout(t);
       if(r.status>=500)throw 0;last=true;set("متصل","#15803d")}
-    catch(e){clearTimeout(t);last=false;set("السيرفر مش متاح — العمليات الجديدة هتفشل ومش هتتأكد","#b91c1c")}}
+    catch(e){clearTimeout(t);last=false;set("السيرفر مش متاح — فواتير الكاشير الأساسية تُحفظ محليًا","#b91c1c")}}
   addEventListener("online",probe);addEventListener("offline",probe);setInterval(probe,15000);probe();
   window.netOk=()=>last!==false})();
