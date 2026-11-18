@@ -35,6 +35,7 @@ input.tk{width:min(340px,90vw);font-size:22px;padding:14px;text-align:center}
 <h1>حضور الموظفين</h1>
 <div id="msg"></div>
 <div id="box"></div>
+<div id="qb" style="font-size:16px;text-align:center;min-height:22px"></div>
 <a class="back" href="/kiosk">رجوع</a>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
@@ -47,9 +48,10 @@ let st={step:"code",code:"",pin:"",name:"",present:false,busy:false},idle;
 const say=(t,c)=>{$("msg").textContent=t||"";$("msg").className=c||""};
 function bump(){clearTimeout(idle);idle=setTimeout(()=>{if(st.step!="code"||st.code)reset();else location.href="/kiosk"},30000)}
 ["pointerdown","keydown"].forEach(e=>addEventListener(e,bump,{passive:true}));
-function reset(m,c){st={step:"code",code:"",pin:"",name:"",present:false,busy:false};say(m,c);draw();bump()}
+function reset(m,c){st={step:"code",code:"",pin:"",name:"",present:false,busy:false,offline:false};say(m,c);draw();bump()}
 function draw(){
   if(!ls.get("kiosk_token")){$("box").innerHTML=`<input id="tk" class="tk" placeholder="كود الجهاز (من المالك)" autocomplete="off"><button class="big" style="margin-top:12px" onclick="saveTok()">حفظ</button>`;return}
+  if(st.step=="act"&&st.offline){$("box").innerHTML=`<div id="disp" style="font-size:24px;letter-spacing:0;color:#f87171">أوفلاين — هيتسجل ويتأكد لما النت يرجع</div><button class="big in" style="margin-top:14px" onclick="doAct('in')">تسجيل حضور</button><button class="big out" style="margin-top:12px" onclick="doAct('out')">تسجيل انصراف</button><button class="big" style="margin-top:12px;font-size:22px" onclick="reset()">إلغاء</button>`;return}
   if(st.step=="act"){$("box").innerHTML=`<div id="disp" style="font-size:32px;letter-spacing:0">${esc(st.name)}</div><button class="big ${st.present?"out":"in"}" style="margin-top:14px" onclick="doAct('${st.present?"out":"in"}')">${st.present?"تسجيل انصراف":"تسجيل حضور"}</button><button class="big" style="margin-top:12px;font-size:22px" onclick="reset()">إلغاء</button>`;return}
   const v=st.step=="code"?st.code:"•".repeat(st.pin.length);
   say($("msg").textContent||(st.step=="code"?"اكتب كودك":"اكتب الـ PIN"),$("msg").className);
@@ -67,8 +69,25 @@ async function call(a){st.busy=true;say("لحظة...");
     if(!data.ok){return reset(data.msg,"bad")}
     if(a=="status"){st.name=data.name;st.present=data.present;st.step="act";st.busy=false;say(data.present?"إنت حاضر دلوقتي":"مرحبًا");return draw()}
     st.busy=false;reset(data.name+" — "+data.msg,"ok");setTimeout(()=>{if($("msg").className=="ok")say("")},4000)
-  }catch(e){reset("مفيش اتصال، جرّب تاني","bad")}}
-function doAct(a){if(st.busy)return;call(a)}
+  }catch(e){
+    const net=navigator.onLine===false||/fetch|network|load failed/i.test(String(e&&e.message||e));
+    if(net&&a=="status"&&st.code&&st.pin){st.offline=true;st.step="act";st.busy=false;say("مفيش اتصال","bad");return draw()}
+    reset("مفيش اتصال، جرّب تاني","bad")}}
+// ===== أوفلاين: الحضور والانصراف بيتسجل على الجهاز وبيتزامن بوقته الأصلي =====
+const QK="kiosk_att_q",QF="kiosk_att_fail";
+const qGet=k=>{try{return JSON.parse(localStorage.getItem(k)||"[]")}catch(e){return[]}},qSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+function qBanner(){const q=qGet(QK).length,f=qGet(QF).length;$("qb").innerHTML=(q?`<div style="color:#fbbf24">عمليات أوفلاين مستنية المزامنة: ${q}</div>`:"")+(f?`<div style="color:#f87171">عمليات فشلت وماتسجلتش (كلّم المدير): ${f}</div>`:"")}
+function qAdd(a){const rid=crypto.randomUUID?crypto.randomUUID():"o"+Date.now()+Math.random().toString(16).slice(2);const q=qGet(QK);q.push({request_id:rid,code:st.code,pin:st.pin,action:a,at:new Date().toISOString()});qSet(QK,q);reset("اتسجل "+(a=="in"?"الحضور":"الانصراف")+" أوفلاين ✓ هيتأكد لما النت يرجع","ok");qBanner();setTimeout(()=>{if($("msg").className=="ok")say("")},5000)}
+let qBusy=false;
+async function qSync(){if(qBusy||!navigator.onLine)return;qBusy=true;try{const q=qGet(QK).sort((x,y)=>x.at.localeCompare(y.at));
+  for(const r of q){let res;try{res=await sb.rpc("kiosk_att_offline",{p_token:ls.get("kiosk_token"),p_code:r.code,p_pin:r.pin,p_action:r.action,p_at:r.at,p_request_id:r.request_id})}catch(e){break}
+    if(res.error){if(/fetch|network|load failed/i.test(res.error.message||""))break;const f=qGet(QF);f.push({...r,pin:"",err:res.error.message});qSet(QF,f);qSet(QK,qGet(QK).filter(x=>x.request_id!=r.request_id));continue}
+    const d=res.data||{};if(d.device===false)break;
+    if(!d.ok){const f=qGet(QF);f.push({...r,pin:"",err:d.msg||""});qSet(QF,f)}
+    qSet(QK,qGet(QK).filter(x=>x.request_id!=r.request_id))}
+  }finally{qBusy=false;qBanner()}}
+addEventListener("online",()=>setTimeout(qSync,1000));setInterval(qSync,30000);addEventListener("load",()=>{qBanner();setTimeout(qSync,1500)});
+function doAct(a){if(st.busy)return;if(st.offline)return qAdd(a);call(a)}
 draw();bump();
 </script>
 <script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))</script>
