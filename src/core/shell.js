@@ -6,7 +6,11 @@ const{data:{session}}=await sb.auth.getSession();
 if(!session){let cr=null;try{cr=JSON.parse(localStorage.getItem("salon_cred"))}catch(e){}
 if(cr&&APP_MODE=="customer"){const r=await sb.auth.signInWithPassword({email:cr.e,password:cr.p});if(!r.error)return boot()}
 return authView()}
-const{data:p}=await sb.from("profiles").select(PCOLS).eq("id",session.user.id).single();
+let{data:p,error:profileError}=await sb.from("profiles").select(PCOLS).eq("id",session.user.id).single();
+const offlineProfileKey="salon_offline_profile_"+APP_MODE;
+if(p){try{localStorage.setItem(offlineProfileKey,JSON.stringify({at:Date.now(),id:session.user.id,profile:p}))}catch(e){}}
+if(!p&&profileError){try{const old=JSON.parse(localStorage.getItem(offlineProfileKey)||"null");if(old&&old.id===session.user.id&&Date.now()-old.at<72*3600e3)p=old.profile}catch(e){}}
+if(!p&&profileError){authView("offline");return}
 me=p||{role:"customer",full_name:session.user.email,id:session.user.id};
 if(["owner","manager","cashier","barber","assistant"].includes(me.role)){try{const{data:rp}=await sb.rpc("role_perm_defaults");if(rp&&typeof rp=="object")["cashier","barber","assistant"].forEach(r=>{if(rp[r])PD[r]=rp[r]})}catch(e){}}
 const staff=["owner","manager","cashier","barber","assistant"].includes(me.role);
@@ -17,7 +21,7 @@ else{let{data:cu}=await sb.from("customers").select("id").eq("user_id",session.u
 if(!cu){const ph=((session.user.email||"").match(/^(01\d{9})@c\./)||[])[1];if(ph){const r=await sb.rpc("register_customer",{p_name:(session.user.user_metadata||{}).full_name||"عميل",p_phone:ph});if(!r.error&&r.data>0)cu={id:r.data};else if(!r.error&&r.data===0)C.claimWait=1}}
 if(!cu){authView("c");if(typeof claimPoll=="function")claimPoll();return}if(typeof migrateLegacyCred=="function")migrateLegacyCred();C.tabs=[["hm","الرئيسية","home"],["book","احجز"],["queue","دوري"],["mine","حجوزاتي"],["loy","حسابي"]];go("hm")}}
 
-function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";try{localStorage.removeItem("salon_cred")}catch(e){}pushUnlink().finally(()=>sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()}));return}
+function go(t){clearInterval(C.poll);if(t=="out"){C.hubBar="";try{localStorage.removeItem("salon_cred");localStorage.removeItem("salon_offline_profile_"+APP_MODE)}catch(e){}pushUnlink().finally(()=>sb.auth.signOut().then(()=>{$("nav").innerHTML="";authView()}));return}
 let hb=null;if(C.hubs){if(C.hubs[t]){hb=t;t=(C.hubLast||{})[hb]||C.hubs[hb][0][0]}else for(const k in C.hubs)if(C.hubs[k].some(x=>x[0]==t)){hb=k;break}}
 if(hb){(C.hubLast=C.hubLast||{})[hb]=t;C.hubBar=`<div class="hubbar" role="tablist">${C.hubs[hb].map(x=>`<button role="tab" aria-selected="${x[0]==t}" class="chip ${x[0]==t?"sel":""}" onclick="go(\'${x[0]}\')">${x[1]}</button>`).join("")}</div>`}else C.hubBar="";
 tab=t;$("app").classList.remove("still");$("app").dataset.tab=t;drawNav(hb||t);put(SK);scrollTo(0,0);if(typeof annDot=="function")annDot();(typeof bizLoad=="function"?bizLoad():Promise.resolve()).then(()=>V[t]())}

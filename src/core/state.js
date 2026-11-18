@@ -31,7 +31,7 @@ const can=(k,p=me)=>p.role=="owner"||(p.perms&&k in p.perms?!!p.perms[k]:(p.role
 // كوفي كورنر: مدير/مالك دايمًا. غيرهم: perms.use_cafe لو موجودة، وإلا بتتبع use_pos (نفس منطق can_use_cafe() في القاعدة)
 const canCafe=(p=me)=>isAdm(p)||(p.perms&&"use_cafe" in p.perms?!!p.perms.use_cafe:can("use_pos",p));
 
-async function loadCfg(){const{data}=await sb.from("app_settings").select("*");(data||[]).forEach(r=>C.cfg[r.key]=r.value);const sfx=APP_MODE=="staff"?" · الموظفين":APP_MODE=="admin"?" · الإدارة":"";document.title=C.cfg.salon_name+sfx;$("brand").innerHTML=ic("menu")+"<span>"+esc(C.cfg.salon_name)+sfx+"</span>"}
+async function loadCfg(){let data=null;try{const r=await sb.from("app_settings").select("*");if(r.error)throw r.error;data=r.data||[];localStorage.setItem("salon_offline_cfg",JSON.stringify({at:Date.now(),rows:data}))}catch(e){try{const c=JSON.parse(localStorage.getItem("salon_offline_cfg")||"null");if(c&&Date.now()-c.at<7*864e5)data=c.rows}catch(_){}}(data||[]).forEach(r=>C.cfg[r.key]=r.value);const sfx=APP_MODE=="staff"?" · الموظفين":APP_MODE=="admin"?" · الإدارة":"";document.title=C.cfg.salon_name+sfx;if($("brand"))$("brand").innerHTML=ic("menu")+"<span>"+esc(C.cfg.salon_name)+sfx+"</span>"}
 
 // موظف كوفي بس: مفعّل له use_cafe + cafe_only، مايشوفش أي شاشة تانية من الصالون (لا شاشتي ولا الإعلانات)
 const cafeOnly=(p=me)=>!isAdm(p)&&!!(p.perms&&p.perms.cafe_only)&&canCafe(p);
