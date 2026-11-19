@@ -27,10 +27,10 @@ const SalonOffline=(()=>{
       const rows=await all(STORE);
       for(const row of rows){
         if(row.user_id!==me.id)continue;
-        const {data,error}=await sb.rpc("pos_checkout_offline",{p_request_id:row.request_id,p_barber:row.barber_id||null,p_items:row.items,p_local_total:row.total,p_sold_at:row.created_at||null});
+        const {data,error}=row.v===2?await sb.rpc("pos_checkout_offline2",{p_request_id:row.request_id,p_barber:row.barber_id||null,p_items:row.items,p_local_total:row.total,p_sold_at:row.created_at||null,p_method:row.method||"cash",p_pay_channel:row.pay_channel||null,p_pay_ref:row.pay_ref||null,p_discount_pct:row.disc_pct||0,p_discount_fixed:row.disc_fixed||0}):await sb.rpc("pos_checkout_offline",{p_request_id:row.request_id,p_barber:row.barber_id||null,p_items:row.items,p_local_total:row.total,p_sold_at:row.created_at||null});
         if(error){row.last_error=error.message;await put(STORE,row);continue}
         await del(STORE,row.request_id);
-        toast("اتزامنت فاتورة أوفلاين ✓");
+        toast(data&&data.note?"اتزامنت فاتورة أوفلاين — "+data.note:"اتزامنت فاتورة أوفلاين ✓");
       }
       const ops=(await all(OPS)).filter(r=>r.user_id===me.id).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
       for(const row of ops){
