@@ -28,7 +28,10 @@ const mgr=me.role=="owner"||me.role=="manager",S=C.msvc||[];
 const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
 const f=(l,i,v,ex)=>`<label class="m" style="display:block;margin-top:8px">${l}</label><input id="${i}" type="text" ${ex||""} style="width:100%" value="${esc(v)}">`;
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${x?"تعديل «"+esc(x.name)+"»":"خامة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
-${f("اسم الخامة","mf-n",x?x.name:"")}
+${x?"":`<div style="display:flex;gap:14px;margin-top:8px"><label><input type="radio" name="mf-t" value="m" checked> خامة (بتستهلك في الخدمات)</label><label><input type="radio" name="mf-t" value="p"> صنف للبيع</label></div>`}
+${f("الاسم","mf-n",x?x.name:"")}
+<div id="mf-pb" style="display:none"><div style="display:flex;gap:8px"><div style="flex:1">${f("سعر البيع","mf-pp","",'inputmode="decimal"')}</div><div style="flex:1">${f("سعر الشراء","mf-pc","0",'inputmode="decimal"')}</div></div>${f("الكمية الموجودة دلوقتي","mf-pq","0",'inputmode="numeric"')}</div>
+<div id="mf-mb">
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الوحدة (قطعة / جرام / مللي)","mf-u",x?x.unit:"جرام")}</div><div style="flex:1">${f("تكلفة الوحدة (ج)","mf-c",x?matFm(x.cost):"0",'inputmode="decimal"')}</div></div>
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الحد الأدنى للتنبيه","mf-m",x?matFm(x.min_stock):"0",'inputmode="decimal"')}</div>${x?"":`<div style="flex:1">${f("الكمية الموجودة دلوقتي","mf-q","0",'inputmode="decimal"')}</div>`}</div>
 ${x?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mf-a" ${x.active?"checked":""}> شغّالة (الخصم التلقائي)</label>`:""}
@@ -36,10 +39,20 @@ ${x?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><inp
 <div id="mf-oq" style="${x&&x.optional?"":"display:none"}">${f("الكمية اللي بتتخصم كل مرة (اختيارية)","mf-oqv",x?matFm(x.opt_qty||1):"1",'inputmode="decimal"')}</div>
 ${mgr&&S.length?`<h3 style="margin:14px 0 4px">الاستهلاك مع كل خدمة</h3><p class="m">اكتب الكمية اللي بتتخصم كل مرة الخدمة تتنفّذ، وسيب الخانة فاضية لو الخدمة مبتستهلكهاش.</p>`+S.map(sv=>{const r=x?(C.smat||[]).find(a=>a.service_id==sv.id&&a.material_id==x.id):null;
 return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(sv.name)}</span><input type="text" inputmode="decimal" style="width:90px" data-s="${sv.id}" data-o="${r?matFm(r.qty):""}" value="${r?matFm(r.qty):""}"></div>`}).join(""):""}
+</div>
 <button class="btn" style="margin-top:14px;width:100%" onclick="matFormSave(this,${x?x.id:"null"})">حفظ</button></div>`;
-document.body.appendChild(w);$("mf-o").onchange=e=>{$("mf-oq").style.display=e.target.checked?"":"none"}}
+document.body.appendChild(w);$("mf-o").onchange=e=>{$("mf-oq").style.display=e.target.checked?"":"none"};
+w.querySelectorAll('input[name="mf-t"]').forEach(r=>r.onchange=()=>{const pr=w.querySelector('input[name="mf-t"]:checked').value=="p";$("mf-pb").style.display=pr?"":"none";$("mf-mb").style.display=pr?"none":""})}
 
 async function matFormSave(b,id){if(C.matBusy||b.disabled)return;const x=id==null?null:(C.mat||[]).find(a=>a.id==id);
+const tp=document.querySelector('input[name="mf-t"]:checked');
+if(tp&&tp.value=="p"){const n=$("mf-n").value.trim();if(!n)return toast("اكتب اسم الصنف");
+if((C.stk||[]).some(p=>String(p.name).trim()==n))return toast("الصنف ده موجود، استخدم «+ توريد»");
+const pr=Number(String($("mf-pp").value).trim()),co=Number(String($("mf-pc").value).trim()||"0"),q=Number(String($("mf-pq").value).trim()||"0");
+if(!(pr>=0)||$("mf-pp").value.trim()==="")return toast("سعر البيع غلط");if(!(co>=0))return toast("سعر الشراء غلط");if(!Number.isInteger(q)||q<0)return toast("الكمية لازم تكون عدد صحيح");
+C.matBusy=1;b.disabled=true;const{data,error}=await sb.from("products").insert({name:n,price:pr,cost:co,stock:0,min_stock:+(C.cfg&&C.cfg.low_stock_default)||5}).select("id").single();
+let w2="";if(!error&&q>0){const r=await sb.rpc("restock_product",{p_id:data.id,p_qty:q});if(r.error)w2=r.error.message}
+C.matBusy=0;b.disabled=false;if(error)return toast(error.message);svcClose();toast(w2?"اتضاف الصنف بس التوريد فشل: "+w2:"اتضاف «"+n+"» ✓");return matRefresh()}
 const n=$("mf-n").value.trim(),u=$("mf-u").value.trim();if(!n)return toast("اكتب اسم الخامة");if(!u)return toast("اكتب الوحدة");
 const co=matQ($("mf-c").value),mn=matQ($("mf-m").value),q=x?0:matQ($("mf-q").value);
 if(!(co>=0))return toast("التكلفة غلط");if(!(mn>=0))return toast("الحد الأدنى غلط");if(!(q>=0))return toast("الكمية غلط");
@@ -102,7 +115,7 @@ try{const[m,sm,sv]=await Promise.all([sb.from("materials").select("*").order("na
 if(m.error||tab!="stock")return;C.mat=m.data||[];C.smat=sm.data||[];C.msvc=sv.data||[];
 const mgr=me.role=="owner"||me.role=="manager",cr=can("restock"),use={};C.smat.forEach(r=>{(use[r.material_id]=use[r.material_id]||[]).push(r)});
 const el=$("app")||document.body;
-el.insertAdjacentHTML("beforeend",`<h2 style="margin-top:18px">الخامات (كريم / ماسك / شفرات)</h2><div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">${cr?`<button class="btn s" onclick="matNew()">+ خامة جديدة</button>`:""}${mgr?`<button class="btn s g" onclick="matRecipes()">استهلاك كل خدمة</button>`:""}</div>`
+el.insertAdjacentHTML("beforeend",`<h2 style="margin-top:18px">الخامات (كريم / ماسك / شفرات)</h2><div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">${mgr?`<button class="btn s g" onclick="matRecipes()">استهلاك كل خدمة</button>`:""}</div>`
 +(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
 return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}<div class="m">${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
