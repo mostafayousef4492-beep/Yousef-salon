@@ -20,28 +20,40 @@ return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
 ${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m" style="margin-top:10px">مفيش خامات لسه. دوس «+ خامة جديدة» وضيف مثلاً: شفرة (قطعة)، كريم حمام (جرام)، ماسك (جرام).</p>`))};
 
-async function matNew(){if(C.matBusy)return;
-const n=(await askInput("اسم الخامة (مثلاً: كريم حمام)")||"").trim();if(!n)return;
-const u=(await askInput("الوحدة (قطعة / جرام / مللي)","جرام")||"").trim();if(!u)return;
-const co=matQ(await askInput("تكلفة الوحدة الواحدة بالجنيه (مثلاً الجرام)","0"));if(co===null)return;if(!(co>=0))return toast("التكلفة غلط");
-const mn=matQ(await askInput("الحد الأدنى للتنبيه","0"));if(mn===null)return;if(!(mn>=0))return toast("الحد الأدنى غلط");
-const q=matQ(await askInput("الكمية الحالية الموجودة","0"));if(q===null)return;if(!(q>=0))return toast("الكمية غلط");
-C.matBusy=1;const{data,error}=await sb.rpc("material_save",{p_id:null,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:true});
-if(error){C.matBusy=0;return toast(error.message)}
-if(q>0){const{error:e2}=await sb.rpc("material_restock",{p_id:data,p_qty:q,p_note:"رصيد ابتدائي"});if(e2)toast("اتضافت الخامة بس الكمية فشلت: "+e2.message)}
-C.matBusy=0;toast("اتضافت «"+n+"»");V.mat()}
+// شاشة واحدة للخامة: الاسم + الوحدة + التكلفة + الحد الأدنى + الكمية + الاستهلاك مع كل خدمة
+function matNew(){matForm(null)}
+function matEdit(id){matForm(id)}
+function matForm(id){if(C.matBusy)return;const x=id==null?null:(C.mat||[]).find(a=>a.id==id);if(id!=null&&!x)return;
+const mgr=me.role=="owner"||me.role=="manager",S=C.msvc||[];
+const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
+const f=(l,i,v,ex)=>`<label class="m" style="display:block;margin-top:8px">${l}</label><input id="${i}" type="text" ${ex||""} style="width:100%" value="${esc(v)}">`;
+w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${x?"تعديل «"+esc(x.name)+"»":"خامة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
+${f("اسم الخامة","mf-n",x?x.name:"")}
+<div style="display:flex;gap:8px"><div style="flex:1">${f("الوحدة (قطعة / جرام / مللي)","mf-u",x?x.unit:"جرام")}</div><div style="flex:1">${f("تكلفة الوحدة (ج)","mf-c",x?matFm(x.cost):"0",'inputmode="decimal"')}</div></div>
+<div style="display:flex;gap:8px"><div style="flex:1">${f("الحد الأدنى للتنبيه","mf-m",x?matFm(x.min_stock):"0",'inputmode="decimal"')}</div>${x?"":`<div style="flex:1">${f("الكمية الموجودة دلوقتي","mf-q","0",'inputmode="decimal"')}</div>`}</div>
+${x?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mf-a" ${x.active?"checked":""}> شغّالة (الخصم التلقائي)</label>`:""}
+<label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="mf-o" ${x&&x.optional?"checked":""}> اختيارية (بتظهر في الكاشير مع الخدمة، وتمنها بيتخصم قبل نسبة الصنايعي)</label>
+<div id="mf-oq" style="${x&&x.optional?"":"display:none"}">${f("الكمية اللي بتتخصم كل مرة (اختيارية)","mf-oqv",x?matFm(x.opt_qty||1):"1",'inputmode="decimal"')}</div>
+${mgr&&S.length?`<h3 style="margin:14px 0 4px">الاستهلاك مع كل خدمة</h3><p class="m">اكتب الكمية اللي بتتخصم كل مرة الخدمة تتنفّذ، وسيب الخانة فاضية لو الخدمة مبتستهلكهاش.</p>`+S.map(sv=>{const r=x?(C.smat||[]).find(a=>a.service_id==sv.id&&a.material_id==x.id):null;
+return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(sv.name)}</span><input type="text" inputmode="decimal" style="width:90px" data-s="${sv.id}" data-o="${r?matFm(r.qty):""}" value="${r?matFm(r.qty):""}"></div>`}).join(""):""}
+<button class="btn" style="margin-top:14px;width:100%" onclick="matFormSave(this,${x?x.id:"null"})">حفظ</button></div>`;
+document.body.appendChild(w);$("mf-o").onchange=e=>{$("mf-oq").style.display=e.target.checked?"":"none"}}
 
-async function matEdit(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
-const n=(await askInput("اسم الخامة",x.name)||"").trim();if(!n)return;
-const u=(await askInput("الوحدة",x.unit)||"").trim();if(!u)return;
-const co=matQ(await askInput("تكلفة الوحدة",String(x.cost)));if(co===null)return;if(!(co>=0))return toast("التكلفة غلط");
-const mn=matQ(await askInput("الحد الأدنى للتنبيه",String(x.min_stock)));if(mn===null)return;if(!(mn>=0))return toast("الحد الأدنى غلط");
-const act=await askConfirm(x.active?"الخامة شغّالة. تفضل شغّالة؟ (إلغاء = إيقافها عن الخصم)":"الخامة موقوفة. تشغّلها؟",{ok:x.active?"تفضل شغّالة":"شغّلها"});
-const opt=await askConfirm(x.optional?"الخامة دي اختيارية (بتتضاف مع الخدمة في الكاشير، وتمنها بيتخصم من المبلغ قبل نسبة الصنايعي). تفضل اختيارية؟":"تخلّي الخامة دي اختيارية؟ (بتظهر في الكاشير مع الخدمة، وتمنها بيتخصم من المبلغ قبل نسبة الصنايعي، والعميل مش بيدفع زيادة)",{ok:x.optional?"تفضل اختيارية":"اختيارية"});
-let oq=+x.opt_qty||1;if(opt){const q=matQ(await askInput("الكمية اللي بتتخصم كل مرة ("+x.unit+")",String(x.opt_qty||1)));if(q===null)return;if(!(q>0))return toast("الكمية غلط");oq=q}
-C.matBusy=1;let{error}=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});
-if(!error)({error}=await sb.rpc("material_set_optional",{p_id:id,p_optional:!!opt,p_qty:oq}));C.matBusy=0;
-error?toast(error.message):(toast("اتحفظ ✓"),V.mat())}
+async function matFormSave(b,id){if(C.matBusy||b.disabled)return;const x=id==null?null:(C.mat||[]).find(a=>a.id==id);
+const n=$("mf-n").value.trim(),u=$("mf-u").value.trim();if(!n)return toast("اكتب اسم الخامة");if(!u)return toast("اكتب الوحدة");
+const co=matQ($("mf-c").value),mn=matQ($("mf-m").value),q=x?0:matQ($("mf-q").value);
+if(!(co>=0))return toast("التكلفة غلط");if(!(mn>=0))return toast("الحد الأدنى غلط");if(!(q>=0))return toast("الكمية غلط");
+const opt=$("mf-o").checked;let oq=1;if(opt){oq=matQ($("mf-oqv").value);if(!(oq>0))return toast("كمية الخامة الاختيارية غلط")}
+const act=x?$("mf-a").checked:true;
+const rec=[...document.querySelectorAll("#sheet input[data-s]")].filter(i=>i.value.trim()!=i.dataset.o).map(i=>({p_service:+i.dataset.s,q:i.value.trim()===""?0:matQ(i.value)}));
+if(rec.some(r=>Number.isNaN(r.q)||r.q<0))return toast("كمية استهلاك غلط");
+C.matBusy=1;b.disabled=true;let mid=id,err=null,warn=[];
+{const r=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});if(r.error)err=r.error;else mid=id==null?r.data:id}
+if(!err&&(opt||(x&&x.optional))){const r=await sb.rpc("material_set_optional",{p_id:mid,p_optional:opt,p_qty:oq});if(r.error)warn.push(r.error.message)}
+if(!err&&!x&&q>0){const r=await sb.rpc("material_restock",{p_id:mid,p_qty:q,p_note:"رصيد ابتدائي"});if(r.error)warn.push("الكمية فشلت: "+r.error.message)}
+if(!err)for(const r of rec){const e=await sb.rpc("service_material_set",{p_service:r.p_service,p_material:mid,p_qty:r.q});if(e.error){warn.push("الاستهلاك: "+e.error.message);break}}
+C.matBusy=0;b.disabled=false;if(err)return toast(err.message);
+svcClose();toast(warn.length?"اتحفظت بس: "+warn[0]:"اتحفظ ✓");V.mat()}
 
 async function matRestock(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
 const q=matQ(await askInput("كام "+x.unit+" دخلت من «"+x.name+"»؟\nالرصيد الحالي: "+matFm(x.stock),""));if(q===null)return;if(!(q>0))return toast("اكتب كمية أكبر من صفر");
