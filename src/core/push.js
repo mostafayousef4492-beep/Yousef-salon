@@ -26,7 +26,7 @@ function ding(urgent){if(!pushSound())return;try{unlockAudio();const t=_ac.curre
 N.forEach(([f,d])=>{const o=_ac.createOscillator(),g=_ac.createGain();o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(.35,t+d+.02);g.gain.exponentialRampToValueAtTime(.001,t+d+.5);o.connect(g);g.connect(_ac.destination);o.start(t+d);o.stop(t+d+.55)});
 navigator.vibrate&&navigator.vibrate(urgent?[200,100,200,100,300]:[150])}catch(e){}}
 
-function pushGo(t){if(!t||!me||!C.tabs)return;const ok=C.tabs.some(x=>x[0]==t)||["fix","apr","day"].includes(t)||Object.values(C.hubs||{}).some(h=>h.some(x=>x[0]==t));if(ok&&typeof V[t]=="function")go(t)}
+function pushGo(t){if(!t||!me||!C.tabs)return;const ok=C.tabs.some(x=>x[0]==t)||["fix","apr","day","auto"].includes(t)||Object.values(C.hubs||{}).some(h=>h.some(x=>x[0]==t));if(ok&&typeof V[t]=="function")go(t)}
 
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{const m=e.data||{};
 if(m.type=="push"){toast((m.title||"")+(m.body?" — "+m.body:""));ding(m.urgent);if(["home","appts","queue"].includes(tab)&&!C.chEdit)go(tab)}
