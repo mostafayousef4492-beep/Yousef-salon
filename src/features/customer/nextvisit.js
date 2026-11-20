@@ -19,3 +19,11 @@ const{data:ds}=await sb.rpc("my_delete_status");el.insertAdjacentHTML("beforeend
 async function nvDelAsk(){if(!await askConfirm("متأكد إنك عايز تطلب حذف حسابك وبياناتك؟ بعد موافقة الإدارة مش هتقدر تدخل بالحساب ده ولا ترجّع نقاطك."))return;const{error}=await sb.rpc("my_delete_request");error?toast(error.message):(toast("اتبعت طلب الحذف للإدارة ✓"),V.loy())}
 async function nvDelCancel(){const{error}=await sb.rpc("my_delete_cancel");error?toast(error.message):(toast("اتسحب الطلب"),V.loy())}
 async function nvMkt(on){const{error}=await sb.rpc("my_prefs_set",{p_marketing:on});error?toast(error.message):(toast(on?"هتوصلك عروض الصالون":"وقفنا العروض ✓"),V.loy())}
+
+// ترشيح الحلاق في صفحة الحجز: حلاقك المعتاد + الأعلى تقييمًا (بيانات حقيقية بس)
+const nvLB0=typeof loadBarbers=="function"?loadBarbers:null;
+if(nvLB0)loadBarbers=async function(){await nvLB0.apply(this,arguments);
+try{const el=$("bl");if(!el||el.querySelector("#bhint"))return;if(C.bh===undefined){const{data,error}=await sb.rpc("barber_hints");C.bh=error?null:data}
+const h=C.bh;if(!h||(!h.usual&&!h.top))return;if(!$("bl"))return;
+const t=[h.usual?`حلاقك المعتاد: <b>${esc(h.usual.name)}</b> (${h.usual.visits} زيارات)`:"",h.top?`الأعلى تقييمًا: <b>${esc(h.top.name)}</b> ⭐${h.top.rating} (${h.top.n} تقييم)`:""].filter(Boolean).join(" · ");
+const d=document.createElement("div");d.id="bhint";d.className="m";d.style.margin="4px 0 8px";d.innerHTML="💡 "+t;el.insertBefore(d,el.children[1]||null)}catch(e){}};
