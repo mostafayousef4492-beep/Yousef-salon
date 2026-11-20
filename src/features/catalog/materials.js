@@ -53,20 +53,20 @@ if(!err&&(opt||(x&&x.optional))){const r=await sb.rpc("material_set_optional",{p
 if(!err&&!x&&q>0){const r=await sb.rpc("material_restock",{p_id:mid,p_qty:q,p_note:"رصيد ابتدائي"});if(r.error)warn.push("الكمية فشلت: "+r.error.message)}
 if(!err)for(const r of rec){const e=await sb.rpc("service_material_set",{p_service:r.p_service,p_material:mid,p_qty:r.q});if(e.error){warn.push("الاستهلاك: "+e.error.message);break}}
 C.matBusy=0;b.disabled=false;if(err)return toast(err.message);
-svcClose();toast(warn.length?"اتحفظت بس: "+warn[0]:"اتحفظ ✓");V.mat()}
+svcClose();toast(warn.length?"اتحفظت بس: "+warn[0]:"اتحفظ ✓");matRefresh()}
 
 async function matRestock(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
 const q=matQ(await askInput("كام "+x.unit+" دخلت من «"+x.name+"»؟\nالرصيد الحالي: "+matFm(x.stock),""));if(q===null)return;if(!(q>0))return toast("اكتب كمية أكبر من صفر");
 if(!await askConfirm("إضافة "+matFm(q)+" "+x.unit+" لـ «"+x.name+"»؟\nالرصيد هيبقى "+matFm(Number(x.stock)+q)))return;
 C.matBusy=1;const{error}=await sb.rpc("material_restock",{p_id:id,p_qty:q,p_note:"توريد"});C.matBusy=0;
-error?toast(error.message):(toast("اتسجّل التوريد ✓"),V.mat())}
+error?toast(error.message):(toast("اتسجّل التوريد ✓"),matRefresh())}
 
 async function matCount(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
 const q=matQ(await askInput("الكمية الفعلية الموجودة من «"+x.name+"» دلوقتي ("+x.unit+")\nالنظام شايف: "+matFm(x.stock),""));if(q===null)return;if(!(q>=0))return toast("الكمية غلط");
 const d=q-Number(x.stock);if(d==0)return toast("الجرد مطابق ✓");
 if(!await askConfirm("الفرق: "+(d>0?"+":"")+matFm(d)+" "+x.unit+(x.cost>0?" (≈ "+matFm(Math.abs(d)*x.cost)+" ج)":"")+"\nتسجّل الجرد وتعدّل الرصيد؟"))return;
 C.matBusy=1;const{error}=await sb.rpc("material_count",{p_id:id,p_counted:q,p_note:"جرد"});C.matBusy=0;
-error?toast(error.message):(toast("اتسجّل الجرد ✓"),V.mat())}
+error?toast(error.message):(toast("اتسجّل الجرد ✓"),matRefresh())}
 
 async function matLog(id){const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
 const{data,error}=await sb.from("material_movements").select("qty,reason,invoice_id,note,created_at").eq("material_id",id).order("created_at",{ascending:false}).limit(60);
@@ -92,4 +92,18 @@ async function matRecipesSave(b){if(b.disabled)return;const ins=[...document.que
 if(!ins.length){svcClose();return}
 const jobs=[];for(const i of ins){const q=i.value.trim()===""?0:matQ(i.value);if(Number.isNaN(q)||q<0)return toast("كمية غلط");jobs.push({p_service:+i.dataset.s,p_material:+i.dataset.m,p_qty:q})}
 b.disabled=true;let err=null;for(const j of jobs){const{error}=await sb.rpc("service_material_set",j);if(error){err=error;break}}
-b.disabled=false;if(err)return toast(err.message);svcClose();toast("اتحفظ ✓");V.mat()}
+b.disabled=false;if(err)return toast(err.message);svcClose();toast("اتحفظ ✓");matRefresh()}
+
+// الخامات جوه شاشة المخزون: كل حاجة في مكان واحد
+function matRefresh(){return tab=="stock"?V.stock():V.mat()}
+const stkV0=V.stock;
+V.stock=async function(){await stkV0();if(tab!="stock")return;
+try{const[m,sm,sv]=await Promise.all([sb.from("materials").select("*").order("name"),sb.from("service_materials").select("*"),sb.from("services").select("id,name").order("name")]);
+if(m.error||tab!="stock")return;C.mat=m.data||[];C.smat=sm.data||[];C.msvc=sv.data||[];
+const mgr=me.role=="owner"||me.role=="manager",cr=can("restock"),use={};C.smat.forEach(r=>{(use[r.material_id]=use[r.material_id]||[]).push(r)});
+const el=$("app")||document.body;
+el.insertAdjacentHTML("beforeend",`<h2 style="margin-top:18px">الخامات (كريم / ماسك / شفرات)</h2><div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">${cr?`<button class="btn s" onclick="matNew()">+ خامة جديدة</button>`:""}${mgr?`<button class="btn s g" onclick="matRecipes()">استهلاك كل خدمة</button>`:""}</div>`
++(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
+return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}<div class="m">${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
+<div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
+${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m">مفيش خامات لسه.</p>`))}catch(e){}};
