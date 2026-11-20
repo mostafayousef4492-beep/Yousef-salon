@@ -31,3 +31,16 @@ error?toast(error.message):(toast(ok?"تمت الموافقة ✓":"اتم ال�
 async function aprCancel(id){if(!await askConfirm("سحب الطلب؟"))return;const{error}=await sb.rpc("approval_cancel",{p_id:id});error?toast(error.message):(toast("اتسحب"),V.apr())}
 
 async function aprDisc(id,ok){const{error}=await sb.rpc("decide_discount",{p_id:id,p_ok:ok});error?toast(error.message):(toast(ok?"تمت الموافقة ✓":"اتم الرفض"),V.apr())}
+
+// طلبات حذف حساب عميل (للمالك): تنفيذ = إخفاء هوية العميل مع بقاء الفواتير
+const apV0=V.apr;
+V.apr=async function(){await apV0();if(tab!="apr"||me.role!="owner")return;
+try{const{data,error}=await sb.rpc("deletion_requests_list");if(error||!data||!data.length||tab!="apr")return;C.adr=data;const el=$("app");if(!el)return;
+el.insertAdjacentHTML("beforeend",`<h2>طلبات حذف حساب (${data.length})</h2>`+data.map((r,i)=>`<div class="row"><div><b>${esc(r.name||"")}</b> <span class="m" dir="ltr">${esc(r.phone||"")}</span><div class="m">${r.visits||0} زيارة · ${r.points||0} نقطة · ${apWhen(r.at)}</div></div><div><button class="btn s g" onclick="adrDo(${i},true)">تنفيذ الحذف</button> <button class="btn s g" onclick="adrDo(${i},false)">رفض</button></div></div>`).join("")+`<p class="m">التنفيذ بيخفي هوية العميل ويمسح صوره ورسايله وتفضيلاته، والفواتير بتفضل من غير اسم. حساب الدخول نفسه بيتشال من لوحة Supabase (Authentication) بعد التنفيذ.</p>`)}catch(e){}};
+async function adrDo(i,ok){const r=(C.adr||[])[i];if(!r||C.aprBusy)return;
+if(ok&&!await askConfirm("تنفيذ حذف بيانات «"+r.name+"»؟ العملية دي مش بترجع."))return;
+let note=null;if(!ok){note=await askInput("سبب الرفض (اختياري):");if(note===null)return}
+C.aprBusy=1;const{data,error}=ok?await sb.rpc("deletion_execute",{p_id:r.id}):await sb.rpc("deletion_reject",{p_id:r.id,p_note:note||null});C.aprBusy=0;
+if(error)return toast(error.message);
+if(ok&&data&&data.auth_user_id)try{await navigator.clipboard.writeText(data.auth_user_id)}catch(e){}
+toast(ok?"اتنفّذ ✓ — لو عايز تشيل حساب الدخول: Supabase ← Authentication، ومعرّفه اتنسخ":"اترفض");V.apr()}
