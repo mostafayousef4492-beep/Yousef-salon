@@ -30,7 +30,7 @@ const f=(l,i,v,ex)=>`<label class="m" style="display:block;margin-top:8px">${l}<
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>${x?"تعديل «"+esc(x.name)+"»":"خامة جديدة"}</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
 ${x?"":`<div style="display:flex;gap:14px;margin-top:8px"><label><input type="radio" name="mf-t" value="m" checked> خامة (بتستهلك في الخدمات)</label><label><input type="radio" name="mf-t" value="p"> صنف للبيع</label><label><input type="radio" name="mf-t" value="b"> للبيع وللاستهلاك</label></div>`}
 ${f("الاسم","mf-n",x?x.name:"")}
-<div id="mf-bb" style="display:none">${mgr&&S.length?`<h3 style="margin:14px 0 4px">الاستهلاك مع كل خدمة (بالقطعة)</h3><p class="m">رصيد واحد: البيع والاستهلاك الاتنين بينقّصوا منه. اكتب عدد القطع لكل خدمة (عدد صحيح)، وسيب الخانة فاضية لو الخدمة مبتستهلكهوش.</p>`+S.map(sv=>`<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(sv.name)}</span><input type="text" inputmode="numeric" style="width:90px" data-b="${sv.id}" value=""></div>`).join(""):""}</div>
+<div id="mf-bb" style="display:none">${mgr&&S.length?`<h3 style="margin:14px 0 4px">الاستهلاك مع كل خدمة</h3><p class="m">رصيد واحد: بتبيع الصنف بالقطعة وبتستهلكه في الخدمات بوحدة أصغر. الاستهلاك بيتخصم من العبوة المفتوحة، ولما تخلص بيتفتح قطعة جديدة من المخزون.</p><div style="display:flex;gap:8px"><div style="flex:1">${f("وحدة الاستهلاك (جرام / مللي / قطعة)","mf-bu","جرام")}</div><div style="flex:1">${f("القطعة الواحدة فيها كام؟","mf-bp","1",'inputmode="decimal"')}</div></div>`+S.map(sv=>`<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(sv.name)}</span><input type="text" inputmode="decimal" style="width:90px" data-b="${sv.id}" value=""></div>`).join(""):""}</div>
 <div id="mf-pb" style="display:none"><div style="display:flex;gap:8px"><div style="flex:1">${f("سعر البيع","mf-pp","",'inputmode="decimal"')}</div><div style="flex:1">${f("سعر الشراء","mf-pc","0",'inputmode="decimal"')}</div></div>${f("الكمية الموجودة دلوقتي","mf-pq","0",'inputmode="numeric"')}</div>
 <div id="mf-mb">
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الوحدة (قطعة / جرام / مللي)","mf-u",x?x.unit:"جرام")}</div><div style="flex:1">${f("تكلفة الوحدة (ج)","mf-c",x?matFm(x.cost):"0",'inputmode="decimal"')}</div></div>
@@ -53,8 +53,8 @@ const pr=Number(String($("mf-pp").value).trim()),co=Number(String($("mf-pc").val
 if(!(pr>=0)||$("mf-pp").value.trim()==="")return toast("سعر البيع غلط");if(!(co>=0))return toast("سعر الشراء غلط");if(!Number.isInteger(q)||q<0)return toast("الكمية لازم تكون عدد صحيح");
 C.matBusy=1;b.disabled=true;const{data,error}=await sb.from("products").insert({name:n,price:pr,cost:co,stock:0,min_stock:+(C.cfg&&C.cfg.low_stock_default)||5}).select("id").single();
 let w2="";if(!error&&q>0){const r=await sb.rpc("restock_product",{p_id:data.id,p_qty:q});if(r.error)w2=r.error.message}
-if(!error&&both){const cons=[...document.querySelectorAll("#sheet input[data-b]")].filter(i=>i.value.trim()!=="").map(i=>({service_id:+i.dataset.b,qty:Number(i.value.trim())}));
-if(cons.some(c=>!Number.isInteger(c.qty)||c.qty<0)){w2="كمية الاستهلاك لازم تكون عدد صحيح (الصنف اتضاف من غير استهلاك)"}else{const r=await sb.rpc("item_make_shared",{p_product:data.id,p_consumption:cons});if(r.error)w2=/item_make_shared|schema cache|does not exist/i.test(r.error.message)?"شغّل ملف patch_shared_stock.sql في Supabase الأول":r.error.message}}
+if(!error&&both){const cons=[...document.querySelectorAll("#sheet input[data-b]")].filter(i=>i.value.trim()!=="").map(i=>({service_id:+i.dataset.b,qty:matQ(i.value)})),bu=($("mf-bu")?$("mf-bu").value.trim():"")||"قطعة",bp=$("mf-bp")?matQ($("mf-bp").value):1;
+if(cons.some(c=>!(c.qty>=0))||!(bp>0)){w2="كمية الاستهلاك أو حجم القطعة غلط (الصنف اتضاف من غير استهلاك)"}else{const r=await sb.rpc("item_make_shared",{p_product:data.id,p_consumption:cons,p_unit:bu,p_pack:bp});if(r.error)w2=/item_make_shared|schema cache|does not exist/i.test(r.error.message)?"شغّل ملف patch_shared_stock.sql في Supabase الأول":r.error.message}}
 C.matBusy=0;b.disabled=false;if(error)return toast(error.message);svcClose();toast(w2?"اتضاف الصنف بس التوريد فشل: "+w2:"اتضاف «"+n+"» ✓");return matRefresh()}
 const n=$("mf-n").value.trim(),u=$("mf-u").value.trim();if(!n)return toast("اكتب اسم الخامة");if(!u)return toast("اكتب الوحدة");
 const co=matQ($("mf-c").value),mn=matQ($("mf-m").value),q=x?0:matQ($("mf-q").value);
@@ -130,21 +130,24 @@ C.matBusy=1;const{data,error}=await sb.rpc("material_delete",{p_id:id});C.matBus
 if(error)return toast(/material_delete|schema cache|does not exist/i.test(error.message)?"شغّل ملف patch_material_delete.sql في Supabase الأول":error.message);
 toast(data=="deleted"?"اتمسحت ✓":"اتمسحت (اتأرشفت وسجلها محفوظ) ✓");matRefresh()}
 
-// ربط صنف موجود بالاستهلاك في الخدمات (رصيد واحد)
+// ربط صنف موجود بالاستهلاك في الخدمات (رصيد واحد، البيع بالقطعة والاستهلاك بوحدة أصغر)
 async function stockUse(id){const p=(C.stk||[]).find(x=>x.id==id);if(!p)return;
-const[m,sm,sv]=await Promise.all([sb.from("materials").select("id,product_id").eq("product_id",id),sb.from("service_materials").select("*"),sb.from("services").select("id,name").order("name")]);
-if(m.error)return toast(/product_id|schema cache|does not exist/i.test(m.error.message)?"شغّل ملف patch_shared_stock.sql في Supabase الأول":m.error.message);
-const mid=(m.data||[])[0]&&m.data[0].id,S=sv.data||[];if(!S.length)return toast("مفيش خدمات");
+const[m,sm,sv]=await Promise.all([sb.from("materials").select("id,product_id,unit,pack_size").eq("product_id",id),sb.from("service_materials").select("*"),sb.from("services").select("id,name").order("name")]);
+if(m.error)return toast(/product_id|pack_size|schema cache|does not exist/i.test(m.error.message)?"شغّل ملف patch_shared_stock.sql في Supabase الأول":m.error.message);
+const mm=(m.data||[])[0],mid=mm&&mm.id,S=sv.data||[];if(!S.length)return toast("مفيش خدمات");
 const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>استهلاك «${esc(p.name)}» في الخدمات</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>
-<p class="m">رصيد واحد: البيع والاستهلاك الاتنين بينقّصوا من رصيد الصنف (${p.stock}). اكتب عدد القطع لكل خدمة (عدد صحيح)، وسيب الخانة فاضية لو مبتستهلكهوش.</p>`+
-S.map(s2=>{const r=mid?(sm.data||[]).find(a=>a.service_id==s2.id&&a.material_id==mid):null;return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(s2.name)}</span><input type="text" inputmode="numeric" style="width:90px" data-u="${s2.id}" data-o="${r?matFm(r.qty):""}" value="${r?matFm(r.qty):""}"></div>`}).join("")+
-`<button class="btn" style="margin-top:14px;width:100%" onclick="stockUseSave(this,${id})">حفظ</button></div>`;document.body.appendChild(w)}
+<p class="m">رصيد واحد: البيع بينقّص قطع، والاستهلاك بيتخصم من العبوة المفتوحة ولما تخلص بيتفتح قطعة جديدة. رصيد الصنف الحالي: ${p.stock} قطعة.</p>
+<div style="display:flex;gap:8px"><div style="flex:1"><label class="m">وحدة الاستهلاك</label><input id="su-u" type="text" style="width:100%" value="${esc(mm?mm.unit:"جرام")}"></div><div style="flex:1"><label class="m">القطعة الواحدة فيها كام؟</label><input id="su-p" type="text" inputmode="decimal" style="width:100%" value="${mm?matFm(mm.pack_size):""}"></div></div>`+
+S.map(s2=>{const r=mid?(sm.data||[]).find(a=>a.service_id==s2.id&&a.material_id==mid):null;return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(s2.name)}</span><input type="text" inputmode="decimal" style="width:90px" data-u="${s2.id}" data-o="${r?matFm(r.qty):""}" value="${r?matFm(r.qty):""}"></div>`}).join("")+
+`<button class="btn" style="margin-top:14px;width:100%" onclick="stockUseSave(this,${id},${mm?`'${String(mm.unit||"").replace(/'/g,"")}',${+mm.pack_size}`:"null,null"})">حفظ</button></div>`;document.body.appendChild(w)}
 
-async function stockUseSave(b,id){if(b.disabled)return;const ins=[...document.querySelectorAll("#sheet input[data-u]")].filter(i=>i.value.trim()!=i.dataset.o);
-if(!ins.length){svcClose();return}
-const cons=ins.map(i=>({service_id:+i.dataset.u,qty:i.value.trim()===""?0:Number(i.value.trim())}));
-if(cons.some(c=>!Number.isInteger(c.qty)||c.qty<0))return toast("الكمية لازم تكون عدد صحيح");
-b.disabled=true;const{error}=await sb.rpc("item_make_shared",{p_product:id,p_consumption:cons});b.disabled=false;
+async function stockUseSave(b,id,u0,p0){if(b.disabled)return;const u=$("su-u").value.trim()||"قطعة",pk=matQ($("su-p").value);
+if(!(pk>0))return toast("اكتب القطعة الواحدة فيها كام");
+const ins=[...document.querySelectorAll("#sheet input[data-u]")].filter(i=>i.value.trim()!=i.dataset.o);
+if(!ins.length&&u==u0&&pk==p0){svcClose();return}
+const cons=ins.map(i=>({service_id:+i.dataset.u,qty:i.value.trim()===""?0:matQ(i.value)}));
+if(cons.some(c=>!(c.qty>=0)))return toast("كمية غلط");
+b.disabled=true;const{error}=await sb.rpc("item_make_shared",{p_product:id,p_consumption:cons,p_unit:u,p_pack:pk});b.disabled=false;
 if(error)return toast(/item_make_shared|schema cache|does not exist/i.test(error.message)?"شغّل ملف patch_shared_stock.sql في Supabase الأول":error.message);
 svcClose();toast("اتحفظ ✓");V.stock()}
