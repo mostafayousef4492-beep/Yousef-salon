@@ -3,8 +3,8 @@
 V.stock=async function(){
 const{data,error}=await sb.from("products").select("*").order("name");
 if(error)return put(`<h1>المخزون</h1><p class="m">${esc(error.message)}</p>`);
-C.stk=data||[];const low=C.stk.filter(p=>p.stock<=p.min_stock).length,cr=can("restock");
-put(`<h1>المخزون</h1>${cr?`<button class="btn s" onclick="matNew()">+ صنف جديد</button> `:""}${me.role=="owner"||me.role=="manager"?`<button class="btn s g" onclick="go('co')">🏢 الشركات والتعاقدات</button> `:""}${low?`<div class="m" style="margin:6px 0">${low} صنف وصل للحد الأدنى أو أقل</div>`:""}`+C.stk.map(p=>`<div class="row"><div><b>${esc(p.name)}</b><div class="m">شراء ${p.cost} · بيع ${p.price}</div></div><div style="text-align:left"><span class="tag" style="${p.stock<=p.min_stock?"background:var(--red);color:#fff":""}">${p.stock} قطعة</span><br>${cr?`<button class="btn s g" onclick="restock(${p.id})">+ توريد</button>`:""}</div></div>`).join(""))};
+C.stk=(data||[]).filter(p=>!p.archived);const low=C.stk.filter(p=>p.stock<=p.min_stock).length,cr=can("restock");
+put(`<h1>المخزون</h1>${cr?`<button class="btn s" onclick="matNew()">+ صنف جديد</button> `:""}${me.role=="owner"||me.role=="manager"?`<button class="btn s g" onclick="go('co')">🏢 الشركات والتعاقدات</button> `:""}${low?`<div class="m" style="margin:6px 0">${low} صنف وصل للحد الأدنى أو أقل</div>`:""}`+C.stk.map(p=>`<div class="row"><div><b>${esc(p.name)}</b><div class="m">شراء ${p.cost} · بيع ${p.price}</div></div><div style="text-align:left"><span class="tag" style="${p.stock<=p.min_stock?"background:var(--red);color:#fff":""}">${p.stock} قطعة</span><br>${cr?`<button class="btn s g" onclick="restock(${p.id})">+ توريد</button>`:""}${me.role=="owner"||me.role=="manager"?` <button class="btn s g" style="color:var(--red)" onclick="stockDel(${p.id})">مسح</button>`:""}</div></div>`).join(""))};
 
 // بيحوّل الأرقام العربي لإنجليزي ويرجّع عدد صحيح موجب (أو NaN لو غلط، أو null لو الغى)
 const stockNum=(v,min)=>{if(v===null)return null;const n=Number(String(v).trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)));return Number.isInteger(n)&&n>=min&&n<=100000?n:NaN};
@@ -26,3 +26,9 @@ C.stkBusy=1;const{data,error}=await sb.from("products").insert({name:n,price:pr,
 if(error){C.stkBusy=0;return toast(error.message)}
 if(q>0){const{error:e2}=await sb.rpc("restock_product",{p_id:data.id,p_qty:q});if(e2)toast("اتضاف الصنف بس التوريد فشل: "+e2.message)}
 C.stkBusy=0;toast("اتضاف «"+n+"»");go("stock")}
+
+async function stockDel(id){if(C.stkBusy)return;const p=(C.stk||[]).find(x=>x.id==id);if(!p)return;
+if(!await askConfirm("مسح الصنف «"+p.name+"»؟\nهيتشال من المخزون والكاشير، وحركاته وفواتيره القديمة بتفضل محفوظة. الكمية الحالية: "+p.stock,{ok:"امسح"}))return;
+C.stkBusy=1;const{data,error}=await sb.rpc("product_delete",{p_id:id});C.stkBusy=0;
+if(error)return toast(/product_delete|schema cache|does not exist/i.test(error.message)?"شغّل ملف patch_product_delete.sql في Supabase الأول":error.message);
+toast(data=="deleted"?"اتمسح ✓":"اتمسح (اتأرشف وسجله محفوظ) ✓");V.stock()}
