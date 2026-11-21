@@ -19,6 +19,11 @@ begin
     return 'deleted';
   end if;
   update products set archived = true, active = false where id = p_id;
+  -- لو الصنف مربوط بخامة استهلاك (patch_shared_stock) بتتوقف وتتشال من استهلاك الخدمات
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'materials' and column_name = 'product_id') then
+    execute 'delete from service_materials where material_id in (select id from materials where product_id = $1)' using p_id;
+    execute 'update materials set active = false, optional = false where product_id = $1' using p_id;
+  end if;
   return 'archived';
 end $$;
 revoke all on function public.product_delete(bigint) from public, anon;
