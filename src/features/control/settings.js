@@ -2,7 +2,10 @@
 
 // ================= الإعدادات: تاب لكل قسم + تصفير =================
 
-const SEC=[["general","عام"],["book","الحجوزات"],["staff","الموظفين"],["pos","الكاشير"],["stock","المخزون"],["loy","العملاء والولاء"],["ai","المساعد الذكي"],["danger","تصفير"]];
+const SEC=[["general","🏪","الصالون","الاسم والعنوان والعملة · روابط التطبيقات · نسخة احتياطية"],["book","📅","الحجز والدور","مواعيد الحجز والحدود والمستعجل · قواعد الحجز · منيو الخدمات"],["pos","💳","الكاشير والخصومات والدفع","حدود الخصم · طرق الدفع · الكراسي · أرقام فودافون وإنستا باي"],["staff","👥","الموظفين والعمولة","الحضور والعمولة والراتب · الصلاحيات والشيفتات · قواعد العمولة"],["loy","🎁","العملاء والولاء","النقاط والمستويات والدعوات · المكافآت · آراء العملاء"],["stock","📦","المخزون","الحد الأدنى · المنتجات"],["ai","🤖","المساعد الذكي","تشغيل المساعد وحدود الاستخدام"],["safety","🛡️","الرقابة والأمان","الموافقات · التشغيل التلقائي · الأرشيف · تقرير اليوم · سجل التغييرات"],["danger","⚠️","منطقة الخطر","تصفير البيانات"]];
+// أي مجموعة قواعد تتحط جوه القسم المناسب ليها (مركز التحكم اتدمج هنا)
+const RGRP={"الخصومات":"pos","المدفوعات":"pos","الكاشير":"pos","الحجز":"book","الولاء":"loy","الميزات":"loy","العمولة":"staff"};
+const secOfRule=d=>RGRP[d.grp]||"safety";
 
 const DAYS7=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 
@@ -42,10 +45,17 @@ const lastBk=()=>{let d=null;try{d=localStorage.getItem("salon_last_backup")}cat
 
 V.set=async()=>{await loadCfg();
 const[{data:sv},{data:pr},{data:rw}]=await Promise.all([sb.from("services").select("*").order("id"),sb.from("products").select("*").order("id"),sb.from("loyalty_rewards").select("*").not("name","like","استبدال نقاط:%").order("cost")]);C.cat={services:sv,products:pr};
-const sec=C.sec||"general",c=C.cfg;const{data:stf}=sec=="staff"?await sb.from("profiles").select("id,full_name,role").in("role",["cashier","barber","assistant"]).order("full_name"):{data:[]};
+const sec=C.sec||"home",c=C.cfg;C.inHub=1;const{data:stf}=sec=="staff"?await sb.from("profiles").select("id,full_name,role").in("role",["cashier","barber","assistant"]).order("full_name"):{data:[]};
 const fld=([k,l,t,d])=>t=="fb"?`<label class="m">${l}</label><select id="s_${k}">${[["choice","العميل يختار: باسمه أو من غير اسم"],["named","باسم العميل دايمًا"],["off","متوقفة"]].map(x=>`<option value="${x[0]}" ${(c[k]||"choice")==x[0]?"selected":""}>${x[1]}</option>`).join("")}</select><div class="m">«من غير اسم» مجهولة فعلًا: النظام مبيحفظش صاحبها، ولا إنت هتقدر تعرفه.</div>`:t=="bool"?`<label class="row" style="cursor:pointer"><span>${l}</span><input type="checkbox" id="s_${k}" ${(c[k]===undefined||c[k]===null?!!d:c[k])?"checked":""} style="width:22px;height:22px;margin:0"></label>`:t=="day"?`<label class="m">${l}</label><select id="s_${k}">${DAYS7.map((d,i)=>`<option value="${i}" ${c[k]==i?"selected":""}>${d}</option>`).join("")}<option value="-1" ${c[k]==-1?"selected":""}>مفيش إجازة</option></select>`:`<label class="m">${l}</label><input id="s_${k}" type="${t||"text"}" step="any" value="${esc(c[k])}">`;
-let h=`<h1>الإعدادات</h1><div class="chips">${SEC.map(x=>`<button class="chip ${sec==x[0]?"sel":""}" onclick="C.sec='${x[0]}';V.set()">${x[1]}</button>`).join("")}</div>`;
-if(FLD[sec])h+=`<div class="box">${FLD[sec].map(fld).join("")}${sec=="staff"?`<button class="btn g s" style="margin-bottom:8px" onclick="setHere()">📍 استخدم موقعي الحالي (وانت في الصالون)</button>`:""}<button class="btn" style="width:100%" onclick="saveSec()">حفظ</button></div>`;
+const own=me.role=="owner",RD=own?((await sb.from("rule_defs").select("*").order("sort")).data||[]):[];C.RD=RD;
+const rulesOf=k=>RD.filter(d=>secOfRule(d)==k),ruleKeys=new Set(RD.map(d=>d.key)),fldsOf=k=>(FLD[k]||[]).filter(f=>!(own&&ruleKeys.has(f[0])));
+const vis=SEC.filter(x=>x[0]!="safety"||own);
+if(sec=="home"||!vis.find(x=>x[0]==sec)){C.sec="home";const q=(C.sq||"").trim().toLowerCase();
+const all=[];SEC.forEach(x=>{fldsOf(x[0]).forEach(f=>all.push([f[1],x]));rulesOf(x[0]).forEach(d=>all.push([d.label,x]))});
+put(`<h1>الإعدادات ومركز التحكم</h1><p class="m">كل حاجة مترتبة حسب الموضوع: إعدادات وقواعد وأدوات الموضوع الواحد في مكان واحد.</p><input id="sq" placeholder="ابحث عن أي إعداد: خصم، حضور، نقاط، حجز..." value="${esc(C.sq||"")}" oninput="C.sq=this.value;setSearch()"><div id="sr">${setSearchHtml(all)}</div><div class="cc-grid" id="sg" style="margin-top:10px;${q?"display:none":""}">${vis.map(x=>`<button class="box" style="text-align:right;cursor:pointer;display:block" onclick="C.sec='${x[0]}';C.sq='';V.set()"><div style="font-size:1.6rem">${x[1]}</div><b>${x[2]}</b><div class="m" style="margin-top:4px">${x[3]}</div></button>`).join("")}</div>`);C.sall=all;return}
+const SX=SEC.find(x=>x[0]==sec);
+let h=`<button class="btn g s" style="margin-top:12px" onclick="C.sec='home';V.set()">‹ كل الإعدادات</button><h1>${SX[1]} ${SX[2]}</h1><p class="m">${SX[3]}</p>`;
+if(fldsOf(sec).length)h+=`<h2>الإعدادات</h2><div class="box">${fldsOf(sec).map(fld).join("")}${sec=="staff"?`<button class="btn g s" style="margin-bottom:8px" onclick="setHere()">📍 استخدم موقعي الحالي (وانت في الصالون)</button>`:""}<button class="btn" style="width:100%" onclick="saveSec()">حفظ</button></div>`;
 if(sec=="staff")h+=`<h2>شاشة وصلاحيات كل موظف</h2>`+((stf||[]).length?stf.map(p=>`<button class="row" style="cursor:pointer" onclick="C.pb='set';openPerms('${p.id}')"><div><b>${esc(p.full_name)}</b><div class="m">${RL[p.role]||""}</div></div><span class="tag">افتح شاشته ‹</span></button>`).join(""):`<p class="m">مفيش موظفين لسه.</p>`);
 const row=(t,x,d)=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${d}${x.active?"":" · موقوف"}</div></div><div><button class="btn s g" onclick="editItem('${t}',${x.id})">تعديل</button> <button class="btn s g" onclick="toggleItem('${t}',${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div></div>`;
 if(sec=="general")h+=`<h2>روابط التطبيقات</h2>`+[["تطبيق العملاء","/"],["تطبيق الموظفين","/staff"],["تطبيق الإدارة (ده)","/admin"]].map(x=>`<div class="row"><div><b>${x[0]}</b><div class="m" dir="ltr" style="text-align:right">${esc(location.host+x[1])}</div></div><button class="btn s g" onclick="copyLink('${x[1]}')">نسخ</button></div>`).join("")+`<h2>نسخة احتياطية</h2><div class="box"><p class="m" style="margin-top:0">بتنزّل ملف واحد (JSON) فيه كل بيانات الصالون: الفواتير والعملاء والموظفين والمخزون والإعدادات. احتفظ بيه في مكان آمن، لأن فيه أرقام العملاء.</p><button class="btn" id="bkb" style="width:100%" onclick="backupAll()">⬇️ تنزيل نسخة احتياطية الآن</button><div class="m" id="bkm" style="margin-top:8px">${lastBk()}</div></div>`;
@@ -54,6 +64,12 @@ if(sec=="book")h+=`<h2>صفحة الحجز المستقلة</h2><div class="chip
 if(sec=="stock")h+=`<h2>المنتجات</h2>`+pr.map(x=>row("products",x,`بيع ${x.price} · شراء ${x.cost} · الحد الأدنى ${x.min_stock}`)).join("")+`<button class="btn g s" onclick="addItem('products')">+ منتج جديد</button>`;
 if(sec=="loy")h+=`<h2>مكافآت الولاء</h2>`+(rw||[]).map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="m">${x.cost} نقطة ${x.active?"":"· موقوفة"}</div></div><button class="btn s g" onclick="togRw(${x.id},${!x.active})">${x.active?"إيقاف":"تفعيل"}</button></div>`).join("")+`<button class="btn g s" onclick="addRw()">+ مكافأة جديدة</button>`;
 if(sec=="staff")h+=`<h2>إدارة الموظفين</h2><div class="chips"><button class="btn g" onclick="go('team')">الموظفين والصلاحيات والشيفتات</button><button class="btn g" onclick="resetAllPerms()">إرجاع صلاحيات الكل للافتراضي</button></div>`;
+if(own&&sec!="safety"&&rulesOf(sec).length)h+=`<h2>قواعد التحكم <span class="m">(بتتسجّل كل تغيير)</span></h2>`+rulesOf(sec).map(ruleCard).join("");
+if(sec=="loy"&&isAdm(me))h+=`<h2>آراء العملاء</h2><button class="btn g s" onclick="fbList()">💬 اقرأ آراء العملاء</button>`;
+if(sec=="safety"){const{data:H}=await sb.from("settings_history").select("*").order("id",{ascending:false}).limit(15);C.RH=H||[];
+h+=`<h2>أدوات الرقابة</h2><div class="cc-grid">${[["✅","الموافقات","طلبات الإلغاء والخصم اللي مستنية قرارك","apr"],["🤖","التشغيل التلقائي","النظام يوافق على الصغير ويسيب الكبير ليك","auto"],["📊","تقرير اليوم","أرقام اليوم وتنبيهات ذكية","day"],["📱","مؤشرات التطبيق","استخدام تطبيق العملاء","kpi"],["🔁","رجوع العملاء","مين غاب ومين ممكن يرجع","ret"],["🔐","الصلاحيات","شاشة كل دور وكل موظف","ctl"]].map(x=>`<button class="box" style="text-align:right;cursor:pointer;display:block" onclick="go('${x[3]}')"><div style="font-size:1.4rem">${x[0]}</div><b>${x[2-1]}</b><div class="m">${x[2]}</div></button>`).join("")}</div><button class="btn" style="width:100%;margin:10px 0" onclick="auditOpen()">🗂 الأرشيف الكامل (كل حركة اتعملت أو اتحذفت)</button>`;
+const rs=rulesOf("safety");if(rs.length)h+=`<h2>قواعد تانية</h2>`+rs.map(ruleCard).join("");
+h+=`<h2>آخر التغييرات</h2>`+(C.RH.length?C.RH.map(x=>`<div class="row"><div><b>${esc((C.RD.find(d=>d.key==x.key)||{}).label||x.key)}</b><div class="m">${esc(JSON.stringify(x.old_value))} ← ${esc(JSON.stringify(x.new_value))}${x.reason?" · "+esc(x.reason):""}</div></div><span class="m">${new Date(x.changed_at).toLocaleString("ar-EG")}</span></div>`).join(""):`<p class="m">مفيش تغييرات لسه.</p>`)}
 if(RST[sec])h+=`<h2 style="color:var(--red)">${sec=="danger"?"منطقة الخطر":"تصفير"}</h2>`+RST[sec].map(r=>`<button class="row" style="cursor:pointer;color:var(--red);font-weight:600" onclick="doReset('${r[0]}',this.textContent)">${r[1]}</button>`).join("");
 put(h)};
 
@@ -63,3 +79,9 @@ const{error}=await sb.from("app_settings").upsert(rows);error?toast(error.messag
 async function doReset(scope,label){const w=await askInput(label+"\n\nالعملية دي مش هتترجّع. اكتب كلمة: تصفير");if(w!=="تصفير")return toast("اتلغى");const{data,error}=await sb.rpc("reset_data",{p_scope:scope,p_confirm:w});error?toast(error.message):toast(data||"تم التصفير ✓")}
 
 async function resetAllPerms(){if(!await askConfirm("ترجّع صلاحيات كل الحلاقين والكاشير للافتراضي؟"))return;const{error}=await sb.from("profiles").update({perms:{}}).in("role",["barber","cashier","assistant"]);error?toast(error.message):toast("تم ✓")}
+
+
+function setSearchHtml(all){const q=(C.sq||"").trim().toLowerCase();if(!q)return "";
+const L=all.filter(a=>String(a[0]).toLowerCase().includes(q)).slice(0,12);
+return L.length?`<div class="box" style="margin-top:8px">`+L.map(a=>`<button class="row" style="cursor:pointer;width:100%;text-align:right" onclick="C.sec='${a[1][0]}';C.sq='';V.set()"><div><b>${esc(a[0])}</b><div class="m">${a[1][1]} ${a[1][2]}</div></div><span class="tag">افتح ‹</span></button>`).join("")+`</div>`:`<p class="m">مفيش إعداد بالاسم ده.</p>`}
+function setSearch(){const r=$("sr"),g=$("sg");if(r)r.innerHTML=setSearchHtml(C.sall||[]);if(g)g.style.display=(C.sq||"").trim()?"none":""}
