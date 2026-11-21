@@ -8,7 +8,7 @@ V.mat=async function(){
 const mgr=me.role=="owner"||me.role=="manager";
 const[m,sm,sv]=await Promise.all([sb.from("materials").select("*").order("name"),sb.from("service_materials").select("*"),sb.from("services").select("id,name").order("name")]);
 if(m.error)return put(`<h1>خامات الخدمات</h1><button class="btn s g" onclick="go('stock')">← المخزون</button><p class="m" style="margin-top:10px">${matMissing(m.error)?"الخامات لسه مش متفعّلة: شغّل ملف patch_materials.sql في Supabase الأول.":esc(m.error.message)}</p>`);
-C.mat=m.data||[];C.smat=sm.data||[];C.msvc=sv.data||[];
+C.mat=(m.data||[]).filter(x=>!x.archived);C.smat=sm.data||[];C.msvc=sv.data||[];
 const cr=can("restock"),low=C.mat.filter(x=>x.active&&Number(x.stock)<=Number(x.min_stock)).length;
 const use={};C.smat.forEach(r=>{(use[r.material_id]=use[r.material_id]||[]).push(r)});
 put(`<h1>خامات الخدمات</h1>
@@ -18,7 +18,7 @@ ${low?`<div class="m" style="margin:6px 0;color:var(--red)">${low} خامة وص
 +(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
 return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}<div class="m">الوحدة: ${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
-${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m" style="margin-top:10px">مفيش خامات لسه. دوس «+ خامة جديدة» وضيف مثلاً: شفرة (قطعة)، كريم حمام (جرام)، ماسك (جرام).</p>`))};
+${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>${me.role=="owner"||me.role=="manager"?`<button class="btn s g" style="color:var(--red)" onclick="matDel(${x.id})">مسح</button>`:""}`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m" style="margin-top:10px">مفيش خامات لسه. دوس «+ خامة جديدة» وضيف مثلاً: شفرة (قطعة)، كريم حمام (جرام)، ماسك (جرام).</p>`))};
 
 // شاشة واحدة للخامة: الاسم + الوحدة + التكلفة + الحد الأدنى + الكمية + الاستهلاك مع كل خدمة
 function matNew(){matForm(null)}
@@ -112,11 +112,17 @@ function matRefresh(){return tab=="stock"?V.stock():V.mat()}
 const stkV0=V.stock;
 V.stock=async function(){await stkV0();if(tab!="stock")return;
 try{const[m,sm,sv]=await Promise.all([sb.from("materials").select("*").order("name"),sb.from("service_materials").select("*"),sb.from("services").select("id,name").order("name")]);
-if(m.error||tab!="stock")return;C.mat=m.data||[];C.smat=sm.data||[];C.msvc=sv.data||[];
+if(m.error||tab!="stock")return;C.mat=(m.data||[]).filter(x=>!x.archived);C.smat=sm.data||[];C.msvc=sv.data||[];
 const mgr=me.role=="owner"||me.role=="manager",cr=can("restock"),use={};C.smat.forEach(r=>{(use[r.material_id]=use[r.material_id]||[]).push(r)});
 const el=$("app")||document.body;
 el.insertAdjacentHTML("beforeend",`<h2 style="margin-top:18px">الخامات (كريم / ماسك / شفرات)</h2><div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">${mgr?`<button class="btn s g" onclick="matRecipes()">استهلاك كل خدمة</button>`:""}</div>`
 +(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
 return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}<div class="m">${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
-${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m">مفيش خامات لسه.</p>`))}catch(e){}};
+${cr?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>${me.role=="owner"||me.role=="manager"?`<button class="btn s g" style="color:var(--red)" onclick="matDel(${x.id})">مسح</button>`:""}`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m">مفيش خامات لسه.</p>`))}catch(e){}};
+
+async function matDel(id){if(C.matBusy)return;const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
+if(!await askConfirm("مسح الخامة «"+x.name+"»؟\nهتتشال من الشاشات ومن استهلاك الخدمات، وسجل حركتها القديم بيفضل محفوظ. الرصيد الحالي: "+matFm(x.stock)+" "+x.unit,{ok:"امسح"}))return;
+C.matBusy=1;const{data,error}=await sb.rpc("material_delete",{p_id:id});C.matBusy=0;
+if(error)return toast(/material_delete|schema cache|does not exist/i.test(error.message)?"شغّل ملف patch_material_delete.sql في Supabase الأول":error.message);
+toast(data=="deleted"?"اتمسحت ✓":"اتمسحت (اتأرشفت وسجلها محفوظ) ✓");matRefresh()}
