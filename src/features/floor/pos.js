@@ -96,6 +96,7 @@ o.innerHTML=`<div class="m">بندوّر...</div>`;
 const{data,error}=await sb.from("customers").select("id,name,phone,points,visits").in("phone",[ph,"+2"+ph,"2"+ph]).order("id").limit(5);
 if(error){o.innerHTML=`<div class="m" style="color:var(--red)">${esc(error.message)}</div>`;return}
 if(data&&data.length){if(data.length>1)toast("تنبيه: الرقم ده متسجل لأكتر من عميل. استخدمت الأقدم.");return chCust(data[0])}
+try{const al=await sb.from("customer_phones").select("customer_id").eq("phone",ph).limit(1);if(!al.error&&al.data&&al.data[0]){const{data:cc}=await sb.from("customers").select("id,name,phone,points,visits").eq("id",al.data[0].customer_id).maybeSingle();if(cc){toast("الرقم ده رقم تاني للعميل "+cc.name);return chCust(cc)}}}catch(e){}
 o.innerHTML=`<div class="box" style="margin-top:8px"><div class="m">عميل جديد · ${ph}</div><input id="cn" placeholder="اسم العميل"><button class="btn s" onclick="chNew('${ph}')">إضافة وإكمال</button></div>`}
 
 async function chNew(ph){const n=($("cn")?.value||"").trim();if(n.length<2)return toast("اكتب اسم العميل");
