@@ -14,7 +14,7 @@ let PL=[],pTot=0;if(sp&&!sp[0].error){const bal={};(sp[1].data||[]).forEach(p=>{
 const oldD=SL.filter(x=>dtAge(x.oldest)>30),mid=SL.filter(x=>{const a=dtAge(x.oldest);return a>7&&a<=30});
 const stat=(l,v,sub,on)=>`<button class="hm-stat" style="${on?"":"cursor:default"}" ${on?`onclick="${on}"`:""}><span class="hm-n" style="font-size:24px">${v}</span><span class="hm-l">${l}</span>${sub?`<span class="m" style="font-size:12px">${sub}</span>`:""}</button>`;
 const msg=x=>`أهلاً ${x.name}، فاضل عليك ${fm(x.rem)} من زيارتك في ${C.cfg.salon_name||"الصالون"}. تقدر تسدد في أي وقت يناسبك. شكرًا ليك 🙏`;
-put(`<h1>الآجل والديون</h1><p class="m">كل اللي ليك عند الناس واللي عليك للموردين في مكان واحد.</p>
+put(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h1 style="margin:0">الآجل والديون</h1>${adm?`<button class="btn s" onclick="dtNew()">+ دين جديد</button>`:""}</div><p class="m">كل اللي ليك عند الناس واللي عليك للموردين في مكان واحد.</p>
 <div class="hm-ops box" style="grid-template-columns:repeat(${1+(cafe?1:0)+(adm?1:0)},minmax(0,1fr))">${pos?stat("ديون عملاء الصالون",fm(sTot),num(SL.length)+" عميل"):""}${cafe?stat("آجل الكوفي",fm(cTot),num(CL.length)+" عميل","go('cafe_debt')"):""}${adm?stat("علينا للموردين",fm(pTot),num(PL.length)+" مورد","go('fin')"):""}</div>
 ${pos&&SL.length?`<div class="m" style="margin:10px 0 0">${oldD.length?`<span style="color:var(--red)">● ${num(oldD.length)} متأخر أكتر من 30 يوم</span> `:""}${mid.length?`<span style="color:var(--warn)">● ${num(mid.length)} من 8 لـ 30 يوم</span> `:""}<span>● ${num(SL.length-oldD.length-mid.length)} أقل من أسبوع</span></div>`:""}
 ${pos?`<h2>ديون عملاء الصالون</h2>`+(SL.length?SL.map(x=>{const a=dtAge(x.oldest);return `<div class="row"><div><b>${esc(x.name)}</b>${x.phone?` <span class="m" dir="ltr">${esc(x.phone)}</span>`:""}<div class="m"><span style="color:${dtTone(a)}">أقدم دين ${dtAgeTxt(a)}</span>${x.n>1?" · "+num(x.n)+" فواتير":""}${x.cid?"":" · مش مسجّل كعميل"}</div></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b style="color:var(--red)">${fm(x.rem)}</b>${waBtn(x.phone,0,msg(x))}<button class="btn s" onclick="dbOpen(${x.cid||"null"})">سدّد</button></div></div>`}).join(""):`<p class="m">مفيش ديون على عملاء الصالون ✓</p>`):""}
@@ -23,3 +23,20 @@ ${adm?`<h2>علينا للموردين</h2>`+(PL.length?PL.map(x=>`<div class="r
 
 // بعد أي سداد من نافذة الديون، الشاشة دي تتحدّث
 (()=>{const p0=window.dbPay;if(typeof p0!="function")return;window.dbPay=async function(id){await p0(id);if(typeof tab!="undefined"&&tab=="debt")V.debt()}})();
+
+
+// تسجيل دين يدوي من غير فاتورة (للمدير/المالك) — دالة debt_add
+async function dtNew(){const{data}=await sb.from("customers").select("id,name,phone").order("name").limit(1000);C.dtC=data||[];
+dsOpen("دين جديد",`<p class="m">سجّل مبلغ على عميل من غير فاتورة (مثلًا دين قديم من الدفتر). مش بيدخل الدرج ولا الإيراد إلا لما العميل يسدّد.</p>
+<label class="m">عميل مسجّل (اختياري)</label><select id="dt-c" onchange="dtPick()"><option value="">— مش مسجّل —</option>${C.dtC.map(c=>`<option value="${c.id}">${esc(c.name)}${c.phone?" · "+esc(c.phone):""}</option>`).join("")}</select>
+<label class="m">الاسم (لو مش مسجّل)</label><input id="dt-n" placeholder="اسم العميل">
+<label class="m">الموبايل</label><input id="dt-p" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx">
+<label class="m">المبلغ</label><input id="dt-a" type="number" inputmode="decimal" min="0" step="any">
+<label class="m">تاريخ الدين (اختياري — بيحدد عمر الدين)</label><input id="dt-d" type="date" max="${new Date().toISOString().slice(0,10)}">
+<label class="m">ملاحظة</label><input id="dt-t" placeholder="مثلًا: من دفتر الشهر اللي فات">
+<button class="btn" style="margin-top:12px" onclick="dtSave()">حفظ الدين</button>`)}
+function dtPick(){const c=(C.dtC||[]).find(x=>String(x.id)==$("dt-c").value);$("dt-n").disabled=!!c;$("dt-p").disabled=!!c;if(c){$("dt-n").value=c.name||"";$("dt-p").value=c.phone||""}}
+async function dtSave(){const cid=$("dt-c").value||null,a=+$("dt-a").value;if(!(a>0))return toast("اكتب مبلغ الدين");if(!cid&&!$("dt-n").value.trim())return toast("اختار العميل أو اكتب اسمه");
+const{error}=await sb.rpc("debt_add",{p_customer:cid?+cid:null,p_name:cid?null:$("dt-n").value,p_phone:cid?null:$("dt-p").value,p_amount:a,p_note:$("dt-t").value||null,p_date:$("dt-d").value||null});
+if(error)return toast(/Could not find the function/i.test(error.message||"")?"شغّل patch_debt_add.sql في Supabase":error.message);
+if(typeof svcClose=="function")svcClose();toast("اتسجّل الدين");V.debt()}
