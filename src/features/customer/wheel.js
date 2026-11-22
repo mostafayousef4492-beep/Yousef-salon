@@ -44,3 +44,17 @@ ${S.map(x=>{const pc=tot>0&&x.active?Math.round(100*x.weight/tot):0;return `<div
 async function wheelSave(id){const rid=$("ws_r"+id).value,{error}=await sb.from("wheel_slices").update({label:$("ws_l"+id).value.trim()||"—",reward_id:rid?+rid:null,weight:Math.max(0,parseInt($("ws_w"+id).value)||0),active:$("ws_a"+id).checked}).eq("id",id);error?toast(error.message):(toast("اتحفظ ✓"),wheelAdmin())}
 async function wheelAdd(){const{error}=await sb.from("wheel_slices").insert({label:"قطاع جديد",weight:1,sort:99});error?toast(error.message):wheelAdmin()}
 async function wheelDel(id){if(!await askConfirm("تمسح القطاع ده؟"))return;const{error}=await sb.from("wheel_slices").delete().eq("id",id);error?toast(/foreign|23503/.test(error.message)?"مينفعش تمسحه، وقّفه بدل المسح":error.message):wheelAdmin()}
+
+/* ===== كارت العجلة في الصفحة الأولى للعميل ===== */
+async function wheelCard(){
+  try{
+    const sh=document.querySelector("#app .hm-shell");if(!sh||$("hmwheel"))return;
+    const{data:s,error}=await sb.rpc("wheel_status");if(error||!s||!s.on)return;
+    const sh2=document.querySelector("#app .hm-shell");if(!sh2||$("hmwheel"))return;
+    const can=s.left_today>0&&(s.free||+s.points>=+s.cost);
+    const d=document.createElement("div");d.id="hmwheel";d.className="box";d.style.cssText="display:flex;align-items:center;gap:12px;cursor:pointer;margin-top:10px";d.setAttribute("role","button");d.tabIndex=0;d.onclick=()=>wheelOpen();d.onkeydown=e=>{if(e.key=="Enter"||e.key==" ")wheelOpen()};
+    d.innerHTML=`<span style="font-size:34px;line-height:1" aria-hidden="true">🎡</span><div style="flex:1"><b>${s.free?"لفتك المجانية جاهزة!":"عجلة الحظ"}</b><div class="m">${s.free?"لفّ واكسب خصم أو خدمة":(can?"لفّ بـ "+num(s.cost)+" نقطة واكسب خصم أو خدمة":(s.left_today<=0?"خلّصت لفّات النهارده":"محتاج "+num(s.cost)+" نقطة للفة"))}</div></div><span class="btn s">${s.free?"لفّ مجانًا":"افتح"}</span>`;
+    const h=sh2.querySelector(".hm-head"),live=sh2.querySelector(".hm-live");(live||h)?(live||h).after(d):sh2.prepend(d);
+  }catch(e){}
+}
+(()=>{if(window.SALON_MODE!=="customer")return;const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();wheelCard()}})();
