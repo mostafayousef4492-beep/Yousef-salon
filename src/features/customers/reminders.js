@@ -17,9 +17,9 @@ async function saveRemDays(){const v=Math.round(+$("rem_d").value);if(!(v>=1&&v<
 // كارت في رئيسية الإدارة: كام عميل غايب (بيتحدّث كل ٥ دقايق مش مع كل تحديث للرئيسية)
 (()=>{const q=typeof V!="undefined"&&V.home;if(!q)return;V.home=async()=>{await q();try{
   if(typeof tab!="undefined"&&tab!="home")return;if(!(isAdm(me)||can("view_customers")))return;
-  const A=document.querySelector(".dash-side");if(!A||document.getElementById("remCard"))return;
+  const A=document.querySelector(".hm-money")||document.querySelector(".dash-side");if(!A||document.getElementById("remCard"))return;
   if(!C.remN||Date.now()-C.remN.t>3e5){const{data}=await sb.rpc("customers_overview");const d=remDays();C.remN={t:Date.now(),n:(data||[]).filter(x=>x.last_visit&&Math.floor((Date.now()-new Date(x.last_visit).getTime())/864e5)>=d).length,d}}
-  if(!document.querySelector(".dash-side")||document.getElementById("remCard"))return;
+  if(!(document.querySelector(".hm-money")||document.querySelector(".dash-side"))||document.getElementById("remCard"))return;
   const c=document.createElement("div");c.id="remCard";c.innerHTML=`<h2>عملاء غابوا</h2><div class="box cc-stat" role="button" style="cursor:pointer" onclick="go('rem')"><div class="cc-l">غايبين من ${C.remN.d} يوم أو أكتر</div><div class="cc-n">${num(C.remN.n)}</div><div class="m">اضغط تبعتلهم رسالة واتساب جاهزة</div></div>`;
-  A.prepend(c)}catch(e){}}})();
+  if(A.classList.contains("hm-money"))A.after(c);else A.prepend(c)}catch(e){}}})();
 
