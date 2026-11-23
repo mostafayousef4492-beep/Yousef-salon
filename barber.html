@@ -32,6 +32,7 @@ input{font:600 24px "IBM Plex Sans Arabic",system-ui;padding:16px;border-radius:
 <div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="/config.js"></script>
+<script src="/src/features/team/challenge-run.js"></script>
 <script>
 // تابلت الصنايعي: دخول بكود الموظف وكلمة السر (من غير ما الجلسة تتحفظ على التابلت) + خروج تلقائي بعد دقيقة من غير لمس.
 // بينادي ويأكد الحضور ويبدأ الخدمة وينهيها على تذكرة الصنايعي نفسه بس (الصلاحيات في قاعدة البيانات).
@@ -41,7 +42,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const nf=n=>Number(Math.round(n||0)).toLocaleString("ar-EG");
 const MAIL="@staff.abu-yousef-salon.com";
 const toast=t=>{const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)};
-const S={me:null,poll:null,idle:null,bill:{},ph:{},salon:"الصالون",ch:[]};
+const S={me:null,poll:null,idle:null,bill:{},ph:{},salon:"الصالون",ch:[],chOn:false,chL:[]};
 const waNum=ph=>{let d=String(ph||"").replace(/[٠-٩]/g,c=>"٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g,"");if(!d)return"";if(d.startsWith("00"))d=d.slice(2);if(/^01\d{9}$/.test(d))return"20"+d.slice(1);if(/^1\d{9}$/.test(d))return"20"+d;return d.length>=10?d:""};
 function wa(a,kind){const n=waNum(S.ph[a.id]);if(!n)return"";const nm=a.customer_name||"",b=S.me.full_name,cd=a.ticket_code?` (رقم ${a.ticket_code})`:"";
   const M={now:`أهلاً ${nm} 👋\nدورك دلوقتي عند ${b}${cd}. اتفضل على الكرسي.`,soon:`أهلاً ${nm} 👋\nقرّبنا على دورك عند ${b}${cd}. من فضلك خليك قريب من الصالون.`,thx:`شكرًا يا ${nm} على زيارتك ${S.salon} 🙏\nننتظرك تاني.`}[kind];
@@ -74,6 +75,7 @@ async function load(){if(!S.me)return;
   try{const{data:p}=await sb.rpc("my_queue_phones");S.ph={};(p||[]).forEach(x=>S.ph[x.id]=x.phone)}catch(e){}
   if(cur&&!S.bill[cur.id]){try{const{data:b}=await sb.rpc("ticket_bill",{p_id:cur.id});S.bill[cur.id]=b||{}}catch(e){}}
   try{const{data:ch}=await sb.rpc("barber_challenges");S.ch=Array.isArray(ch)?ch:[]}catch(e){S.ch=[]}
+  try{const{data:pr}=await sb.rpc("challenge_present");S.chOn=!!(pr&&pr.on);S.chL=(pr&&pr.list)||[]}catch(e){S.chOn=false;S.chL=[]}
   draw(cur,nx,q)}
 
 function draw(cur,nx,q){drawMain(cur,nx,q);chBox()}
@@ -84,11 +86,15 @@ function drawMain(cur,nx,q){const cd=a=>esc(a.ticket_code||"#"+a.ticket_no);
 <div class="row">${nx.status=="upcoming"?`<button class="btn" onclick="act('call_ticket',${nx.id})">${nx.called?"إعادة نداء":"نادِ عليه"}</button>`:""}${nx.status=="upcoming"&&nx.called?`<button class="btn g" onclick="act('confirm_arrival',${nx.id})">وصل</button>`:""}${nx.status=="checked_in"?`<button class="btn ok" ${cur?"disabled":""} onclick="act('start_service',${nx.id})">ابدأ الخدمة</button>`:""}</div><div class="row">${wa(nx,"now")}${nx.status=="upcoming"?wa(nx,"soon"):""}</div>${cur&&nx.status=="checked_in"?`<div class="m">خلّص اللي على الكرسي الأول</div>`:""}`:`<div class="m">مفيش حد في الانتظار</div>`}</div>`}
 
 const RAR={common:"عادي",rare:"نادر",legend:"أسطوري"};
-function chBox(){if(!S.ch||!S.ch.length)return;const b=document.createElement("div");b.className="box";b.style.border="2px solid var(--gold)";
-  b.innerHTML=`<div class="m">🎯 تحديات اتفق عليها العملاء — أكّد بعد ما يتنفّذ</div>`+S.ch.map(x=>`<div class="box" style="background:#0f1218"><div class="big" style="font-size:26px">${esc(x.customer||"عميل")}</div><div>${esc(x.title)} <span class="tag">${RAR[x.rarity]||""}</span> <span class="tag">${nf(x.points)} نقطة</span></div><div class="row"><button class="btn ok" onclick="chDo(${x.id},true)">اتنفّذ ✅</button><button class="btn g" onclick="chDo(${x.id},false)">ما اتنفّذش</button></div></div>`).join("");
+function chBox(){if(S.chOn&&S.chL.length){const b=document.createElement("div");b.className="box";
+    b.innerHTML=`<div class="m">🎯 عجلة التحدي — لفّ للعميل اللي قدامك</div>`+S.chL.map(x=>`<div class="row" style="align-items:center"><div style="flex:1"><div class="big" style="font-size:26px">${esc(x.customer||"عميل")} <span class="tag">${esc(x.ticket||"")}</span></div><div class="m">${x.current?(x.current.status=="accepted"?"عنده تحدي مقبول":"عنده تحدي مستني رد"):x.left_today>0?"مستواه: "+esc((x.level||{}).name||"مبتدئ"):"خلّص لفّات النهارده"}</div></div><button class="btn" style="flex:0 0 auto;font-size:22px;padding:14px 20px" ${x.current||x.left_today>0?"":"disabled"} onclick="chrOpen(${x.appt},'${esc(x.customer||"").replace(/'/g,"")}',true)">${x.current?"كمّل":"لفّ 🎯"}</button></div>`).join("");
+    $("app").appendChild(b)}
+  if(!S.ch||!S.ch.length)return;const b=document.createElement("div");b.className="box";b.style.border="2px solid var(--gold)";
+  b.innerHTML=`<div class="m">✅ تحديات مقبولة — أكّد بعد ما يتنفّذ</div>`+S.ch.map(x=>`<div class="box" style="background:#0f1218"><div class="big" style="font-size:26px">${esc(x.customer||"عميل")}</div><div>${esc(x.title)} <span class="tag">${RAR[x.rarity]||""}</span> <span class="tag">${nf(x.points)} نقطة</span></div><div class="row"><button class="btn ok" onclick="chDo(${x.id},true)">اتنفّذ ✅</button><button class="btn g" onclick="chDo(${x.id},false)">ما اتنفّذش</button></div></div>`).join("");
   $("app").appendChild(b)}
 async function chDo(id,ok){touch();const{error}=await sb.rpc(ok?"challenge_confirm":"challenge_cancel",{p_id:id});if(error)return toast(error.message);toast(ok?"اتسجّلت النقاط للعميل ✓":"اتلغى التحدي");load()}
 async function act(fn,id){touch();const{error}=await sb.rpc(fn,{p_id:id});if(error)return toast(error.message);if(fn=="finish_ticket")delete S.bill[id];load()}
+window.chrOnClose=()=>{if(S.me)load()};
 init();
 </script>
 </body>

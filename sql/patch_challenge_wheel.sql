@@ -1,8 +1,8 @@
 -- patch_challenge_wheel.sql — ABO YOUSEF CHALLENGE: عجلة التحديات (مستقلة عن عجلة الحظ)
--- العميل بيلف ويطلعله تحدي (عادي/نادر/أسطوري) وبيشوف مكافأته قبل ما يوافق. التحدي بيتنفّذ جوه الصالون
--- وصنايعي العميل بيأكّد من تابلت الصنايعية بس، وبعدها بس النقاط بتتضاف (نقاط ولاء عادية، مرة واحدة لكل لفة).
--- كل القيم من الإعدادات والتحديات والمستويات بتتعدّل من شاشة إدارة التحديات. التحديات موقوفة (challenge_on=false) لحد ما تشغّلها.
--- آمن للتشغيل أكتر من مرة.
+-- العجلة بتتلف من تابلت الصنايعي أو من حساب الموظف (مش من تطبيق العميل) على عميل حاضر عنده تذكرة (وصل أو على الكرسي).
+-- الموظف بيعرض التحدي ونقاطه على العميل: لو وافق بيتسجّل "مقبول"، وبعد التنفيذ الموظف بيأكّد والنقاط بتتضاف (نقاط ولاء، مرة واحدة لكل لفة).
+-- التحديات والنقاط والمستويات والحدود كلها بتتحدد من الإعدادات. موقوفة (challenge_on=false) لحد ما تشغّلها. آمن للتشغيل أكتر من مرة.
+-- (لو كنت شغّلت نسخة أقدم منه: بيشيل دوال لفّ العميل القديمة ويشيل إعدادَي التكلفة والحضور اللي مبقاش ليهم لازمة.)
 
 create table if not exists public.challenge_defs(
   id bigserial primary key,
@@ -48,12 +48,11 @@ create policy "challenge spins mgr read" on public.challenge_spins for select us
 -- العميل والصنايعي بيتعاملوا من الدوال بس (security definer)
 
 insert into public.rule_defs(key, grp, label, hint, kind, min, max, def, danger, kw, sort) values
- ('challenge_on','الولاء','عجلة التحدي شغّالة','موقوفة افتراضيًا. التحديات والنقاط بتتعدّل من شاشة عجلة التحدي','bool',null,null,'false',false,'تحدي تحديات challenge عجلة',130),
+ ('challenge_on','الولاء','عجلة التحدي شغّالة','موقوفة افتراضيًا. بتتلف من التابلت أو حساب الموظف. التحديات والنقاط من شاشة عجلة التحدي','bool',null,null,'false',false,'تحدي تحديات challenge عجلة',130),
  ('challenge_daily_max','الولاء','أقصى لفات تحدي في اليوم للعميل','بيشمل اللي رفضه','num',1,20,'1',false,'تحدي challenge حد يومي',131),
  ('challenge_month_points','الولاء','أقصى نقاط تتوزّع من التحديات في الشهر (للصالون كله)','لما يخلص الرقم العجلة بتقفل لحد الشهر الجاي. صفر = من غير حد (مش مفضّل)','num',0,1000000,'1000',true,'تحدي challenge سقف نقاط',132),
- ('challenge_expire_hours','الولاء','التحدي المقبول بيفضل صالح كام ساعة','بعدها بيتلغي ومفيش نقاط','num',1,72,'6',false,'تحدي challenge مدة صلاحية',133),
- ('challenge_need_visit','الولاء','اللفة بس لما العميل يكون حاضر في الصالون','العميل لازم يكون وصل وعنده تذكرة (حاضر أو على الكرسي)','bool',null,null,'true',false,'تحدي challenge حضور زيارة',134),
- ('challenge_cost','الولاء','تكلفة لفة التحدي (نقاط)','صفر = مجانية','num',0,100000,'0',true,'تحدي challenge تكلفة',135)
+ ('challenge_expire_hours','الولاء','التحدي المقبول بيفضل صالح كام ساعة','بعدها بيتلغي ومفيش نقاط','num',1,72,'6',false,'تحدي challenge مدة صلاحية',133)
+
 on conflict (key) do nothing;
 
 -- مستويات مبدئية (بقيم مخفّضة) وتحديات مبدئية من خطة ABO YOUSEF CHALLENGE بنقاط مخفّضة. عدّلها من شاشة الإدارة.
@@ -91,6 +90,12 @@ select * from (values
 ) v(t,k,r,p,w,s)
 where not exists (select 1 from public.challenge_defs);
 
+delete from public.rule_defs where key in ('challenge_need_visit','challenge_cost');
+drop function if exists public.challenge_status();
+drop function if exists public.challenge_spin();
+drop function if exists public.challenge_accept(bigint);
+drop function if exists public.challenge_decline(bigint);
+
 -- مستوى العميل من نقاط تحدياته المؤكدة
 create or replace function public.p_challenge_level(p_pts int)
 returns jsonb language sql stable security definer set search_path = public, pg_temp as $$
@@ -101,42 +106,48 @@ returns jsonb language sql stable security definer set search_path = public, pg_
 $$;
 revoke all on function public.p_challenge_level(int) from public, anon;
 
-create or replace function public.challenge_status()
-returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare c customers; v_pts int; v_today int; v_max int := p_ref_cfg('challenge_daily_max',1)::int; v_cost int := p_ref_cfg('challenge_cost',0)::int;
-        v_hours int := p_ref_cfg('challenge_expire_hours',6)::int; v_need boolean := p11_cfg_bool('challenge_need_visit', true); v_here boolean; cur challenge_spins;
+-- مين يقدر يشغّل عجلة التحدي على تذكرة: الصنايعي على تذكرته، والمدير/الكاشير على أي تذكرة حاضرة
+create or replace function public.p_challenge_can(p_appt bigint)
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (select 1 from appointments a where a.id = p_appt and a.status::text in ('checked_in','in_service')
+     and ((exists (select 1 from profiles p where p.id = auth.uid() and p.role::text = 'barber') and a.barber_id = auth.uid())
+          or coalesce(is_mgr(), false) or coalesce(can_use_pos(), false)))
+$$;
+revoke all on function public.p_challenge_can(bigint) from public, anon;
+
+-- العملاء الحاضرين دلوقتي (للعجلة) + التحدي المفتوح لكل واحد
+create or replace function public.challenge_present()
+returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare v_hours int := p_ref_cfg('challenge_expire_hours',6)::int; v_on boolean := p11_cfg_bool('challenge_on', false); v_max int := p_ref_cfg('challenge_daily_max',1)::int;
 begin
-  select * into c from customers where user_id = auth.uid();
-  if not found or not p11_cfg_bool('challenge_on', false) then return jsonb_build_object('on', false); end if;
-  select coalesce(sum(points),0) into v_pts from challenge_spins where customer_id = c.id and status = 'done';
-  select count(*) into v_today from challenge_spins where customer_id = c.id and created_at > now() - interval '1 day';
-  v_here := exists (select 1 from appointments a where a.customer_id = c.id and a.status::text in ('checked_in','in_service'));
-  select * into cur from challenge_spins where customer_id = c.id
-     and ((status = 'offered' and created_at > now() - interval '1 hour') or (status = 'accepted' and accepted_at > now() - make_interval(hours => v_hours)))
-     order by id desc limit 1;
-  return jsonb_build_object('on', true, 'points', c.points, 'cost', v_cost, 'left_today', greatest(v_max - v_today, 0),
-    'here', v_here, 'need_visit', v_need, 'earned', v_pts, 'level', p_challenge_level(v_pts),
-    'current', case when cur.id is null then null else jsonb_build_object('id', cur.id, 'title', cur.title, 'rarity', cur.rarity, 'points', cur.points, 'status', cur.status) end);
+  if not (coalesce(is_mgr(), false) or coalesce(can_use_pos(), false) or exists (select 1 from profiles where id = auth.uid() and role::text = 'barber')) then raise exception 'غير مصرح'; end if;
+  return jsonb_build_object('on', v_on, 'list', case when not v_on then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object('appt', a.id, 'ticket', a.ticket_code, 'customer', c.name, 'status', a.status::text,
+       'earned', e.pts, 'level', p_challenge_level(e.pts),
+       'left_today', greatest(v_max - (select count(*) from challenge_spins x where x.customer_id = c.id and x.created_at > now() - interval '1 day'), 0),
+       'current', (select jsonb_build_object('id', s.id, 'title', s.title, 'rarity', s.rarity, 'points', s.points, 'status', s.status)
+                     from challenge_spins s where s.customer_id = c.id
+                      and ((s.status = 'offered' and s.created_at > now() - interval '1 hour') or (s.status = 'accepted' and s.accepted_at > now() - make_interval(hours => v_hours)))
+                     order by s.id desc limit 1)) order by a.status::text desc, a.id)
+    from appointments a join customers c on c.id = a.customer_id
+    cross join lateral (select coalesce(sum(points),0)::int pts from challenge_spins y where y.customer_id = c.id and y.status = 'done') e
+   where p_challenge_can(a.id)), '[]'::jsonb) end);
 end $$;
 
-create or replace function public.challenge_spin()
+create or replace function public.challenge_spin(p_appt bigint)
 returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare c customers; v_today int; v_max int := p_ref_cfg('challenge_daily_max',1)::int; v_cost int := p_ref_cfg('challenge_cost',0)::int; v_cap int := p_ref_cfg('challenge_month_points',1000)::int;
-        v_hours int := p_ref_cfg('challenge_expire_hours',6)::int; v_need boolean := p11_cfg_bool('challenge_need_visit', true);
-        v_tot int; v_pick int; v_acc int := 0; d challenge_defs; v_ch challenge_defs; v_month int; v_id bigint; v_open int; v_room int;
+declare a appointments; c customers; v_today int; v_max int := p_ref_cfg('challenge_daily_max',1)::int; v_cap int := p_ref_cfg('challenge_month_points',1000)::int;
+        v_hours int := p_ref_cfg('challenge_expire_hours',6)::int; v_tot int; v_pick int; v_acc int := 0; d challenge_defs; v_ch challenge_defs; v_month int; v_id bigint; v_open int; v_room int;
 begin
   if not p11_cfg_bool('challenge_on', false) then raise exception 'عجلة التحدي مش شغّالة دلوقتي'; end if;
-  select * into c from customers where user_id = auth.uid() for update;
-  if not found then raise exception 'سجّل دخول الأول'; end if;
-  if v_need and not exists (select 1 from appointments a where a.customer_id = c.id and a.status::text in ('checked_in','in_service')) then
-    raise exception 'عجلة التحدي بتتلف وانت في الصالون (بعد ما توصل ويتسجّل حضورك)'; end if;
+  if not p_challenge_can(p_appt) then raise exception 'العميل ده مش حاضر على تذكرتك'; end if;
+  select * into a from appointments where id = p_appt;
+  select * into c from customers where id = a.customer_id for update;
   select count(*) into v_open from challenge_spins where customer_id = c.id
      and ((status = 'offered' and created_at > now() - interval '1 hour') or (status = 'accepted' and accepted_at > now() - make_interval(hours => v_hours)));
-  if v_open > 0 then raise exception 'عندك تحدي لسه مخلصش'; end if;
+  if v_open > 0 then raise exception 'العميل ده عنده تحدي لسه مخلصش'; end if;
   select count(*) into v_today from challenge_spins where customer_id = c.id and created_at > now() - interval '1 day';
-  if v_today >= v_max then raise exception 'وصلت للحد الأقصى من لفات التحدي النهارده'; end if;
-  if v_cost > 0 and c.points < v_cost then raise exception 'نقاطك مش كفاية (محتاج % نقطة)', v_cost; end if;
-  -- النقاط المتبقية في السقف الشهري (المؤكّدة + المقبولة اللي لسه مستنية)
+  if v_today >= v_max then raise exception 'العميل ده وصل للحد الأقصى من لفات التحدي النهارده'; end if;
   select coalesce(sum(points),0) into v_month from challenge_spins where created_at >= date_trunc('month', now()) and status in ('done','accepted');
   v_room := case when v_cap > 0 then greatest(v_cap - v_month, 0) else 2147483647 end;
   select coalesce(sum(weight),0) into v_tot from challenge_defs where active and points <= v_room;
@@ -146,31 +157,47 @@ begin
     v_acc := v_acc + d.weight;
     if v_pick < v_acc then v_ch := d; exit; end if;
   end loop;
-  if v_cost > 0 then perform add_points(c.id, -v_cost, 'challenge_spin', null, 'لفة عجلة التحدي'); end if;
   insert into challenge_spins(customer_id, def_id, title, rarity, points) values (c.id, v_ch.id, v_ch.title, v_ch.rarity, v_ch.points) returning id into v_id;
-  return jsonb_build_object('id', v_id, 'title', v_ch.title, 'rarity', v_ch.rarity, 'points', v_ch.points);
+  return jsonb_build_object('id', v_id, 'customer', c.name, 'title', v_ch.title, 'rarity', v_ch.rarity, 'points', v_ch.points);
 end $$;
 
-create or replace function public.challenge_accept(p_id bigint)
+-- الموظف بيسجّل رد العميل (وافق/رفض) بعد ما يعرض عليه التحدي ونقاطه
+create or replace function public.challenge_answer(p_id bigint, p_accept boolean)
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
-declare s challenge_spins; c customers;
+declare s challenge_spins; v_appt bigint;
 begin
-  select * into c from customers where user_id = auth.uid();
-  select * into s from challenge_spins where id = p_id and customer_id = c.id for update;
+  select * into s from challenge_spins where id = p_id for update;
   if not found or s.status <> 'offered' or s.created_at < now() - interval '1 hour' then raise exception 'التحدي ده مش متاح'; end if;
-  update challenge_spins set status = 'accepted', accepted_at = now() where id = p_id;
+  select a.id into v_appt from appointments a where a.customer_id = s.customer_id and p_challenge_can(a.id) limit 1;
+  if v_appt is null then raise exception 'العميل ده مش على تذكرتك'; end if;
+  update challenge_spins set status = case when p_accept then 'accepted' else 'declined' end, accepted_at = case when p_accept then now() end where id = p_id;
 end $$;
 
-create or replace function public.challenge_decline(p_id bigint)
-returns void language plpgsql security definer set search_path = public, pg_temp as $$
-declare c customers;
+create or replace function public.challenge_confirm(p_id bigint)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare s challenge_spins; v_hours int := p_ref_cfg('challenge_expire_hours',6)::int; v_appt bigint;
 begin
-  select * into c from customers where user_id = auth.uid();
-  update challenge_spins set status = 'declined' where id = p_id and customer_id = c.id and status = 'offered';
-  if not found then raise exception 'التحدي ده مش متاح'; end if;
+  select * into s from challenge_spins where id = p_id for update;
+  if not found or s.status <> 'accepted' then raise exception 'التحدي ده اتأكّد أو اتلغى قبل كده'; end if;
+  if s.accepted_at < now() - make_interval(hours => v_hours) then raise exception 'التحدي ده انتهت صلاحيته'; end if;
+  select a.id into v_appt from appointments a where a.customer_id = s.customer_id and p_challenge_can(a.id) limit 1;
+  if v_appt is null then raise exception 'العميل ده مش على تذكرتك دلوقتي'; end if;
+  update challenge_spins set status = 'done', done_at = now(), done_by = auth.uid() where id = p_id;
+  if s.points > 0 then perform add_points(s.customer_id, s.points, 'challenge', null, 'تحدي: ' || left(s.title, 80)); end if;
+  return jsonb_build_object('points', s.points);
 end $$;
 
--- تابلت الصنايعي: التحديات المقبولة لعملاء الصنايعي الحاضرين دلوقتي
+create or replace function public.challenge_cancel(p_id bigint)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare s challenge_spins;
+begin
+  select * into s from challenge_spins where id = p_id and status in ('offered','accepted') for update;
+  if not found then raise exception 'التحدي ده مش متاح'; end if;
+  if not exists (select 1 from appointments a where a.customer_id = s.customer_id and p_challenge_can(a.id)) then raise exception 'العميل ده مش على تذكرتك'; end if;
+  update challenge_spins set status = 'cancelled' where id = p_id;
+end $$;
+
+-- تابلت الصنايعي: التحديات المقبولة لعملاء الصنايعي الحاضرين (للتأكيد بعد التنفيذ)
 create or replace function public.barber_challenges()
 returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare v_hours int := p_ref_cfg('challenge_expire_hours',6)::int;
@@ -179,31 +206,7 @@ begin
   return coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'customer', c.name, 'title', s.title, 'rarity', s.rarity, 'points', s.points) order by s.accepted_at)
     from challenge_spins s join customers c on c.id = s.customer_id
    where s.status = 'accepted' and s.accepted_at > now() - make_interval(hours => v_hours)
-     and exists (select 1 from appointments a where a.customer_id = s.customer_id and a.barber_id = auth.uid() and a.status::text in ('checked_in','in_service'))), '[]'::jsonb);
-end $$;
-
-create or replace function public.challenge_confirm(p_id bigint)
-returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
-declare s challenge_spins; v_hours int := p_ref_cfg('challenge_expire_hours',6)::int;
-begin
-  if not exists (select 1 from profiles where id = auth.uid() and role::text = 'barber') then raise exception 'غير مصرح'; end if;
-  select * into s from challenge_spins where id = p_id for update;
-  if not found or s.status <> 'accepted' then raise exception 'التحدي ده اتأكّد أو اتلغى قبل كده'; end if;
-  if s.accepted_at < now() - make_interval(hours => v_hours) then raise exception 'التحدي ده انتهت صلاحيته'; end if;
-  if not exists (select 1 from appointments a where a.customer_id = s.customer_id and a.barber_id = auth.uid() and a.status::text in ('checked_in','in_service')) then
-    raise exception 'العميل ده مش على تذكرتك دلوقتي'; end if;
-  update challenge_spins set status = 'done', done_at = now(), done_by = auth.uid() where id = p_id;
-  if s.points > 0 then perform add_points(s.customer_id, s.points, 'challenge', null, 'تحدي: ' || left(s.title, 80)); end if;
-  return jsonb_build_object('points', s.points);
-end $$;
-
-create or replace function public.challenge_cancel(p_id bigint)
-returns void language plpgsql security definer set search_path = public, pg_temp as $$
-begin
-  if not exists (select 1 from profiles where id = auth.uid() and role::text = 'barber') then raise exception 'غير مصرح'; end if;
-  update challenge_spins set status = 'cancelled' where id = p_id and status = 'accepted'
-    and exists (select 1 from appointments a where a.customer_id = challenge_spins.customer_id and a.barber_id = auth.uid() and a.status::text in ('checked_in','in_service'));
-  if not found then raise exception 'التحدي ده مش على تذكرتك'; end if;
+     and exists (select 1 from appointments a where a.customer_id = s.customer_id and p_challenge_can(a.id))), '[]'::jsonb);
 end $$;
 
 create or replace function public.challenge_report(p_days int default 30)
@@ -219,6 +222,6 @@ begin
     'by_title', (select coalesce(jsonb_agg(jsonb_build_object('title', title, 'n', n, 'done', d) order by n desc), '[]'::jsonb) from (select title, count(*) n, count(*) filter (where status='done') d from challenge_spins where created_at > now() - make_interval(days => p_days) group by title limit 20) q));
 end $$;
 
-revoke all on function public.challenge_status(), public.challenge_spin(), public.challenge_accept(bigint), public.challenge_decline(bigint), public.barber_challenges(), public.challenge_confirm(bigint), public.challenge_cancel(bigint), public.challenge_report(int) from public, anon;
-grant execute on function public.challenge_status(), public.challenge_spin(), public.challenge_accept(bigint), public.challenge_decline(bigint), public.barber_challenges(), public.challenge_confirm(bigint), public.challenge_cancel(bigint), public.challenge_report(int) to authenticated;
--- تراجع: drop function challenge_status(), challenge_spin(), challenge_accept(bigint), challenge_decline(bigint), barber_challenges(), challenge_confirm(bigint), challenge_cancel(bigint), challenge_report(int), p_challenge_level(int); drop table challenge_spins, challenge_defs, challenge_levels; delete from rule_defs where key like 'challenge_%';
+revoke all on function public.challenge_present(), public.challenge_spin(bigint), public.challenge_answer(bigint, boolean), public.challenge_confirm(bigint), public.challenge_cancel(bigint), public.barber_challenges(), public.challenge_report(int) from public, anon;
+grant execute on function public.challenge_present(), public.challenge_spin(bigint), public.challenge_answer(bigint, boolean), public.challenge_confirm(bigint), public.challenge_cancel(bigint), public.barber_challenges(), public.challenge_report(int) to authenticated;
+-- تراجع: drop function challenge_present(), challenge_spin(bigint), challenge_answer(bigint,boolean), challenge_confirm(bigint), challenge_cancel(bigint), barber_challenges(), challenge_report(int), p_challenge_can(bigint), p_challenge_level(int); drop table challenge_spins, challenge_defs, challenge_levels; delete from rule_defs where key like 'challenge_%';
