@@ -180,7 +180,7 @@ async function fullDrawer(){const to=bizToday(),today=new Date(to+"T00:00");
 const fullCost=()=>(+C.fr.cogs||0)+(+C.fr.expenses||0)+(+C.fr.staff_cost||0);
 function fullDraw(){const e=$("rpf"),f=C.fr;if(!e||!f)return;const cost=fullCost(),dr=C.fdr&&C.fdr.f.expected_cash!=null?+C.fdr.f.expected_cash:null;
   e.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">${kc("شغل المحل",fm(f.revenue),"","fullWork()")}${kc("المصاريف (الكل)",fm(cost),"var(--red)","fullExp()")}${kc("صافي الربح",fm(f.profit),f.profit>=0?"var(--ok)":"var(--red)","fullProfit()")}${kc("الموجود في الدرج (متوقع)",dr==null?"—":fm(dr),"","fullDrawerOpen()")}</div>
-<div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
+<div class="m" style="margin-top:8px">${num(f.invoices)} فاتورة${(f.by_pay||[]).length?" · "+f.by_pay.map(x=>({cash:"كاش",card:"كارت",wallet:"محفظة",member:"رصيد اشتراك"}[x.m]||x.m)+" "+fm(x.t)).join(" · "):""}</div>
 <div class="m" style="margin-top:4px">اضغط على أي كارت تشوف تفاصيله.</div>`}
 const fRow=(l,v,a,c)=>`<div class="row"${a?` role="button" style="cursor:pointer" onclick="${a}"`:""}><div><b>${l}</b></div><b${c?` style="color:${c}"`:""}>${v}${a?" ›":""}</b></div>`;
 function fullWork(){const f=C.fr,L=(f.staff||[]).filter(x=>+x.sales>0),tot=L.reduce((a,x)=>a+(+x.sales),0),rest=(+f.revenue)-tot;
