@@ -1,0 +1,6 @@
+/* money/store-staff.js — حجوزات المتجر عند الكاشير/المدير */
+async function storeStaff(){dsOpen("🛍️ حجوزات المتجر",`<p class="m">بنحمّل...</p>`);
+  const{data,error}=await sb.rpc("store_reserves_open");if(error)return dsOpen("🛍️ حجوزات المتجر",`<p class="m">${esc(error.message)}</p>`);
+  const ST={pending:"جديد",ready:"جاهز"};
+  dsOpen("🛍️ حجوزات المتجر",`<p class="m">الحجز مابيخصمش من المخزون. لما العميل يستلم، بيعه من نقطة البيع عادي وبعدين اضغط «اتسلّم».</p>${(data||[]).length?data.map(r=>`<div class="box" style="margin-bottom:8px"><div class="row"><div><b>${esc(r.product)} × ${r.qty}</b> <span class="tag">${ST[r.status]||r.status}</span><div class="m">${esc(r.customer)} · ${esc(r.phone||"")} · ${num(r.price*r.qty)} جنيه${r.stock<r.qty?" · ⚠️ المخزون "+r.stock+" بس":""}</div></div></div><div class="row" style="gap:6px;margin-top:6px">${r.status=="pending"?`<button class="btn s" onclick="storeSet(${r.id},'ready')">جاهز</button>`:""}<button class="btn s" onclick="storeSet(${r.id},'picked')">اتسلّم</button><button class="btn g" onclick="storeSet(${r.id},'cancelled')">إلغاء</button></div></div>`).join(""):`<p class="m">مفيش حجوزات مفتوحة.</p>`}`)}
+async function storeSet(id,s){if(s=="cancelled"&&!await askConfirm("إلغاء الحجز؟"))return;const{error}=await sb.rpc("store_reserve_set",{p_id:id,p_status:s});error?toast(error.message):storeStaff()}
