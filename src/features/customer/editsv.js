@@ -19,7 +19,7 @@ async function esvOpen(id){ESV.id=id;ESV.b=null;
   esvDraw()}
 
 function esvDraw(){const b=ESV.b,sel=b.s,tot=BN.calc(b,C.sv).total;
-  dsOpen("عدّل خدماتك",`<div class="box">${BN.html(b,"esvPb",fm)}<h2 style="margin-top:0">الخدمات ${sel.length?`<span class="m">✓ اخترت ${sel.length} · ${fm(tot)}</span>`:""}</h2>${SG.render(C.sv,sel,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="esvTog(${x.id})">${BN.star(b,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(b,C.sv,fm)}
+  dsOpen("عدّل خدماتك",`<div class="box">${BN.html(b,"esvPb",fm)}<h2 style="margin-top:0">الخدمات ${sel.length?`<span class="m">✓ اخترت ${sel.length} · ${fm(tot)}</span>`:""}</h2>${SG.render(C.sv,sel,(x,s,sh)=>`<button class="chip ${s?"sel":""}" onclick="esvTog(${x.id})">${BN.star(b,x.id)}${esc(sh?SG.label(x):x.name)} · ${x.price}</button>`)}${BN.summary(b,C.sv,fm,"esvDraw")}
 <div class="m" style="margin-top:8px">التعديل متاح لحد ما الصنايعي يبدأ الخدمة. السعر بيتحسب عند الكاشير على الخدمات اللي تختارها.</div>
 <button class="btn" style="width:100%;margin-top:12px" ${sel.length?"":"disabled"} onclick="esvSave()">حفظ التعديل</button><button class="btn g" style="width:100%;margin-top:8px" onclick="svcClose()">رجوع</button></div>`)}
 function esvTog(id){const b=ESV.b;b.s=SG.tog(b.s,id,C.sv);BN.sync(b);esvDraw()}
