@@ -55,4 +55,4 @@ async function chrSpin(){if(CHR.busy)return;CHR.busy=true;chrDraw();
 async function chrAnswer(ok){const{error}=await sb.rpc("challenge_answer",{p_id:CHR.cur.id,p_accept:!!ok});if(error)return toast(error.message);
   if(ok){CHR.cur.status="accepted";chrDraw()}else{CHR.cur=null;chrDraw("اتسجّل إن العميل مش موافق. مفيش مشكلة 👍")}}
 async function chrFinish(ok){const id=CHR.cur.id;const{data,error}=await sb.rpc(ok?"challenge_confirm":"challenge_cancel",{p_id:id});if(error)return toast(error.message);
-  CHR.cur=null;chrDraw(ok?`🎉 اتضافت ${chrN(data&&data.points)} نقطة لحساب ${esc(CHR.name||"العميل")}`:"اتلغى التحدي ومفيش نقاط")}
+  CHR.cur=null;chrDraw(ok?`🎉 اتضافت ${chrN(data&&data.points)} نقطة لحساب ${esc(CHR.name||"العميل")}${(data&&data.level_rewards||[]).map(g=>`<br>🏅 وصل مستوى «${esc(g.level)}» وخد ${chrN(g.points)} نقطة مكافأة`).join("")}`:"اتلغى التحدي ومفيش نقاط")}

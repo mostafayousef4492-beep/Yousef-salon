@@ -7,3 +7,9 @@ async function posMemLoad(P){try{const{data,error}=await sb.rpc("member_get",{p_
   P.mem=!error&&data&&["active","expired"].includes(data.status)&&(+data.paid+ +data.bonus)>0?data:null;
   if(!P.mem&&P.pay=="member")P.pay="cash"}catch(e){P.mem=null}
   P.memBusy=0;if(C.P===P)drawPos()}
+
+/* اختيار طريقة دفع فرق الرصيد (كاش / كارت / محفظة) */
+function memPickDiff(amt){return new Promise(res=>{const w=document.createElement("div");w.className="dlg-bg";
+  w.innerHTML=`<div class="dlg" role="alertdialog" aria-modal="true"><p>الفرق <b>${fm(amt)}</b> بيتدفع إزاي؟</p><div class="dlg-b" style="flex-wrap:wrap"><button class="btn" data-m="cash">كاش</button><button class="btn" data-m="card">كارت</button><button class="btn" data-m="wallet">محفظة</button><button class="btn g" data-m="">إلغاء</button></div></div>`;
+  document.body.appendChild(w);const done=v=>{w.remove();res(v||null)};
+  w.querySelectorAll("button").forEach(b=>b.onclick=()=>done(b.dataset.m));w.onclick=e=>{if(e.target===w)done(null)}})}
