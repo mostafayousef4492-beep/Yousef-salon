@@ -14,11 +14,11 @@ async function wheelOpen(){dsOpen("🎡 عجلة الحظ",`<p class="m">بنح�
   if(error)return dsOpen("🎡 عجلة الحظ",`<p class="m">${/wheel_status|PGRST202|42883/.test(error.code+" "+error.message)?"الميزة دي لسه مش متفعّلة":esc(error.message)}</p>`);
   WH.st=data;if(!data||!data.on)return dsOpen("🎡 عجلة الحظ",`<p class="m">عجلة الحظ مش شغّالة دلوقتي. تابعنا، قريب هتتفتح!</p>`);wheelDraw()}
 
-function wheelDraw(res){const s=WH.st,can=!WH.busy&&s.left_today>0&&(s.free||+s.points>=+s.cost);
-  const sub=s.free?`<b style="color:var(--gold,#c9a35a)">لفتك الأولى مجانية 🎁</b>`:`اللفة بـ <b>${num(s.cost)}</b> نقطة · رصيدك <b>${num(s.points)}</b>`;
-  const why=s.left_today<=0?"خلّصت لفّات النهارده، جرّب بكرة":(!s.free&&+s.points<+s.cost?"نقاطك مش كفاية للفة دلوقتي":"");
+function wheelDraw(res){const s=WH.st,can=!WH.busy&&(s.chair||s.left_today>0&&(s.free||+s.points>=+s.cost));
+  const sub=s.chair?`<b style="color:var(--gold,#c9a35a)">لفة مجانية وإنت على الكرسي 💈</b>`:s.free?`<b style="color:var(--gold,#c9a35a)">لفتك الأولى مجانية 🎁</b>`:`اللفة بـ <b>${num(s.cost)}</b> نقطة · رصيدك <b>${num(s.points)}</b>`;
+  const why=s.chair?"":s.left_today<=0?"خلّصت لفّات النهارده، جرّب بكرة":(!s.free&&+s.points<+s.cost?"نقاطك مش كفاية للفة دلوقتي":"");
   dsOpen("🎡 عجلة الحظ",`<div style="text-align:center">${whSvg(s.slices||[])}<div class="m" style="margin:8px 0">${sub}</div>
-<button class="btn" style="width:100%" ${can?"":"disabled"} onclick="wheelGo()">${WH.busy?"بتلف...":(s.free?"لفّ مجانًا":"لفّ العجلة")}</button>${why?`<div class="m" style="margin-top:8px">${why}</div>`:""}
+<button class="btn" style="width:100%" ${can?"":"disabled"} onclick="wheelGo()">${WH.busy?"بتلف...":(s.chair||s.free?"لفّ مجانًا":"لفّ العجلة")}</button>${why?`<div class="m" style="margin-top:8px">${why}</div>`:""}
 <div id="wh_res" style="margin-top:12px">${res||""}</div><div class="m" style="margin-top:10px">الجوايز أكواد بتطبّقها على فاتورتك في الصالون، وبتلاقيها في «استبدل نقاطك».</div></div>`)}
 
 async function wheelGo(){if(WH.busy)return;WH.busy=true;wheelDraw();
@@ -26,7 +26,7 @@ async function wheelGo(){if(WH.busy)return;WH.busy=true;wheelDraw();
   if(error){WH.busy=false;toast(error.message);return wheelOpen()}
   const n=(WH.st.slices||[]).length||1,step=360/n,target=360*5+(360-(data.index+0.5)*step),red=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   const g=$("wh_g");if(g){g.style.transition=red?"none":"transform 4.2s cubic-bezier(.12,.7,.1,1)";WH.rot=(Math.floor(WH.rot/360)*360)+target;g.style.transform=`rotate(${WH.rot}deg)`}
-  setTimeout(()=>{WH.busy=false;WH.st.free=false;WH.st.points=data.points;WH.st.left_today=Math.max(0,(WH.st.left_today||1)-1);
+  setTimeout(()=>{WH.busy=false;WH.st.points=data.points;if(data.chair)WH.st.chair=false;else{WH.st.free=false;WH.st.left_today=Math.max(0,(WH.st.left_today||1)-1)}
     const html=data.win?`<div class="box" style="border-color:var(--gold,#c9a35a)"><div style="font-size:18px;font-weight:700">🎉 كسبت: ${esc(data.label)}</div><div class="m" style="margin:6px 0">كودك — وريه للكاشير:</div><div dir="ltr" style="font-size:26px;font-weight:700;letter-spacing:3px">${esc(data.code)}</div></div>`:`<div class="box"><b>${esc(data.label)}</b><div class="m">جرّب تاني، الحظ جاي!</div></div>`;
     wheelDraw(html)},red?50:4300)}
 
@@ -51,10 +51,18 @@ async function wheelCard(){
     const sh=document.querySelector("#app .hm-shell");if(!sh||$("hmwheel"))return;
     const{data:s,error}=await sb.rpc("wheel_status");if(error||!s||!s.on)return;
     const sh2=document.querySelector("#app .hm-shell");if(!sh2||$("hmwheel"))return;
-    const can=s.left_today>0&&(s.free||+s.points>=+s.cost);
+    const can=s.chair||s.left_today>0&&(s.free||+s.points>=+s.cost);
     const d=document.createElement("div");d.id="hmwheel";d.className="box";d.style.cssText="display:flex;align-items:center;gap:12px;cursor:pointer;margin-top:10px";d.setAttribute("role","button");d.tabIndex=0;d.onclick=()=>wheelOpen();d.onkeydown=e=>{if(e.key=="Enter"||e.key==" ")wheelOpen()};
-    d.innerHTML=`<span style="font-size:34px;line-height:1" aria-hidden="true">🎡</span><div style="flex:1"><b>${s.free?"لفتك المجانية جاهزة!":"عجلة الحظ"}</b><div class="m">${s.free?"لفّ واكسب خصم أو خدمة":(can?"لفّ بـ "+num(s.cost)+" نقطة واكسب خصم أو خدمة":(s.left_today<=0?"خلّصت لفّات النهارده":"محتاج "+num(s.cost)+" نقطة للفة"))}</div></div><span class="btn s">${s.free?"لفّ مجانًا":"افتح"}</span>`;
+    d.innerHTML=`<span style="font-size:34px;line-height:1" aria-hidden="true">🎡</span><div style="flex:1"><b>${s.chair?"لفة مجانية وإنت على الكرسي 💈":s.free?"لفتك المجانية جاهزة!":"عجلة الحظ"}</b><div class="m">${s.chair||s.free?"لفّ واكسب خصم أو خدمة":(can?"لفّ بـ "+num(s.cost)+" نقطة واكسب خصم أو خدمة":(s.left_today<=0?"خلّصت لفّات النهارده":"محتاج "+num(s.cost)+" نقطة للفة"))}</div></div><span class="btn s">${s.free?"لفّ مجانًا":"افتح"}</span>`;
     const h=sh2.querySelector(".hm-head"),live=sh2.querySelector(".hm-live");(live||h)?(live||h).after(d):sh2.prepend(d);
   }catch(e){}
 }
 (()=>{if(window.SALON_MODE!=="customer")return;const q=typeof V!="undefined"&&V.hm;if(!q)return;V.hm=async()=>{await q();wheelCard()}})();
+/* لفة الكرسي: وإنت في شاشة دورك وعلى الكرسي، بيظهر زر اللفة المجانية */
+(()=>{if(window.SALON_MODE!=="customer")return;const q=typeof V!="undefined"&&V.queue;if(!q)return;
+V.queue=async function(){const r=await q.apply(this,arguments);try{
+  const{data:s,error}=await sb.rpc("wheel_status");if(error||!s||!s.on||!s.chair)return r;
+  const a=$("app");if(!a||tab!="queue"||$("qwheel"))return r;
+  const d=document.createElement("div");d.id="qwheel";d.className="box";d.style.cssText="display:flex;align-items:center;gap:12px;cursor:pointer;margin:10px 0;border:1px solid var(--gold,#c9a35a)";d.setAttribute("role","button");d.tabIndex=0;d.onclick=()=>wheelOpen();d.onkeydown=e=>{if(e.key=="Enter"||e.key==" ")wheelOpen()};
+  d.innerHTML=`<span style="font-size:34px;line-height:1" aria-hidden="true">🎡</span><div style="flex:1"><b>لفة مجانية وإنت على الكرسي 💈</b><div class="m">اضغط ولفّ العجلة واكسب خصم أو خدمة</div></div>`;
+  a.prepend(d)}catch(e){}return r}})();
