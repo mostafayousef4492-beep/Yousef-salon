@@ -6,7 +6,7 @@ const mbF=n=>Number(+n||0).toLocaleString("ar-EG",{maximumFractionDigits:2});
 const mbD=s=>{try{return new Date(s+"T12:00:00").toLocaleDateString("ar-EG",{day:"numeric",month:"long"})}catch(e){return s}};
 
 async function memOpen(){dsOpen("💳 رصيدي",`<p class="m">بنحمّل...</p>`);const{data:d,error}=await sb.rpc("member_me");
-  if(error||!d)return dsOpen("💳 رصيدي",`<p class="m">${error?esc(error.message):"مفيش اشتراك على حسابك لسه. اسأل الكاشير عن باقات الرصيد."}</p>`);
+  if(error||!d)return dsOpen("💳 رصيدي",`<p class="m">${error?esc(error.message):"مفيش اشتراك على حسابك لسه. اسأل الكاشير عن باقات الرصيد."}</p><button class="btn s" onclick="giftRedeem()">🎁 عندي كارت هدية</button>`);
   const pct=Math.min(100,Math.round(100*d.visits/Math.max(1,d.required)));
   const st={frozen:"الاشتراك مجمّد",expired:"الاشتراك منتهي: الهدية اتصفّرت ورصيدك الأساسي محفوظ",closed:"الاشتراك مقفول"}[d.status];
   dsOpen("💳 رصيدي",`<div class="box"><div class="m">${esc(d.plan)}</div><div style="font-size:30px;font-weight:700;margin:4px 0">${mbF(d.total)} <span class="m">جنيه</span></div>
@@ -16,7 +16,7 @@ ${d.status=="active"?`<div class="box" style="margin-top:10px"><b>زياراتك
 <div style="height:10px;border-radius:6px;background:var(--line,#1d2330);margin:8px 0;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--gold,#c9a35a)"></i></div>
 <div class="row"><span>نفّذت</span><b>${d.visits}</b></div><div class="row"><span>باقي</span><b>${d.remaining}</b></div></div>`:""}
 ${d.notice?`<div class="box" style="margin-top:10px;border:1px solid var(--gold,#c9a35a)"><b>تنبيه</b><div class="m">لو ماكمّلتش ${d.notice.missing} زيارة لحد ${mbD(d.notice.ends_on)}، هيتخصم ${mbF(d.notice.penalty)} جنيه (${mbF(d.penalty_pct)}%) من رصيد الهدية بس. رصيدك الأساسي مش بيتأثر أبداً.</div></div>`:""}
-<h3 style="margin-top:14px">سجل الحركات</h3>${(d.ledger||[]).length?d.ledger.map(l=>`<div class="row"><div><b>${MBK[l.kind]||l.kind}</b> <span class="tag">${l.bucket=="paid"?"أساسي":"هدية"}</span><div class="m">${new Date(l.at).toLocaleDateString("ar-EG",{day:"numeric",month:"short"})}${l.note?" · "+esc(l.note):""}</div></div><b style="color:${+l.amount<0?"var(--red)":"var(--green,#2ea66b)"}">${+l.amount>0?"+":""}${mbF(l.amount)}</b></div>`).join(""):`<p class="m">مفيش حركات.</p>`}`)}
+<button class="btn s" style="margin-top:10px" onclick="giftRedeem()">🎁 عندي كارت هدية</button><h3 style="margin-top:14px">سجل الحركات</h3>${(d.ledger||[]).length?d.ledger.map(l=>`<div class="row"><div><b>${MBK[l.kind]||l.kind}</b> <span class="tag">${l.bucket=="paid"?"أساسي":"هدية"}</span><div class="m">${new Date(l.at).toLocaleDateString("ar-EG",{day:"numeric",month:"short"})}${l.note?" · "+esc(l.note):""}</div></div><b style="color:${+l.amount<0?"var(--red)":"var(--green,#2ea66b)"}">${+l.amount>0?"+":""}${mbF(l.amount)}</b></div>`).join(""):`<p class="m">مفيش حركات.</p>`}`)}
 
 async function memCard(){try{
   const sh=document.querySelector("#app .hm-shell");if(!sh||$("hmmem"))return;

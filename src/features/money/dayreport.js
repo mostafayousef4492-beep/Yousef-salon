@@ -28,4 +28,8 @@ ${r.closing?`<div class="row"><div>فرق الجرد</div><b>كاش ${n(r.closin
 <div class="row"><div>متأخرين</div><b>${a.late||0}${a.late_min?" · "+a.late_min+" دقيقة":""}</b></div>
 ${(a.absent||[]).length?`<div class="row"><div>لسه ماسجلوش حضور</div><b>${a.absent.map(esc).join("، ")}</b></div>`:""}
 ${low.length?`<h2>مخزون على الحد الأدنى</h2><p class="m">${low.map(esc).join("، ")}</p>`:""}
-<p class="m" style="margin-top:12px">الأرقام دي بتتحسب من بيانات الصالون الفعلية ومبتغيّرش أي حاجة. القرار ليك.</p>`)};
+<div id="dyacc"></div><p class="m" style="margin-top:12px">الأرقام دي بتتحسب من بيانات الصالون الفعلية ومبتغيّرش أي حاجة. القرار ليك.</p>`);dyAcc()};
+
+// حسابات محتاجة مراجعة (آخر 14 يوم): أيام من غير قفل، فرق جرد من غير سبب، أيام اتغيّرت بعد القفل، حركات/مصروفات من غير تفاصيل
+async function dyAcc(){const e=$("dyacc");if(!e)return;const{data,error}=await sb.rpc("accounting_alerts",{p_days:14});if(error||!Array.isArray(data))return;
+  e.innerHTML=`<h2>حسابات محتاجة مراجعة (آخر 14 يوم)</h2>${data.length?data.map(x=>{const l=DY_LV[x.level]||DY_LV.info;return `<div class="row" style="border-inline-start:4px solid ${l[1]}"><div>${l[0]} ${esc(x.text)}</div></div>`}).join(""):`<p class="m">الحسابات مكتملة ✓</p>`}`}
