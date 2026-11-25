@@ -41,14 +41,14 @@ async function swSpin(id){if(SWH.busy)return;SWH.busy=true;const sl=(SWH.me&&SWH
   const n=sl.length||1,i=Math.max(0,sl.findIndex(s=>s.id==data.slice_id)),red=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
   const target=360*(red?0:5)+(360-(i+.5)*360/n);SWH.rot=target;const g=document.getElementById("sw_rot");
   if(g){g.style.transition=red?"none":"transform 4s cubic-bezier(.12,.7,.1,1)";g.style.transform=`rotate(${target}deg)`}
-  setTimeout(()=>{SWH.busy=false;const none=data.kind=="none";swShell(`<h2>${none?"حظ أوفر":"🎉 كسبت"}</h2>${swWheel(sl)}<div style="font-size:24px;font-weight:700;margin:8px 0">${esc(data.label)}</div><div style="color:#9aa0ab">${data.kind=="cash"?"اتسجّلت مكافأة في حسابك وهتتصرف مع الراتب":data.kind=="points"?"نقاطك دلوقتي "+swN(data.points):"كمّل تحديات وجرّب تاني"}</div><button class="btn" style="margin-top:14px;width:100%" onclick="swClose()">تمام</button>`)},red?100:4300)}
+  setTimeout(()=>{SWH.busy=false;const none=data.kind=="none";swShell(`<h2>${none?"حظ أوفر":"🎉 كسبت"}</h2>${swWheel(sl)}<div style="font-size:24px;font-weight:700;margin:8px 0">${esc(data.label)}</div><div style="color:#9aa0ab">${data.kind=="cash"?"اتسجّلت مكافأة في حسابك وهتتصرف مع الراتب":data.kind=="points"?"نقاطك دلوقتي "+swN(data.points):data.kind=="gift"?"المدير هيسلّمك الهدية":"كمّل تحديات وجرّب تاني"}</div><button class="btn" style="margin-top:14px;width:100%" onclick="swClose()">تمام</button>`)},red?100:4300)}
 
 /* ===== إدارة (للمالك) ===== */
 async function swAdmin(){const T="🧑‍🔧 عجلة تحديات الموظفين";dsOpen(T,`<p class="m">بنحمّل...</p>`);
   const[a,b,c,r]=await Promise.all([sb.from("staff_ch_defs").select("*").order("sort").order("id"),sb.from("staff_wheel_slices").select("*").order("sort").order("id"),sb.from("staff_rewards").select("*").order("cost"),sb.rpc("staff_ch_report",{p_days:30})]);
   if(a.error)return dsOpen(T,`<p class="m">${swNeed(a.error)}</p>`);
   const D=a.data||[],S=b.data||[],W=c.data||[],rep=r.data||{},tw=S.filter(x=>x.active).reduce((t,x)=>t+(+x.weight||0),0);
-  const opt=(L,v)=>L.map(x=>`<option value="${x[0]}" ${x[0]==v?"selected":""}>${x[1]}</option>`).join(""),RL=[["all","الكل"],["assistant","المساعد"],["barber","الصنايعي"]],KL=[["cash","فلوس"],["points","نقاط"],["none","حظ أوفر"]];
+  const opt=(L,v)=>L.map(x=>`<option value="${x[0]}" ${x[0]==v?"selected":""}>${x[1]}</option>`).join(""),RL=[["all","الكل"],["assistant","المساعد"],["barber","الصنايعي"]],KL=[["cash","فلوس"],["points","نقاط"],["gift","هدية عينية"],["none","حظ أوفر"]];
   dsOpen(T,`<p class="m">التشغيل والحدود (لفات اليوم، سقف الفلوس الشهري) من الإعدادات ← المكافآت والولاء. الفلوس بتتسجّل «مكافأة» في حساب الموظف وبتتصرف مع الراتب. مفيش أي خصم.</p>
 <div class="m" style="margin:8px 0">آخر 30 يوم: <b>${swN(rep.done)}</b> تحدي اتأكّد · <b>${swN(rep.rejected)}</b> اترفض · <b>${swN(rep.cash)}</b> جنيه جوايز · <b>${swN(rep.points)}</b> نقطة</div>
 ${(rep.redeems||[]).length?`<h3>طلبات استبدال مستنية</h3>${rep.redeems.map(x=>`<div class="row"><div><b>${esc(x.staff)}</b><div class="m">${esc(x.label)} · ${swN(x.cost)} نقطة</div></div><div><button class="btn s" onclick="swRes(${x.id},true)">تم التسليم</button> <button class="btn s g" onclick="swRes(${x.id},false)">رفض</button></div></div>`).join("")}`:""}

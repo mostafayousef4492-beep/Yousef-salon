@@ -37,6 +37,7 @@ ${f("الاسم","mf-n",x?x.name:"")}
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الحد الأدنى للتنبيه","mf-m",x?matFm(x.min_stock):"0",'inputmode="decimal"')}</div>${x?"":`<div style="flex:1">${f("الكمية الموجودة دلوقتي","mf-q","0",'inputmode="decimal"')}</div>`}</div>
 ${x?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mf-a" ${x.active?"checked":""}> شغّالة (الخصم التلقائي)</label>`:""}
 <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="mf-o" ${x&&x.optional?"checked":""}> اختيارية (بتظهر في الكاشير مع الخدمة، وتمنها بيتخصم قبل نسبة الصنايعي)</label>
+${x&&!("cost_in_commission" in x)?"":`<label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="mf-cc" ${x&&x.cost_in_commission?"checked":""}> تكلفتها تتخصم تلقائي قبل نسبة الصنايعي لما تتباع خدمة مربوطة بيها (زي كيس الحنة مع الصبغة)</label>`}
 <div id="mf-oq" style="${x&&x.optional?"":"display:none"}">${f("الكمية اللي بتتخصم كل مرة (اختيارية)","mf-oqv",x?matFm(x.opt_qty||1):"1",'inputmode="decimal"')}</div>
 ${mgr&&S.length?`<h3 style="margin:14px 0 4px">الاستهلاك مع كل خدمة</h3><p class="m">اكتب الكمية اللي بتتخصم كل مرة الخدمة تتنفّذ، وسيب الخانة فاضية لو الخدمة مبتستهلكهاش.</p>`+S.map(sv=>{const r=x?(C.smat||[]).find(a=>a.service_id==sv.id&&a.material_id==x.id):null;
 return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1">${esc(sv.name)}</span><input type="text" inputmode="decimal" style="width:90px" data-s="${sv.id}" data-o="${r?matFm(r.qty):""}" value="${r?matFm(r.qty):""}"></div>`}).join(""):""}
@@ -66,6 +67,7 @@ if(rec.some(r=>Number.isNaN(r.q)||r.q<0))return toast("كمية استهلاك �
 C.matBusy=1;b.disabled=true;let mid=id,err=null,warn=[];
 {const r=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});if(r.error)err=r.error;else mid=id==null?r.data:id}
 if(!err&&(opt||(x&&x.optional))){const r=await sb.rpc("material_set_optional",{p_id:mid,p_optional:opt,p_qty:oq});if(r.error)warn.push(r.error.message)}
+if(!err&&$("mf-cc")&&($("mf-cc").checked||(x&&x.cost_in_commission))){const r=await sb.rpc("material_set_cost_commission",{p_id:mid,p_on:$("mf-cc").checked});if(r.error)warn.push(r.error.message)}
 if(!err&&!x&&q>0){const r=await sb.rpc("material_restock",{p_id:mid,p_qty:q,p_note:"رصيد ابتدائي"});if(r.error)warn.push("الكمية فشلت: "+r.error.message)}
 if(!err)for(const r of rec){const e=await sb.rpc("service_material_set",{p_service:r.p_service,p_material:mid,p_qty:r.q});if(e.error){warn.push("الاستهلاك: "+e.error.message);break}}
 C.matBusy=0;b.disabled=false;if(err)return toast(err.message);
