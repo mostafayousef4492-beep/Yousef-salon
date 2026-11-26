@@ -1,4 +1,4 @@
--- التشغيل الذاتي لكل الأقسام (اقتراحات): الحجوزات، الأعضاء والمتجر، المخزون، الخزنة وقفل اليوم، الفريق، العملاء، الديون، الكوفي.
+-- التشغيل الذاتي لكل الأقسام (اقتراحات): الحجوزات، الأعضاء والمتجر، المخزون، الخزنة وقفل اليوم، الفريق، العملاء، الديون، الكوفي، الإعدادات والصلاحيات.
 -- بيحتاج patch_autopilot.sql متشغّل قبله. كل قسم له مفتاح وحدود منفصلة ومقفول افتراضيًا، وبيشتغل بس لو المفتاح الرئيسي «enabled» شغّال.
 -- نظام «اقتراح فقط»: السيستم بيفحص كل 15 دقيقة ويطلّع اقتراحات للمالك والمدير (تم / تجاهل)، ومبيعملش أي حركة فلوس ولا بيغيّر بيانات.
 -- آمن لو اتشغّل أكتر من مرة.
@@ -18,7 +18,8 @@ alter table public.autopilot_policy
   add column if not exists cust_on boolean not null default false,
   add column if not exists debt_on boolean not null default false,
   add column if not exists debt_days int not null default 7 check (debt_days between 1 and 90),
-  add column if not exists cafe_on boolean not null default false;
+  add column if not exists cafe_on boolean not null default false,
+  add column if not exists sec_on boolean not null default false;
 
 create table if not exists public.autopilot_suggestions (
   id bigint generated always as identity primary key,
@@ -36,7 +37,7 @@ create table if not exists public.autopilot_suggestions (
 drop index if exists public.autopilot_sugg_open;
 create unique index if not exists autopilot_sugg_once on public.autopilot_suggestions(kind, ref);
 alter table public.autopilot_suggestions drop constraint if exists autopilot_suggestions_area_check;
-alter table public.autopilot_suggestions add constraint autopilot_suggestions_area_check check (area in ('book', 'members', 'stock', 'cash', 'team', 'cust', 'debt', 'cafe'));
+alter table public.autopilot_suggestions add constraint autopilot_suggestions_area_check check (area in ('book', 'members', 'stock', 'cash', 'team', 'cust', 'debt', 'cafe', 'sec'));
 create index if not exists autopilot_sugg_recent on public.autopilot_suggestions(created_at desc);
 alter table public.autopilot_suggestions enable row level security;
 revoke all on public.autopilot_suggestions from public, anon, authenticated;
@@ -183,6 +184,21 @@ begin
     end loop;
   end if;
 
+  if pol.sec_on and to_regclass('public.audit_log') is not null then
+    for r in select a.id, a.table_name tn, a.actor_name an, a.at, left(coalesce(a.summary, ''), 140) sm from audit_log a
+              where a.at > now() - interval '24 hours' and coalesce(a.actor_role, '') <> 'owner'
+                and (a.table_name in ('app_settings', 'rule_defs', 'autopilot_policy')
+                     or (a.table_name = 'profiles' and a.changed && array['role', 'perms', 'commission_pct', 'salary']::text[]))
+              order by a.at desc limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('sec', 'sensitive_change', r.id::text,
+                case when r.tn = 'profiles' then 'تعديل في صلاحيات أو مرتب أو عمولة' else 'تعديل في الإعدادات أو القواعد' end || ' بواسطة ' || coalesce(r.an, 'مجهول'),
+                to_char(r.at at time zone v_tz, 'DD/MM HH24:MI') || ' · ' || r.sm || ' · راجعه في سجل الرقابة.', 'ctl_rules')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
   if n > 0 then
     begin
       perform push_send(push_staff_ids(array['owner', 'manager'], null, null), 'التشغيل الذاتي: ' || n || ' اقتراح جديد', 'افتح «التشغيل الذاتي» وشوف الاقتراحات.', 'auto', 'ap_scan_' || to_char(now() at time zone v_tz, 'YYYYMMDDHH24'), false);
@@ -238,6 +254,7 @@ begin
     debt_on = coalesce((p_policy->>'debt_on')::boolean, debt_on),
     debt_days = coalesce((p_policy->>'debt_days')::int, debt_days),
     cafe_on = coalesce((p_policy->>'cafe_on')::boolean, cafe_on),
+    sec_on = coalesce((p_policy->>'sec_on')::boolean, sec_on),
     updated_by = auth.uid(), updated_at = now()
    where id = 1;
   insert into autopilot_log(kind, ref, decision, detail) values ('policy', null, 'changed', p_policy);

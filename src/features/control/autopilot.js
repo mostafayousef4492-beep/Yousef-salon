@@ -1,7 +1,7 @@
 /* features/control/autopilot.js — التشغيل الذاتي: المالك يحدد السياسة مرة، والسيستم يقرر لوحده في حدودها ويرجعله بالاستثناءات */
 
 const apAMissing=e=>e&&/autopilot_/i.test(e.message||"")&&/(does not exist|schema cache|Could not find)/i.test(e.message||"");
-const AP_K={discount:"خصم",void:"إلغاء فاتورة",policy:"تغيير السياسة"},AP_A={book:"الحجوزات والطابور",members:"الأعضاء والمتجر",stock:"المخزون",cash:"الخزنة وقفل اليوم",team:"الفريق",cust:"العملاء",debt:"الديون",cafe:"الكوفي"},AP_D={approved:"✅ اتنفّذ تلقائي",escalated:"⬆️ اترفع للمالك",error:"⚠️ خطأ",changed:"✎"};
+const AP_K={discount:"خصم",void:"إلغاء فاتورة",policy:"تغيير السياسة"},AP_A={book:"الحجوزات والطابور",members:"الأعضاء والمتجر",stock:"المخزون",cash:"الخزنة وقفل اليوم",team:"الفريق",cust:"العملاء",debt:"الديون",cafe:"الكوفي",sec:"الإعدادات والصلاحيات"},AP_D={approved:"✅ اتنفّذ تلقائي",escalated:"⬆️ اترفع للمالك",error:"⚠️ خطأ",changed:"✎"};
 const apN=v=>{const s=String(v??"").trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));const n=Number(s);return s!==""&&Number.isFinite(n)&&n>=0?n:NaN};
 
 V.auto=async function(){
@@ -40,6 +40,7 @@ ${tg("العملاء","cust_on",p.cust_on,"طلبات استبدال نقاط و
 ${tg("الديون","debt_on",p.debt_on,"فواتير آجلة قديمة لسه مسدّدتش")}
 ${row("الدين القديم بعد","debt_days",p.debt_days+" يوم")}
 ${tg("الكوفي","cafe_on",p.cafe_on,"منتج كوفي وصل للحد الأدنى")}
+${tg("الإعدادات والصلاحيات","sec_on",p.sec_on,"ينبّه لتعديل المدير في الصلاحيات أو المرتبات أو العمولات أو الإعدادات، من غير ما يغيّر حاجة")}
 <h2>الاقتراحات المفتوحة</h2>
 ${SG.length?SG.map(x=>`<div class="row"><div><b>${esc(x.title)}</b><div class="m">${AP_A[x.area]||""} · ${esc(x.body||"")}</div></div><div style="text-align:left"><button class="btn s" onclick="apDecide(${x.id},true)">تم</button> <button class="btn s g" onclick="apDecide(${x.id},false)">تجاهل</button></div></div>`).join(""):`<p class="m">مفيش اقتراحات دلوقتي.</p>`}
 <h2>سجل القرارات التلقائية</h2>

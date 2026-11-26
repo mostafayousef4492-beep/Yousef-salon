@@ -94,6 +94,18 @@ await T("غير الإدارة مايقدرش ينفّذ حتى لو بعت طل
   assert.equal(sb.calls.filter((c) => c[1] === "add_customer").length, 0);
   assert.equal((await runTool({ ...base, uid: UID, role: "barber", sb }, "add_customer", { name: "أحمد" })).result.error, "أداة غير متاحة");
 });
+await T("سحب/إضافة للدرج: كارت تأكيد، سحب المالك للمالك بس، other لازم ملاحظة، ويتسجل في cash_moves", async () => {
+  const sb = mockSb({ rpcs: { business_day_state: { open: true, day: "2026-11-09" } } });
+  const r = await runTool({ ...own, sb }, "cash_move", { kind: "withdraw", amount: "٣٠٠", category: "bank_deposit" });
+  assert.equal(r.result.needs_confirmation, true); assert.equal(sb.inserts.length, 0);
+  assert.equal((await executeAction({ ...mgr, sb }, "cash_move", { kind: "withdraw", amount: 100, category: "owner_draw" })).ok, false);
+  assert.equal((await executeAction({ ...own, sb }, "cash_move", { kind: "withdraw", amount: 100, category: "other" })).ok, false);
+  assert.equal((await executeAction({ ...own, sb }, "cash_move", { kind: "x", amount: 100 })).ok, false);
+  const ok = await executeAction({ ...own, sb }, "cash_move", { kind: "withdraw", amount: 300, category: "bank_deposit", note: "للبنك" });
+  assert.equal(ok.ok, true); assert.deepEqual(sb.inserts[0], ["cash_moves", { day: "2026-11-09", kind: "withdraw", amount: 300, note: "للبنك", category: "bank_deposit" }]);
+  const closed = mockSb({ rpcs: { business_day_state: { open: false } } });
+  assert.equal((await executeAction({ ...own, sb: closed }, "cash_move", { kind: "deposit", amount: 50 + 0, category: "float", note: "" })).ok, false);
+});
 await T("إضافة موظف: كلمة السر مش في الكارت ولا في اللي بيروح للنموذج ولا في السجل، وبتتطلب 6 حروف", async () => {
   const sb = mockSb(); const signed = [];
   const ctx = { ...own, sb, signUp: async (e, p, n) => { signed.push([e, p, n]); return { id: UID2 }; } };
