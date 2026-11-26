@@ -1,7 +1,7 @@
 /* features/control/autopilot.js — التشغيل الذاتي: المالك يحدد السياسة مرة، والسيستم يقرر لوحده في حدودها ويرجعله بالاستثناءات */
 
 const apAMissing=e=>e&&/autopilot_/i.test(e.message||"")&&/(does not exist|schema cache|Could not find)/i.test(e.message||"");
-const AP_K={discount:"خصم",void:"إلغاء فاتورة",policy:"تغيير السياسة"},AP_A={book:"الحجوزات والطابور",members:"الأعضاء والمتجر",stock:"المخزون",cash:"الخزنة وقفل اليوم",team:"الفريق",cust:"العملاء",debt:"الديون",cafe:"الكوفي",sec:"الإعدادات والصلاحيات"},AP_D={approved:"✅ اتنفّذ تلقائي",escalated:"⬆️ اترفع للمالك",error:"⚠️ خطأ",changed:"✎"};
+const AP_K={discount:"خصم",void:"إلغاء فاتورة",policy:"تغيير السياسة",mgr_redeem:"استبدال نقاط عميل",mgr_ch:"تحدي موظف",mgr_sredeem:"استبدال نقاط موظف",mgr_openday:"فتح اليوم"},AP_A={book:"الحجوزات والطابور",members:"الأعضاء والمتجر",stock:"المخزون",cash:"الخزنة وقفل اليوم",team:"الفريق",cust:"العملاء",debt:"الديون",cafe:"الكوفي",sec:"الإعدادات والصلاحيات"},AP_D={approved:"✅ اتنفّذ تلقائي",escalated:"⬆️ اترفع للمالك",error:"⚠️ خطأ",changed:"✎"};
 const apN=v=>{const s=String(v??"").trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d));const n=Number(s);return s!==""&&Number.isFinite(n)&&n>=0?n:NaN};
 
 V.auto=async function(){
@@ -23,6 +23,18 @@ ${tg("إلغاء تلقائي لغلطة الموظف في فاتورته","void
 ${row("مدة السماح بعد إنشاء الفاتورة","void_auto_minutes",p.void_auto_minutes+" دقيقة")}
 ${row("أقصى قيمة فاتورة","void_auto_max_total",fm(p.void_auto_max_total))}
 ${row("أقصى عدد إلغاءات تلقائية في اليوم","void_auto_daily_max",p.void_auto_daily_max)}
+<h2>السيستم بدل المدير</h2>
+<p class="m">هنا السيستم بينفّذ فعلًا (مش اقتراح) في حدود أرقامك. مفيش أي حركة فلوس، ومفيش قفل يوم (محتاج جرد حقيقي)، ومفيش تأكيد لمدفوعات العملاء.</p>
+${tg("السيستم يقوم بدور المدير (الزرار الرئيسي لجزء التنفيذ)","mgr_on",p.mgr_on,p.mgr_on?"شغّال: ينفّذ في الحدود دي":"مقفول")}
+${tg("استبدال نقاط العملاء","mgr_redeem",p.mgr_redeem,"بيتحقق من رصيد العميل بنفس دالة التطبيق")}
+${row("أقصى عدد استبدال في اليوم","mgr_redeem_daily_max",p.mgr_redeem_daily_max)}
+${tg("تأكيد تحديات الموظفين","mgr_ch",p.mgr_ch)}
+${row("أقصى عدد تحديات في اليوم","mgr_ch_daily_max",p.mgr_ch_daily_max)}
+${tg("استبدال نقاط الموظفين","mgr_sredeem",p.mgr_sredeem)}
+${row("أقصى تكلفة نقاط للطلب","mgr_sredeem_max_cost",p.mgr_sredeem_max_cost)}
+${row("أقصى عدد طلبات في اليوم","mgr_sredeem_daily_max",p.mgr_sredeem_daily_max)}
+${tg("فتح يوم العمل","mgr_openday",p.mgr_openday,"لو مفيش يوم مفتوح، وبشرط إن امبارح اتقفل بالجرد")}
+${row("يفتح اليوم بعد الساعة","mgr_open_hour",p.mgr_open_hour+":00")}
 <h2>اقتراحات السيستم</h2>
 <p class="m">باقي الأقسام «اقتراح فقط»: السيستم يفحص كل 15 دقيقة ويقترح، وإنت بتضغط تم أو تجاهل. مفيش أي حركة فلوس بتتم لوحدها.</p>
 ${tg("الحجوزات والطابور","book_on",p.book_on,"ينبّه لحجز عدّى ميعاده والعميل لسه ماوصلش")}
@@ -46,10 +58,11 @@ ${SG.length?SG.map(x=>`<div class="row"><div><b>${esc(x.title)}</b><div class="m
 <h2>سجل القرارات التلقائية</h2>
 ${L.length?L.map(x=>{const d=x.detail||{};return `<div class="row"><div><b>${AP_K[x.kind]||esc(x.kind)} · ${AP_D[x.decision]||esc(x.decision)}</b><div class="m">${esc(d.why||d.reason||d.err||(d.invoice_no?"فاتورة "+d.invoice_no+" · "+fm(d.total):"")||(d.pct?d.pct+"% · "+fm(d.amount):""))}</div><div class="m">${new Date(x.at).toLocaleString("ar-EG",{dateStyle:"short",timeStyle:"short"})}</div></div></div>`}).join(""):`<p class="m">لسه مفيش قرارات.</p>`}`)};
 
-async function apSave(o){const{error}=await sb.rpc("autopilot_save",{p_policy:o});error?toast(error.message):(toast("اتحفظ ✓"),V.auto())}
+async function apSave(o){const{error}=await sb.rpc(Object.keys(o).some(k=>k.startsWith("mgr_"))?"autopilot_save_mgr":"autopilot_save",{p_policy:o});error?toast(error.message):(toast("اتحفظ ✓"),V.auto())}
 async function apDecide(id,ok){const{error}=await sb.rpc("autopilot_suggestion_decide",{p_id:id,p_done:ok});error?toast(error.message):V.auto()}
 async function apToggle(k){const p=C.apPol||{},on=!p[k];
+if(k=="mgr_on"&&on&&!await askConfirm("تفعيل دور المدير؟ السيستم هينفّذ لوحده: استبدال نقاط العملاء، تأكيد تحديات الموظفين، استبدال نقاط الموظفين، وفتح اليوم، كله في الحدود اللي تحت. مفيش حركة فلوس. راجع الأرقام الأول."))return;
 if(k=="enabled"&&on&&!await askConfirm("تشغيل التشغيل الذاتي؟ السيستم هيوافق على الخصومات ويلغي الفواتير لوحده في حدود السياسة اللي تحتها. راجع الأرقام الأول."))return;
 apSave({[k]:on})}
-async function apEdit(k){const p=C.apPol||{},L={disc_auto_max_pct:"أقصى نسبة خصم تلقائي (%)",disc_auto_daily_total:"سقف الخصومات التلقائية في اليوم (جنيه)",void_auto_minutes:"مدة السماح بعد إنشاء الفاتورة (دقيقة، 0 إلى 240)",void_auto_max_total:"أقصى قيمة فاتورة تتلغي تلقائي (جنيه)",book_late_min:"التأخير قبل التنبيه (دقيقة، 5 إلى 240)",mem_expiry_days:"قبل انتهاء الاشتراك بكام يوم (1 إلى 60)",reserve_days:"حجز المنتج الواقف أكتر من كام يوم (1 إلى 30)",cash_close_hour:"الساعة (0 إلى 23)",team_open_hours:"حضور مفتوح أكتر من كام ساعة (6 إلى 24)",debt_days:"الدين القديم بعد كام يوم (1 إلى 90)",cash_diff_limit:"أقصى فرق مقبول في الدُرج (جنيه)",void_auto_daily_max:"أقصى عدد إلغاءات تلقائية في اليوم"};
+async function apEdit(k){const p=C.apPol||{},L={disc_auto_max_pct:"أقصى نسبة خصم تلقائي (%)",disc_auto_daily_total:"سقف الخصومات التلقائية في اليوم (جنيه)",void_auto_minutes:"مدة السماح بعد إنشاء الفاتورة (دقيقة، 0 إلى 240)",void_auto_max_total:"أقصى قيمة فاتورة تتلغي تلقائي (جنيه)",mgr_redeem_daily_max:"أقصى عدد استبدال نقاط عملاء في اليوم",mgr_ch_daily_max:"أقصى عدد تحديات في اليوم",mgr_sredeem_max_cost:"أقصى تكلفة نقاط للطلب الواحد",mgr_sredeem_daily_max:"أقصى عدد طلبات نقاط موظفين في اليوم",mgr_open_hour:"يفتح اليوم بعد الساعة (0 إلى 23)",book_late_min:"التأخير قبل التنبيه (دقيقة، 5 إلى 240)",mem_expiry_days:"قبل انتهاء الاشتراك بكام يوم (1 إلى 60)",reserve_days:"حجز المنتج الواقف أكتر من كام يوم (1 إلى 30)",cash_close_hour:"الساعة (0 إلى 23)",team_open_hours:"حضور مفتوح أكتر من كام ساعة (6 إلى 24)",debt_days:"الدين القديم بعد كام يوم (1 إلى 90)",cash_diff_limit:"أقصى فرق مقبول في الدُرج (جنيه)",void_auto_daily_max:"أقصى عدد إلغاءات تلقائية في اليوم"};
 const v=apN(await askInput(L[k],String(p[k])));if(Number.isNaN(v))return toast("الرقم غلط");apSave({[k]:v})}
