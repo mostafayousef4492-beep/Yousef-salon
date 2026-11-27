@@ -1,4 +1,4 @@
--- التشغيل الذاتي لكل الأقسام (اقتراحات): الحجوزات، الأعضاء والمتجر، المخزون، الخزنة وقفل اليوم.
+-- التشغيل الذاتي لكل الأقسام (اقتراحات): الحجوزات، الأعضاء والمتجر، المخزون، الخزنة وقفل اليوم، الفريق، العملاء، الديون، الكوفي، الإعدادات والصلاحيات.
 -- بيحتاج patch_autopilot.sql متشغّل قبله. كل قسم له مفتاح وحدود منفصلة ومقفول افتراضيًا، وبيشتغل بس لو المفتاح الرئيسي «enabled» شغّال.
 -- نظام «اقتراح فقط»: السيستم بيفحص كل 15 دقيقة ويطلّع اقتراحات للمالك والمدير (تم / تجاهل)، ومبيعملش أي حركة فلوس ولا بيغيّر بيانات.
 -- آمن لو اتشغّل أكتر من مرة.
@@ -12,11 +12,18 @@ alter table public.autopilot_policy
   add column if not exists stock_on boolean not null default false,
   add column if not exists cash_on boolean not null default false,
   add column if not exists cash_close_hour int not null default 23 check (cash_close_hour between 0 and 23),
-  add column if not exists cash_diff_limit numeric not null default 50 check (cash_diff_limit >= 0);
+  add column if not exists cash_diff_limit numeric not null default 50 check (cash_diff_limit >= 0),
+  add column if not exists team_on boolean not null default false,
+  add column if not exists team_open_hours int not null default 14 check (team_open_hours between 6 and 24),
+  add column if not exists cust_on boolean not null default false,
+  add column if not exists debt_on boolean not null default false,
+  add column if not exists debt_days int not null default 7 check (debt_days between 1 and 90),
+  add column if not exists cafe_on boolean not null default false,
+  add column if not exists sec_on boolean not null default false;
 
 create table if not exists public.autopilot_suggestions (
   id bigint generated always as identity primary key,
-  area text not null check (area in ('book', 'members', 'stock', 'cash')),
+  area text not null,
   kind text not null,
   ref text not null,
   title text not null,
@@ -29,6 +36,8 @@ create table if not exists public.autopilot_suggestions (
 );
 drop index if exists public.autopilot_sugg_open;
 create unique index if not exists autopilot_sugg_once on public.autopilot_suggestions(kind, ref);
+alter table public.autopilot_suggestions drop constraint if exists autopilot_suggestions_area_check;
+alter table public.autopilot_suggestions add constraint autopilot_suggestions_area_check check (area in ('book', 'members', 'stock', 'cash', 'team', 'cust', 'debt', 'cafe', 'sec'));
 create index if not exists autopilot_sugg_recent on public.autopilot_suggestions(created_at desc);
 alter table public.autopilot_suggestions enable row level security;
 revoke all on public.autopilot_suggestions from public, anon, authenticated;
@@ -110,6 +119,86 @@ begin
     end loop;
   end if;
 
+  if pol.team_on then
+    for r in select a.id, p.full_name nm, a.check_in from attendance a left join profiles p on p.id = a.staff_id
+              where a.check_out is null and a.check_in < now() - make_interval(hours => pol.team_open_hours) order by a.check_in limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('team', 'open_attendance', r.id::text, 'حضور مفتوح من أكتر من ' || pol.team_open_hours || ' ساعة: ' || coalesce(r.nm, 'موظف'),
+                'دخل ' || to_char(r.check_in at time zone v_tz, 'DD/MM HH24:MI') || ' ومسجّلش انصراف. صحّح الحضور.', 'att')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+    for r in select l.id, p.full_name nm, l.title from staff_ch_log l left join profiles p on p.id = l.staff_id
+              where l.status = 'claimed' and l.created_at < now() - interval '1 day' order by l.created_at limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('team', 'challenge_claim', r.id::text, 'تحدي مستني تأكيد: ' || coalesce(r.nm, 'موظف'), r.title || ' · مستني من أكتر من يوم. أكّده أو ارفضه.', 'chw')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+    for r in select x.id, p.full_name nm, x.label from staff_redeems x left join profiles p on p.id = x.staff_id
+              where x.status = 'pending' and x.created_at < now() - interval '1 day' order by x.created_at limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('team', 'staff_redeem', r.id::text, 'طلب استبدال نقاط مستني: ' || coalesce(r.nm, 'موظف'), r.label || ' · مستني من أكتر من يوم.', 'chw')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
+  if pol.cust_on then
+    for r in select q.id, c.name cn from redeem_requests q left join customers c on c.id = q.customer_id
+              where q.status = 'pending' and q.created_at < now() - interval '1 day' order by q.created_at limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('cust', 'redeem_pending', r.id::text, 'طلب استبدال نقاط عميل مستني: ' || coalesce(r.cn, 'عميل'), 'مستني من أكتر من يوم. وافق أو ارفض.', 'cust')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+    for r in select pc.id, c.name cn, pc.amount from pay_claims pc left join customers c on c.id = pc.customer_id
+              where pc.status = 'pending' and pc.created_at < now() - interval '2 hours' order by pc.created_at limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('cust', 'pay_claim', r.id::text, 'عميل قال إنه دفع: ' || coalesce(r.cn, 'عميل'), 'المبلغ ' || r.amount || ' جنيه ومحدش راجعه. اتأكد من التحويل.', 'cust')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
+  if pol.debt_on then
+    for r in select i.id, i.no, coalesce(i.debtor_name, c.name) dn, i.unpaid from invoices i left join customers c on c.id = i.customer_id
+              where i.unpaid > 0 and i.created_at < now() - make_interval(days => pol.debt_days)
+                and not exists (select 1 from invoices s where s.settles_invoice = i.id)
+              order by i.created_at limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('debt', 'old_debt', r.id::text || ':' || v_today, 'دين قديم: ' || coalesce(r.dn, 'عميل') || ' · ' || r.unpaid || ' جنيه',
+                'فاتورة ' || r.no || ' ليها أكتر من ' || pol.debt_days || ' يوم من غير سداد. كلّمه.', 'debt')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
+  if pol.cafe_on then
+    for r in select cp.id, cp.name, cp.stock, cp.min_stock from cafe_products cp
+              where cp.active and cp.track_stock and cp.min_stock > 0 and cp.stock <= cp.min_stock order by cp.stock limit 30 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('cafe', 'cafe_low', r.id::text || ':' || v_today, 'منتج كوفي قارب يخلص: ' || r.name, 'الرصيد ' || r.stock || ' والحد الأدنى ' || r.min_stock || '. اشتريه.', 'cafe_prods')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
+  if pol.sec_on and to_regclass('public.audit_log') is not null then
+    for r in select a.id, a.table_name tn, a.actor_name an, a.at, left(coalesce(a.summary, ''), 140) sm from audit_log a
+              where a.at > now() - interval '24 hours' and coalesce(a.actor_role, '') <> 'owner'
+                and (a.table_name in ('app_settings', 'rule_defs', 'autopilot_policy')
+                     or (a.table_name = 'profiles' and a.changed && array['role', 'perms', 'commission_pct', 'salary']::text[]))
+              order by a.at desc limit 20 loop
+      insert into autopilot_suggestions(area, kind, ref, title, body, tab)
+        values ('sec', 'sensitive_change', r.id::text,
+                case when r.tn = 'profiles' then 'تعديل في صلاحيات أو مرتب أو عمولة' else 'تعديل في الإعدادات أو القواعد' end || ' بواسطة ' || coalesce(r.an, 'مجهول'),
+                to_char(r.at at time zone v_tz, 'DD/MM HH24:MI') || ' · ' || r.sm || ' · راجعه في سجل الرقابة.', 'ctl_rules')
+        on conflict (kind, ref) do nothing;
+      get diagnostics k = row_count; n := n + k;
+    end loop;
+  end if;
+
   if n > 0 then
     begin
       perform push_send(push_staff_ids(array['owner', 'manager'], null, null), 'التشغيل الذاتي: ' || n || ' اقتراح جديد', 'افتح «التشغيل الذاتي» وشوف الاقتراحات.', 'auto', 'ap_scan_' || to_char(now() at time zone v_tz, 'YYYYMMDDHH24'), false);
@@ -159,6 +248,13 @@ begin
     cash_on = coalesce((p_policy->>'cash_on')::boolean, cash_on),
     cash_close_hour = coalesce((p_policy->>'cash_close_hour')::int, cash_close_hour),
     cash_diff_limit = coalesce((p_policy->>'cash_diff_limit')::numeric, cash_diff_limit),
+    team_on = coalesce((p_policy->>'team_on')::boolean, team_on),
+    team_open_hours = coalesce((p_policy->>'team_open_hours')::int, team_open_hours),
+    cust_on = coalesce((p_policy->>'cust_on')::boolean, cust_on),
+    debt_on = coalesce((p_policy->>'debt_on')::boolean, debt_on),
+    debt_days = coalesce((p_policy->>'debt_days')::int, debt_days),
+    cafe_on = coalesce((p_policy->>'cafe_on')::boolean, cafe_on),
+    sec_on = coalesce((p_policy->>'sec_on')::boolean, sec_on),
     updated_by = auth.uid(), updated_at = now()
    where id = 1;
   insert into autopilot_log(kind, ref, decision, detail) values ('policy', null, 'changed', p_policy);

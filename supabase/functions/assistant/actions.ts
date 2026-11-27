@@ -216,6 +216,23 @@ const ACTIONS: Record<string, Act> = {
       if (error) throw new Error(error.message); return { message: `تم تسجيل مصروف ${p.category} ${j(p.amount)} ✓` };
     } },
 
+  cash_move: { confirm: true,
+    async validate(ctx, p) {
+      const amount = num(p?.amount); if (!amount) return fail("اكتب مبلغ صحيح");
+      const kind = p?.kind === "deposit" ? "deposit" : p?.kind === "withdraw" ? "withdraw" : null; if (!kind) return fail("حدد: سحب من الدرج (withdraw) ولا إضافة للدرج (deposit)");
+      const CATS: Record<string, string> = { owner_draw: "سحب المالك", bank_deposit: "إيداع بنك", owner_inject: "ضخ من المالك", float: "فكة", other: "أخرى" };
+      const category = p?.category ? String(p.category) : "other"; if (!CATS[category]) return fail("التصنيف لازم واحد من: " + Object.keys(CATS).join("، "));
+      if (category === "owner_draw" && ctx.role !== "owner") return fail("سحب المالك للمالك بس");
+      const note = txt(p?.note ?? "", 120); if (note === null) return fail("الملاحظة أطول من 120 حرف");
+      if (category === "other" && !note) return fail("اكتب ملاحظة عن الحركة");
+      const d = await bizDay(ctx); if (!d.open) return fail("اليوم مقفول. افتح اليوم الأول");
+      return { ok: true, params: { kind, amount, category, note, day: d.day }, title: kind === "withdraw" ? "سحب من الدرج" : "إضافة للدرج", lines: [`المبلغ: ${j(amount)}`, `التصنيف: ${CATS[category]}`, note ? `ملاحظة: ${note}` : "من غير ملاحظة", `اليوم: ${d.day}`] };
+    },
+    async run(ctx, p) {
+      const { error } = await ctx.sb.from("cash_moves").insert({ day: p.day, kind: p.kind, amount: p.amount, note: p.note || null, category: p.category });
+      if (error) throw new Error(error.message); return { message: p.kind === "withdraw" ? `تم سحب ${j(p.amount)} من الدرج ✓` : `تمت إضافة ${j(p.amount)} للدرج ✓` };
+    } },
+
   collect_debt: { confirm: true,
     async validate(ctx, p) {
       const c = await custOf(ctx, p?.customer_id); if ("error" in c) return fail(c.error);
@@ -299,6 +316,7 @@ export const ACTION_TOOLS = [
   { name: "record_staff_tx", description: "تسجيل سلفة/سحب (advance) أو خصم (deduction) أو مكافأة (bonus) لموظف (كارت تأكيد). paid_now=true للمكافأة بس لو المدير قال إنه سلّمها كاش دلوقتي (بتتخصم من الدرج)." + WARN, input_schema: { type: "object", properties: { ...STAFF, kind: S("النوع", { enum: ["advance", "deduction", "bonus"] }), amount: N("المبلغ"), note: S("ملاحظة"), paid_now: { type: "boolean" } }, required: ["kind", "amount"] } },
   { name: "pay_salary", description: "صرف راتب/مستحقات لموظف (كارت تأكيد). paid_from: drawer = من الدرج، other = من برّه." + WARN, input_schema: { type: "object", properties: { ...STAFF, amount: N("المبلغ"), paid_from: S("المصدر", { enum: ["drawer", "other"] }), note: S("ملاحظة") }, required: ["amount"] } },
   { name: "add_expense", description: "تسجيل مصروف (كارت تأكيد). التصنيف لازم من تصنيفات المصروفات المعرّفة." + WARN, input_schema: { type: "object", properties: { category: S("التصنيف (إيجار / كهرباء ومياه / صيانة / تسويق / مستلزمات / أخرى)"), amount: N("المبلغ"), note: S("ملاحظة"), paid_from: S("المصدر", { enum: ["drawer", "other"] }), date: S("YYYY-MM-DD (افتراضي يوم العمل)") }, required: ["category", "amount"] } },
+  { name: "cash_move", description: "سحب من الدرج (withdraw) أو إضافة للدرج (deposit) بتصنيف: owner_draw سحب المالك (للمالك بس)، bank_deposit إيداع بنك، owner_inject ضخ من المالك، float فكة، other أخرى (لازم note). كارت تأكيد." + WARN, input_schema: { type: "object", properties: { kind: S("withdraw أو deposit", { enum: ["withdraw", "deposit"] }), amount: N("المبلغ"), category: S("التصنيف", { enum: ["owner_draw", "bank_deposit", "owner_inject", "float", "other"] }), note: S("ملاحظة (اختياري، لازم لو other)") }, required: ["kind", "amount"] } },
   { name: "collect_debt", description: "تحصيل دين من عميل (كارت تأكيد). بيتوزع على أقدم فواتير الدين." + WARN, input_schema: { type: "object", properties: { customer_id: I("id العميل"), amount: N("المبلغ المحصّل"), method: S("طريقة الدفع", { enum: ["cash", "card", "wallet"] }) }, required: ["customer_id", "amount"] } },
   { name: "open_day", description: "فتح يوم عمل (كارت تأكيد)." + WARN, input_schema: { type: "object", properties: { day: S("YYYY-MM-DD (افتراضي النهارده)") } } },
   { name: "close_day", description: "قفل اليوم المفتوح بجرد الدرج (كارت تأكيد فيه المتوقع والفرق). لازم المدير يقول الكاش المعدود." + WARN, input_schema: { type: "object", properties: { counted_cash: N("الكاش اللي اتعدّ في الدرج"), counted_card: N("إجمالي الكارت"), counted_wallet: N("إجمالي المحفظة"), opening: N("رصيد أول اليوم (اختياري)"), note: S("ملاحظة") }, required: ["counted_cash"] } },
