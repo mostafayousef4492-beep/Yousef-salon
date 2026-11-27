@@ -16,7 +16,7 @@ put(`<h1>خامات الخدمات</h1>
 <p class="m">الخامة بتتخصم تلقائي بكمية ثابتة لما الفاتورة تتقفل، وبترجع لوحدها لو الفاتورة اتلغت.</p>
 ${low?`<div class="m" style="margin:6px 0;color:var(--red)">${low} خامة وصلت للحد الأدنى أو أقل</div>`:""}`
 +(C.mat.length?C.mat.map(x=>{const lo=Number(x.stock)<=Number(x.min_stock),n=(use[x.id]||[]).length;
-return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}${x.product_id?` <span class="tag">رصيدها من المخزون</span>`:""}<div class="m">الوحدة: ${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
+return `<div class="row"><div><b>${esc(x.name)}</b>${x.active?"":` <span class="m">(موقوفة)</span>`}${x.optional?` <span class="tag">اختيارية</span>`:""}${x.group_name?` <span class="tag">${esc(x.group_name)}</span>`:""}${x.product_id?` <span class="tag">رصيدها من المخزون</span>`:""}<div class="m">الوحدة: ${esc(x.unit)} · تكلفة الوحدة ${matFm(x.cost)} · داخلة في ${n} خدمة</div></div>
 <div style="text-align:left"><span class="tag" style="${lo&&x.active?"background:var(--red);color:#fff":""}">${matFm(x.stock)} ${esc(x.unit)}</span><br>
 ${cr&&!x.product_id?`<button class="btn s g" onclick="matRestock(${x.id})">+ توريد</button> <button class="btn s g" onclick="matCount(${x.id})">جرد</button> <button class="btn s g" onclick="matEdit(${x.id})">تعديل</button>`:""}${me.role=="owner"||me.role=="manager"?`<button class="btn s g" style="color:var(--red)" onclick="matDel(${x.id})">مسح</button>`:""}<button class="btn s g" onclick="matLog(${x.id})">الحركة</button></div></div>`}).join(""):`<p class="m" style="margin-top:10px">مفيش خامات لسه. دوس «+ خامة جديدة» وضيف مثلاً: شفرة (قطعة)، كريم حمام (جرام)، ماسك (جرام).</p>`))};
 
@@ -35,6 +35,7 @@ ${f("الاسم","mf-n",x?x.name:"")}
 <div id="mf-mb">
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الوحدة (قطعة / جرام / مللي)","mf-u",x?x.unit:"جرام")}</div><div style="flex:1">${f("تكلفة الوحدة (ج)","mf-c",x?matFm(x.cost):"0",'inputmode="decimal"')}</div></div>
 <div style="display:flex;gap:8px"><div style="flex:1">${f("الحد الأدنى للتنبيه","mf-m",x?matFm(x.min_stock):"0",'inputmode="decimal"')}</div>${x?"":`<div style="flex:1">${f("الكمية الموجودة دلوقتي","mf-q","0",'inputmode="decimal"')}</div>`}</div>
+${x&&!("group_name" in x)?"":`<label class="m" style="display:block;margin-top:8px">المجموعة (اختياري): أنواع بديلة لنفس الخامة، مثلًا «ماسك صنفرة»</label><input id="mf-g" list="mf-gl" type="text" style="width:100%" value="${esc(x&&x.group_name||"")}" placeholder="سيبها فاضية لو الخامة لوحدها"><datalist id="mf-gl">${[...new Set((C.mat||[]).map(m=>m.group_name).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join("")}</datalist><div class="m">الخدمة المربوطة بأي نوع في المجموعة بتسحب من أي نوع فيها (الأقدم الأول)، فاربطها بنوع واحد بس.</div>`}
 ${x?`<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mf-a" ${x.active?"checked":""}> شغّالة (الخصم التلقائي)</label>`:""}
 <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="mf-o" ${x&&x.optional?"checked":""}> اختيارية (بتظهر في الكاشير مع الخدمة، وتمنها بيتخصم قبل نسبة الصنايعي)</label>
 ${x&&!("cost_in_commission" in x)?"":`<label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="mf-cc" ${x&&x.cost_in_commission?"checked":""}> تكلفتها تتخصم تلقائي قبل نسبة الصنايعي لما تتباع خدمة مربوطة بيها (زي كيس الحنة مع الصبغة)</label>`}
@@ -67,6 +68,7 @@ if(rec.some(r=>Number.isNaN(r.q)||r.q<0))return toast("كمية استهلاك �
 C.matBusy=1;b.disabled=true;let mid=id,err=null,warn=[];
 {const r=await sb.rpc("material_save",{p_id:id,p_name:n,p_unit:u,p_min:mn,p_cost:co,p_active:act});if(r.error)err=r.error;else mid=id==null?r.data:id}
 if(!err&&(opt||(x&&x.optional))){const r=await sb.rpc("material_set_optional",{p_id:mid,p_optional:opt,p_qty:oq});if(r.error)warn.push(r.error.message)}
+if(!err&&$("mf-g")&&(($("mf-g").value.trim())||(x&&x.group_name))){const r=await sb.rpc("material_set_group",{p_id:mid,p_group:$("mf-g").value.trim()});if(r.error)warn.push(r.error.message)}
 if(!err&&$("mf-cc")&&($("mf-cc").checked||(x&&x.cost_in_commission))){const r=await sb.rpc("material_set_cost_commission",{p_id:mid,p_on:$("mf-cc").checked});if(r.error)warn.push(r.error.message)}
 if(!err&&!x&&q>0){const r=await sb.rpc("material_restock",{p_id:mid,p_qty:q,p_note:"رصيد ابتدائي"});if(r.error)warn.push("الكمية فشلت: "+r.error.message)}
 if(!err)for(const r of rec){const e=await sb.rpc("service_material_set",{p_service:r.p_service,p_material:mid,p_qty:r.q});if(e.error){warn.push("الاستهلاك: "+e.error.message);break}}
