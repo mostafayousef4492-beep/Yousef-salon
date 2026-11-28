@@ -62,9 +62,9 @@ V.cnt=async function(){
 const er=await itLoad();if(er)return put(`<h1>الجرد</h1><p class="m">${esc(er.message)}</p>`);
 if(!can("restock"))return put(`<h1>الجرد</h1><p class="m">مش معاك صلاحية الجرد.</p>`);
 const P=C.stk.filter(x=>x.active),O=C.mat.filter(x=>!x.product_id&&x.active);
-put(`<h1>الجرد</h1><p class="m">اكتب العدد الفعلي الموجود عندك لكل صنف: علب أو قطع كاملة، وللأصناف اللي بتتستهلك كمان اللي في العلبة المفتوحة. اللي مش متغيّر مش هيتسجّل.</p>
+put(`<h1>الجرد</h1><p class="m">اكتب العدد الفعلي لكل صنف. «علب كاملة» = العلب المقفولة اللي لسه ما اتفتحتش. «مفتوح» = اللي فاضل في علبة واحدة اتفتحت (لازم أقل من محتوى العلبة). لو كتبت فيه كمية أكبر، السيستم بيحوّل الزيادة لعلب كاملة. اللي مش متغيّر مش هيتسجّل.</p>
 <button class="btn s g" onclick="document.querySelectorAll('#cnt-b input[data-k]').forEach(i=>i.value=0)">صفّر الكل وابدأ من جديد</button><div id="cnt-b">`+
-P.map(x=>{const mm=C.itBy[x.id];return `<div class="row" style="display:block"><b>${esc(x.name)}</b> <span class="m">${mm?"(بالعلبة)":"(بالقطعة)"}</span><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span class="m" style="flex:1">${mm?"علب كاملة":"قطع"}</span><input type="text" inputmode="numeric" style="width:80px" data-k="p" data-id="${x.id}" data-o="${x.stock}" value="${x.stock}">${mm?`<span class="m">+ مفتوح (${esc(mm.unit)})</span><input type="text" inputmode="decimal" style="width:80px" data-k="o" data-id="${x.id}" data-o="${matFm(mm.open_qty)}" value="${matFm(mm.open_qty)}">`:""}</div></div>`}).join("")+
+P.map(x=>{const mm=C.itBy[x.id];return `<div class="row" style="display:block"><b>${esc(x.name)}</b> <span class="m">${mm?"(بالعلبة)":"(بالقطعة)"}</span><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span class="m" style="flex:1">${mm?"علب كاملة":"قطع"}</span><input type="text" inputmode="numeric" style="width:80px" data-k="p" data-id="${x.id}" data-o="${x.stock}" value="${x.stock}">${mm?`<span class="m">+ مفتوح (${esc(mm.unit)}، أقل من ${matFm(mm.pack_size)})</span><input type="text" inputmode="decimal" style="width:80px" data-k="o" data-id="${x.id}" data-o="${matFm(mm.open_qty)}" value="${matFm(mm.open_qty)}">`:""}</div></div>`}).join("")+
 O.map(x=>`<div class="row" style="display:block"><b>${esc(x.name)}</b> <span class="m">(خامة قديمة)</span><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span class="m" style="flex:1">الكمية (${esc(x.unit)})</span><input type="text" inputmode="decimal" style="width:90px" data-k="m" data-id="${x.id}" data-o="${matFm(x.stock)}" value="${matFm(x.stock)}"></div></div>`).join("")+
 `</div><button class="btn" style="margin-top:12px;width:100%" onclick="itBulkSave(this)">حفظ الجرد</button>`)};
 
@@ -132,7 +132,9 @@ async function itBulkSave(b){if(b.disabled)return;const ins=[...document.querySe
 for(const i of ins){const k=i.dataset.k,id=+i.dataset.id;if(k=="m"){if(i.value.trim()==i.dataset.o)continue;const q=matQ(i.value);if(!(q>=0))return toast("كمية غلط");jobs.push({m:id,q});continue}
  const pe=document.querySelector(`#cnt-b input[data-k="p"][data-id="${id}"]`),oe=document.querySelector(`#cnt-b input[data-k="o"][data-id="${id}"]`);if(seen[id])continue;seen[id]=1;
  const ch=pe.value.trim()!=pe.dataset.o||(oe&&oe.value.trim()!=oe.dataset.o);if(!ch)continue;const bx=matQ(pe.value),op=oe?matQ(oe.value):0;
- if(!(bx>=0)||!Number.isInteger(bx))return toast("عدد العلب لازم رقم صحيح");if(!(op>=0))return toast("كمية المفتوح غلط");jobs.push({p:id,b:bx,o:op})}
+ if(!(bx>=0)||!Number.isInteger(bx))return toast("عدد العلب لازم رقم صحيح");if(!(op>=0))return toast("كمية المفتوح غلط");
+ const pk=C.itBy[id]?Number(C.itBy[id].pack_size):0;let b2=bx,o2=op;if(pk>0&&o2>=pk){b2+=Math.floor(o2/pk);o2=+(o2%pk).toFixed(3)}   // لو كتب إجمالي جرامات في خانة المفتوح: نحوّل الزيادة لعلب كاملة
+ jobs.push({p:id,b:b2,o:o2})}
 if(!jobs.length)return toast("مفيش تغيير")
 if(!await askConfirm("تسجّل جرد "+jobs.length+" صنف وتعدّل الأرصدة؟"))return;
 b.disabled=true;let err=null,done=0;for(const j of jobs){const r=j.m!=null?await sb.rpc("material_count",{p_id:j.m,p_counted:j.q,p_note:"جرد شامل"}):await sb.rpc("item_count",{p_product:j.p,p_boxes:j.b,p_open:j.o,p_note:"جرد شامل"});if(r.error){err=r.error;break}done++}
