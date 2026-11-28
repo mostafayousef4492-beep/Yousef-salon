@@ -13,7 +13,14 @@ if(rows.some(r=>!r.is_off&&r.start_time===r.end_time))return toast("وقت ال�
 const{error}=await sb.from("staff_shifts").upsert(rows);error?toast(error.message):toast("تم حفظ الشيفت")}
 
 async function addLeave(){const f=$("lf").value,t=$("lt").value||f;if(!f)return toast("اختار تاريخ البداية");if(t<f)return toast("تاريخ النهاية قبل البداية");
-const{error}=await sb.from("staff_leaves").insert({staff_id:C.sid,from_date:f,to_date:t,reason:$("lr").value});error?toast(error.message):(toast("تمت إضافة الإجازة"),openShift(C.sid))}
+const rs=$("lr").value;const{error}=await sb.from("staff_leaves").insert({staff_id:C.sid,from_date:f,to_date:t,reason:rs});if(error)return toast(error.message);toast("تمت إضافة الإجازة");
+// إجازة بدون أجر: خصم يوم الراتب بتأكيد المالك (الراتب ÷ 30 × عدد الأيام، وبتقدر تعدّل المبلغ)
+if(me.role=="owner"&&await askConfirm("الإجازة دي بدون أجر؟ هنحسب خصم من الراتب. (إلغاء = إجازة مدفوعة)",{ok:"بدون أجر، احسب الخصم"})){
+const days=Math.round((new Date(t+"T12:00:00")-new Date(f+"T12:00:00"))/864e5)+1;let sal=0;try{const{data}=await sb.rpc("owner_salaries");sal=Number(((data||[]).find(r=>r.id==C.sid)||{}).salary)||0}catch(e){}
+const def=sal>0?Math.round(sal/30*days):"";const v=await askInput("خصم إجازة "+days+" يوم"+(sal>0?"\n(الراتب "+sal+" ÷ 30 × "+days+" يوم). تقدر تعدّل المبلغ:":"\nمفيش راتب مسجّل، اكتب مبلغ الخصم:"),String(def));
+const amt=Number(String(v??"").trim().replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+if(v!==null&&amt>0){const r=await sb.from("staff_transactions").insert({staff_id:C.sid,kind:"deduction",amount:amt,note:"إجازة بدون أجر "+f+(t!=f?" ← "+t:"")+(rs?" ("+rs+")":"")});r.error?toast(r.error.message):toast("اتسجّل خصم "+amt+" ✓")}}
+openShift(C.sid)}
 
 async function delLeave(id){await sb.from("staff_leaves").delete().eq("id",id);openShift(C.sid)}
 
