@@ -91,7 +91,7 @@ error?toast(error.message):(toast("اتسجّل الجرد ✓"),matRefresh())}
 async function matLog(id){const x=(C.mat||[]).find(a=>a.id==id);if(!x)return;
 const{data,error}=await sb.from("material_movements").select("qty,reason,invoice_id,note,created_at").eq("material_id",id).order("created_at",{ascending:false}).limit(60);
 if(error)return toast(error.message);
-const R={restock:"توريد",service:"خدمة",service_void:"رجوع (إلغاء)",count:"جرد",initial:"ابتدائي",service_option:"خامة اختيارية مع الخدمة"};
+const R={restock:"توريد",service:"خدمة",service_void:"رجوع (إلغاء)",count:"جرد",initial:"ابتدائي",service_option:"خامة اختيارية مع الخدمة",issue:"صرف للمحل"};
 const o=$("sheet");if(o)o.remove();const w=document.createElement("div");w.id="sheet";w.className="sheet-bg";w.onclick=e=>{if(e.target==w)svcClose()};
 w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="sheet-h"><b>حركة «${esc(x.name)}»</b><button class="btn g s" onclick="svcClose()" aria-label="إغلاق">✕</button></div>`+
 ((data||[]).length?data.map(r=>`<div class="row"><div><b>${R[r.reason]||esc(r.reason)}</b><div class="m">${new Date(r.created_at).toLocaleString("ar-EG")}${r.invoice_id?" · فاتورة #"+r.invoice_id:""}${r.note?" · "+esc(r.note):""}</div></div><span class="tag" style="${Number(r.qty)<0?"background:var(--red);color:#fff":""}">${Number(r.qty)>0?"+":""}${matFm(r.qty)} ${esc(x.unit)}</span></div>`).join(""):`<p class="m">مفيش حركة لسه.</p>`)+`</div>`;
