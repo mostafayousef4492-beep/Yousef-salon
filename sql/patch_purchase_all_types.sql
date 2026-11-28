@@ -4,7 +4,7 @@
 -- 2) مجموعة الخامة (materials.group_name): خامات من أكتر من نوع/ماركة ليها نفس المجموعة (مثلًا «ماسك صنفرة»).
 --    الخدمة المربوطة بأي خامة من المجموعة بتسحب من أي نوع فيها: الأقدم الأول (الأقل رقمًا) اللي رصيده يكفي، ولو مش كفاية بتكمّل من اللي بعده.
 --    الخامات من غير مجموعة شغلها زي ما هو بالظبط. اربط الخدمة بنوع واحد بس من المجموعة (لو ربطتها بأكتر من نوع في نفس المجموعة، بيتحسب الأكبر مش المجموع).
--- لازم patch_materials.sql و patch_optional_materials.sql (عمود mat_cost). آمن لو اتشغّل أكتر من مرة.
+-- لازم patch_materials.sql و patch_optional_materials.sql (عمود mat_cost). ده بيغطي patch_material_auto_cost.sql كمان: متشغّلوش بعده (هيرجّع الـ trigger القديم من غير المجموعات). آمن لو اتشغّل أكتر من مرة.
 do $$ begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'invoice_items' and column_name = 'mat_cost') then
     raise exception 'شغّل patch_optional_materials.sql الأول';
@@ -163,5 +163,16 @@ begin
 end $fn$;
 revoke all on function public.material_set_group(bigint, text) from public, anon;
 grant execute on function public.material_set_group(bigint, text) to authenticated;
+
+-- ربط الخامة بخصم تكلفتها من عمولة الصنايعي (نفس اللي في patch_material_auto_cost.sql، متضمّن هنا عشان متحتاجش تشغّل الملف ده بعدّه)
+create or replace function public.material_set_cost_commission(p_id bigint, p_on boolean) returns void
+language plpgsql security definer set search_path to 'public' as $fn$
+begin
+  if not (is_mgr() or has_perm('restock')) then raise exception 'غير مصرح'; end if;
+  update materials set cost_in_commission = coalesce(p_on, false) where id = p_id;
+  if not found then raise exception 'الخامة مش موجودة'; end if;
+end $fn$;
+revoke all on function public.material_set_cost_commission(bigint, boolean) from public, anon;
+grant execute on function public.material_set_cost_commission(bigint, boolean) to authenticated;
 notify pgrst, 'reload schema';
 -- تراجع: drop function record_purchase_v2(...), material_set_group(...); والـ trigger القديم في patch_material_auto_cost.sql
