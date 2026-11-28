@@ -26,10 +26,10 @@ function rpRows(){const R=[];PSC.filter(g=>g[0]!="adm").forEach(g=>{R.push(["h",
 const rpOn=(r,k)=>!!(PD[r]||{})[k];
 V.ctl=async()=>{if(me.role!="owner")return put(`<p class="m">للمالك بس.</p>`);
   const{data:ppl,error}=await sb.from("profiles").select(PCOLS).in("role",["cashier","barber","assistant"]).order("full_name");
-  if(error)return put(`<h1>مركز التحكم</h1><p class="m">${esc(error.message)}</p>`);
+  if(error)return put(`<h1>الصلاحيات</h1><p class="m">${esc(error.message)}</p>`);
   const rows=rpRows(),exc=p=>Object.keys(p.perms||{}).filter(k=>!k.startsWith("mg_")&&k!="cafe_only"&&!!p.perms[k]!==rpOn(p.role,k)).length,co=p=>p.perms&&p.perms.cafe_only;
   C.rpPpl=ppl||[];
-  put(`<h1>مركز التحكم — الصلاحيات</h1><p class="m">الصلاحيات الافتراضية لكل دور. اللي تفعّله لدور بيتطبّق على كل موظف فيه، إلا اللي ليه استثناء خاص (تحت). المالك والمدير ليهم كل الصلاحيات دايمًا.</p>
+  put(`<h1>الصلاحيات</h1><p class="m">الصلاحيات الافتراضية لكل دور. اللي تفعّله لدور بيتطبّق على كل موظف فيه، إلا اللي ليه استثناء خاص (تحت). المالك والمدير ليهم كل الصلاحيات دايمًا.</p>
   <div class="box" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:right;padding:6px">الصلاحية</th>${RP_ROLES.map(r=>`<th style="padding:6px">${r[1]}</th>`).join("")}</tr></thead><tbody>${rows.map(x=>x[0]=="h"?`<tr><td colspan="${RP_ROLES.length+1}" style="padding:12px 6px 4px;border-top:1px solid var(--line)"><b>${x[1]}</b><div class="m">${x[2]||""}</div></td></tr>`:`<tr><td style="padding:6px;${x[4]?"padding-inline-start:20px;":""}">${esc(x[4]?x[2]:x[2]+(x[3]?"":""))}</td>${RP_ROLES.map(r=>`<td style="text-align:center;padding:6px"><input type="checkbox" id="rp_${r[0]}_${x[1]}" ${rpOn(r[0],x[1])?"checked":""} style="width:22px;height:22px;margin:0"></td>`).join("")}</tr>`).join("")}</tbody></table></div>
   <div class="chips" style="margin-top:10px"><button class="btn" onclick="rpSave()">حفظ صلاحيات الأدوار</button></div>
   <h2>الموظفين والاستثناءات</h2><p class="m">الاستثناء = صلاحية الموظف مختلفة عن دوره. "تنضيف الاستثناءات" بيشيل المطابق لافتراضي الدور عشان الموظف يسمع أي تغيير بتعمله فوق.</p>
