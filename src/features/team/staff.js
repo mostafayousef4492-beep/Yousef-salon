@@ -53,7 +53,7 @@ function delTx(id){return ownerDel("staff_transactions",id,()=>C.reload(),"حذ�
 
 async function myS(id,st){const{error}=await sb.rpc("set_my_appt_status",{p_id:id,p_status:st});error?toast(error.message):C.reload()}
 
-V.me=()=>{C.meQ=null;put(`<div id="mehero"></div>${me.role=="barber"?`<div id="btoday"></div><div id="bnow"></div><div id="mecuts"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber"){barberToday();barberNow();clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="me"){barberToday();barberNow()}},45000)}panel(me.id,false)};
+V.me=()=>{C.meQ=null;put(`<h1>شاشتي</h1><div id="mehero"></div>${me.role=="barber"?`<div id="btoday"></div><div id="bnow"></div><div id="mecuts"></div>`:""}<div id="panel"></div>`);meHero();if(me.role=="barber"){barberToday();barberNow();clearInterval(C.poll);C.poll=setInterval(()=>{if(tab=="me"){barberToday();barberNow()}},45000)}panel(me.id,false)};
 
 // ===== كارت الترحيب في شاشة الموظف (عرض فقط — بيقرا اللي متحمّل أصلًا من شاشتي) =====
 function meHero(){const el=$("mehero");if(!el)return;
